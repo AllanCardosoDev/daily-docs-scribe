@@ -551,7 +551,7 @@ function AggTable({
                   >
                     <div
                       className={`h-9 w-full flex items-center px-3 ${
-                        isFirst ? "justify-start" : "justify-end text-right"
+                        isFirst ? "justify-start" : "justify-center text-center"
                       }`}
                     >
                       {h}
@@ -583,13 +583,13 @@ function AggTable({
                     </TableCell>
                     {keys.map((k) => (
                       <TableCell key={k} className="p-1 align-middle min-w-[92px]">
-                        <div className="h-9 w-full flex items-center justify-end px-3 text-right tabular-nums font-normal text-foreground">
+                        <div className="h-9 w-full flex items-center justify-center px-3 text-center tabular-nums font-normal text-foreground">
                           {(Number(r[k]) || 0).toLocaleString("pt-BR")}
                         </div>
                       </TableCell>
                     ))}
                     <TableCell className="p-1 align-middle min-w-[92px]">
-                      <div className="h-9 w-full flex items-center justify-end px-3 text-right tabular-nums font-bold text-foreground">
+                      <div className="h-9 w-full flex items-center justify-center px-3 text-center tabular-nums font-bold text-foreground">
                         {total.toLocaleString("pt-BR")}
                       </div>
                     </TableCell>
@@ -606,13 +606,13 @@ function AggTable({
                 </TableCell>
                 {keys.map((k) => (
                   <TableCell key={k} className="p-1 align-middle min-w-[92px]">
-                    <div className="h-9 w-full flex items-center justify-end px-3 text-right tabular-nums font-bold text-foreground">
+                    <div className="h-9 w-full flex items-center justify-center px-3 text-center tabular-nums font-bold text-foreground">
                       {totals[k].toLocaleString("pt-BR")}
                     </div>
                   </TableCell>
                 ))}
                 <TableCell className="p-1 align-middle min-w-[92px]">
-                  <div className="h-9 w-full flex items-center justify-end px-3 text-right tabular-nums font-bold text-foreground">
+                  <div className="h-9 w-full flex items-center justify-center px-3 text-center tabular-nums font-bold text-foreground">
                     {grand.toLocaleString("pt-BR")}
                   </div>
                 </TableCell>

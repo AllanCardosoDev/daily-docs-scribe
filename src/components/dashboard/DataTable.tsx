@@ -124,7 +124,7 @@ export const DataTable = memo(function DataTable({
                     >
                       <div
                         className={`h-9 w-full flex items-center px-3 ${
-                          c.numeric ? "justify-end text-right" : "justify-start"
+                          c.numeric ? "justify-center text-center" : "justify-start"
                         }`}
                       >
                         {c.label}
@@ -215,7 +215,7 @@ export const DataTable = memo(function DataTable({
                         }, 0);
                         return (
                           <TableCell key={c.key} className={`p-1 align-middle ${widthCls}`}>
-                            <div className="h-9 w-full flex items-center justify-end px-3 text-right tabular-nums font-bold text-foreground">
+                            <div className="h-9 w-full flex items-center justify-center px-3 text-center tabular-nums font-bold text-foreground">
                               {NF.format(sum)}
                             </div>
                           </TableCell>
@@ -264,7 +264,7 @@ function DataCell({
           onChange={(e) => onChange(e.target.value)}
           className={`h-9 w-full bg-transparent border-transparent hover:border-border focus:border-ring transition-colors px-3 ${
             column.numeric
-              ? "text-right tabular-nums font-normal text-foreground [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              ? "text-center tabular-nums font-normal text-foreground [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               : "font-bold text-foreground"
           }`}
           aria-label={column.label}
@@ -277,7 +277,7 @@ function DataCell({
       <div
         className={`h-9 w-full flex items-center px-3 ${
           column.numeric
-            ? "justify-end text-right tabular-nums font-normal whitespace-nowrap"
+            ? "justify-center text-center tabular-nums font-normal whitespace-nowrap"
             : "justify-start break-words whitespace-normal leading-snug font-bold text-foreground"
         }`}
       >
