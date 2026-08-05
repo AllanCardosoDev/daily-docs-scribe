@@ -42,14 +42,36 @@ function todayISO() {
 
 type AnyRow = Record<string, any>;
 
+function getItemVal(item: AnyRow | undefined, key: string): number {
+  if (!item) return 0;
+  if (item[key] !== undefined && item[key] !== null) return Number(item[key]) || 0;
+  const normTarget = key
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/gi, "")
+    .toLowerCase();
+
+  for (const [k, v] of Object.entries(item)) {
+    if (k === "mun" || k === "municipio") continue;
+    const normK = k
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]/gi, "")
+      .toLowerCase();
+    if (normK === normTarget) return Number(v) || 0;
+  }
+  return 0;
+}
+
 function aggregateSum(rows: AnyRow[], field: string, keys: string[]) {
   const map = new Map<string, Record<string, number>>();
   for (const r of rows) {
     const list: AnyRow[] = (r?.[field] as AnyRow[]) ?? [];
     for (const item of list) {
-      const mun = canonicalMunicipio(item?.mun);
+      const mun = canonicalMunicipio(item?.mun ?? item?.municipio);
+      if (!mun) continue;
       const cur = map.get(mun) ?? Object.fromEntries(keys.map((k) => [k, 0]));
-      for (const k of keys) cur[k] = (cur[k] ?? 0) + (Number(item?.[k]) || 0);
+      for (const k of keys) cur[k] = (cur[k] ?? 0) + getItemVal(item, k);
       map.set(mun, cur);
     }
   }
@@ -66,9 +88,10 @@ function aggregateSnapshot(rows: AnyRow[], field: string, keys: string[]) {
   for (const r of sortedRows) {
     const list: AnyRow[] = (r?.[field] as AnyRow[]) ?? [];
     for (const item of list) {
-      const mun = canonicalMunicipio(item?.mun);
+      const mun = canonicalMunicipio(item?.mun ?? item?.municipio);
+      if (!mun) continue;
       if (!map.has(mun)) {
-        const vals = Object.fromEntries(keys.map((k) => [k, Number(item?.[k]) || 0]));
+        const vals = Object.fromEntries(keys.map((k) => [k, getItemVal(item, k)]));
         map.set(mun, vals);
       }
     }

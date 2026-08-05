@@ -20,7 +20,7 @@ export type DriveFile = {
 export type ParsedDailyReport = {
   efetivo: Array<{ mun: string; ord: number; seg: number; brig: number }>;
   recursos: Array<Record<string, any>>;
-  incendios: Array<{ mun: string; urb: number; flor: number; focos: number }>;
+  incendios: Array<{ mun: string; urb: number; flor: number; focos: number; sat?: number; area?: number }>;
   outras: Array<{
     mun: string;
     salvamento: number;
@@ -269,13 +269,30 @@ export function parseDailyReportSheet(rows: any[][]): ParsedDailyReport {
       const urb = pick(b.labels, "INCENDIO URBANO");
       const flor = pick(b.labels, "INCENDIO FLORESTAL");
       const focos = pick(b.labels, "FOCOS COMBATIDOS", "FOCOS");
-      if (urb === undefined && flor === undefined && focos === undefined) continue;
+      const sat = pick(b.labels, "FOCOS DETECTADOS SATELITE", "FOCOS DETECTADOS", "SATELITE");
+      const area = pick(
+        b.labels,
+        "TOTAL DE AREA POR METROS",
+        "TOTAL DE AREA",
+        "AREA POR METROS",
+        "AREA",
+      );
+      if (
+        urb === undefined &&
+        flor === undefined &&
+        focos === undefined &&
+        sat === undefined &&
+        area === undefined
+      )
+        continue;
       eachRow(rows, incIdx + 2, b.munCol, (row, mun) => {
         out.incendios.push({
           mun,
           urb: urb === undefined ? 0 : num(row[urb]),
           flor: flor === undefined ? 0 : num(row[flor]),
           focos: focos === undefined ? 0 : num(row[focos]),
+          sat: sat === undefined ? 0 : num(row[sat]),
+          area: area === undefined ? 0 : num(row[area]),
         });
       });
     }
