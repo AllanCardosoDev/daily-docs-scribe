@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.is_user_scheduled_on(uuid, date) TO authenticated;

@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.snapshot_daily_report() FROM PUBLIC, anon, authenticated;

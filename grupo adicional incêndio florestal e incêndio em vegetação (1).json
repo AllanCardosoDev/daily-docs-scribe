@@ -1,0 +1,324 @@
+{
+  "dadosComplementares": [
+    {
+      "id": "dados_incendio_florestal_vegetacao",
+      "nome": "Dados de Incêndio Florestal e Incêndio em Vegetação",
+      "descricao": "Informações complementares aplicáveis às ocorrências de incêndio florestal e incêndio em vegetação.",
+      "permiteLista": false,
+      "idsAgenciasObrigatorias": [],
+      "campos": [
+        {
+          "id": "areaQueimadaCombatidaHa",
+          "tipo": "numero",
+          "nome": "Área Queimada Combatida (ha)",
+          "instrucao": "Informe a área queimada combatida em hectares.",
+          "obrigatorio": true,
+          "opcoes": null
+        },
+        {
+          "id": "numeroFocosCombatidos",
+          "tipo": "numero",
+          "nome": "Número de Focos Combatidos",
+          "instrucao": "Informe a quantidade de focos combatidos na ocorrência.",
+          "obrigatorio": true,
+          "opcoes": null
+        },
+        {
+          "id": "tipoVegetacaoPredominante",
+          "tipo": "selecao",
+          "nome": "Tipo de Vegetação Predominante",
+          "instrucao": "Selecione o tipo predominante de vegetação atingida.",
+          "obrigatorio": true,
+          "opcoes": [
+            {
+              "valor": "pastagem",
+              "rotulo": "Pastagem"
+            },
+            {
+              "valor": "capoeira",
+              "rotulo": "Capoeira"
+            },
+            {
+              "valor": "mato_baixo",
+              "rotulo": "Mato Baixo"
+            },
+            {
+              "valor": "vegetacao_urbana",
+              "rotulo": "Vegetação Urbana"
+            },
+            {
+              "valor": "terreno_baldio",
+              "rotulo": "Terreno Baldio"
+            },
+            {
+              "valor": "floresta_nativa",
+              "rotulo": "Floresta Nativa"
+            },
+            {
+              "valor": "floresta_plantada",
+              "rotulo": "Floresta Plantada"
+            },
+            {
+              "valor": "mata_ciliar",
+              "rotulo": "Mata Ciliar"
+            },
+            {
+              "valor": "area_preservacao",
+              "rotulo": "Área de Preservação"
+            },
+            {
+              "valor": "lixao_aterro",
+              "rotulo": "Lixão/Aterro"
+            },
+            {
+              "valor": "outros",
+              "rotulo": "Outros"
+            }
+          ]
+        },
+        {
+          "id": "riscoPropagacao",
+          "tipo": "selecao",
+          "nome": "Risco de Propagação",
+          "instrucao": "Selecione o nível de risco de propagação.",
+          "obrigatorio": true,
+          "opcoes": [
+            {
+              "valor": "baixo",
+              "rotulo": "Baixo"
+            },
+            {
+              "valor": "medio",
+              "rotulo": "Médio"
+            },
+            {
+              "valor": "alto",
+              "rotulo": "Alto"
+            },
+            {
+              "valor": "critico",
+              "rotulo": "Crítico"
+            }
+          ]
+        },
+        {
+          "id": "proximidadeEdificacoes",
+          "tipo": "selecao",
+          "nome": "Há Proximidade com Edificações?",
+          "instrucao": "Informe se havia risco para residências, comércios ou outras edificações.",
+          "obrigatorio": true,
+          "opcoes": [
+            {
+              "valor": "sim",
+              "rotulo": "Sim"
+            },
+            {
+              "valor": "nao",
+              "rotulo": "Não"
+            }
+          ]
+        },
+        {
+          "id": "riscoRedeEletrica",
+          "tipo": "selecao",
+          "nome": "Há Risco à Rede Elétrica?",
+          "instrucao": "Informe se havia risco ou proximidade com rede elétrica.",
+          "obrigatorio": false,
+          "opcoes": [
+            {
+              "valor": "sim",
+              "rotulo": "Sim"
+            },
+            {
+              "valor": "nao",
+              "rotulo": "Não"
+            }
+          ]
+        },
+        {
+          "id": "ameacaPatrimonio",
+          "tipo": "selecao",
+          "nome": "Houve Ameaça a Patrimônio?",
+          "instrucao": "Informe se o incêndio ameaçou diretamente bens públicos ou privados.",
+          "obrigatorio": false,
+          "opcoes": [
+            {
+              "valor": "sim",
+              "rotulo": "Sim"
+            },
+            {
+              "valor": "nao",
+              "rotulo": "Não"
+            }
+          ]
+        },
+        {
+          "id": "atingiuAreaProtegida",
+          "tipo": "selecao",
+          "nome": "Atingiu Área Protegida?",
+          "instrucao": "Informe se o incêndio atingiu ou ameaçou área legalmente protegida.",
+          "obrigatorio": false,
+          "opcoes": [
+            {
+              "valor": "nao",
+              "rotulo": "Não"
+            },
+            {
+              "valor": "unidade_conservacao",
+              "rotulo": "Unidade de Conservação"
+            },
+            {
+              "valor": "terra_indigena",
+              "rotulo": "Terra Indígena"
+            },
+            {
+              "valor": "area_militar",
+              "rotulo": "Área Militar"
+            },
+            {
+              "valor": "assentamento",
+              "rotulo": "Assentamento Rural"
+            },
+            {
+              "valor": "mais_de_uma",
+              "rotulo": "Mais de uma categoria"
+            }
+          ]
+        },
+        {
+          "id": "causaProvavel",
+          "tipo": "selecao",
+          "nome": "Causa Provável",
+          "instrucao": "Selecione a causa provável do incêndio.",
+          "obrigatorio": false,
+          "opcoes": [
+            {
+              "valor": "queima_controlada_perdida",
+              "rotulo": "Queima Controlada Perdida"
+            },
+            {
+              "valor": "limpeza_terreno",
+              "rotulo": "Limpeza de Terreno"
+            },
+            {
+              "valor": "acao_criminosa",
+              "rotulo": "Ação Criminosa"
+            },
+            {
+              "valor": "fenomeno_natural",
+              "rotulo": "Fenômeno Natural"
+            },
+            {
+              "valor": "indeterminada",
+              "rotulo": "Indeterminada"
+            }
+          ]
+        },
+        {
+          "id": "fonteCausaProvavel",
+          "tipo": "multiplaSelecao",
+          "nome": "Origem da Informação da Causa Provável",
+          "instrucao": "Informe as fontes utilizadas para indicar a causa provável.",
+          "obrigatorio": false,
+          "opcoes": [
+            {
+              "valor": "observacao_em_campo",
+              "rotulo": "Observação em Campo"
+            },
+            {
+              "valor": "relato_de_populares",
+              "rotulo": "Relato de Populares"
+            },
+            {
+              "valor": "relato_do_solicitante",
+              "rotulo": "Relato do Solicitante"
+            },
+            {
+              "valor": "vestigios_no_local",
+              "rotulo": "Vestígios no Local"
+            },
+            {
+              "valor": "informacao_orgao_ambiental",
+              "rotulo": "Informação de Órgão Ambiental"
+            },
+            {
+              "valor": "imagem_monitoramento",
+              "rotulo": "Imagem de Satélite/Drone/Monitoramento"
+            },
+            {
+              "valor": "nao_determinada",
+              "rotulo": "Não Determinada"
+            }
+          ]
+        },
+        {
+          "id": "aceiroRealizado",
+          "tipo": "selecao",
+          "nome": "Aceiro Realizado?",
+          "instrucao": "Informe se foi realizado aceiro durante o combate.",
+          "obrigatorio": false,
+          "opcoes": [
+            {
+              "valor": "sim",
+              "rotulo": "Sim"
+            },
+            {
+              "valor": "nao",
+              "rotulo": "Não"
+            }
+          ]
+        },
+        {
+          "id": "apoioAereo",
+          "tipo": "selecao",
+          "nome": "Houve Apoio Aéreo?",
+          "instrucao": "Informe se houve emprego de aeronaves.",
+          "obrigatorio": false,
+          "opcoes": [
+            {
+              "valor": "sim",
+              "rotulo": "Sim"
+            },
+            {
+              "valor": "nao",
+              "rotulo": "Não"
+            }
+          ]
+        },
+        {
+          "id": "apoioMaquinas",
+          "tipo": "selecao",
+          "nome": "Houve Emprego de Máquinas?",
+          "instrucao": "Informe se houve utilização de tratores, escavadeiras ou máquinas similares.",
+          "obrigatorio": false,
+          "opcoes": [
+            {
+              "valor": "sim",
+              "rotulo": "Sim"
+            },
+            {
+              "valor": "nao",
+              "rotulo": "Não"
+            }
+          ]
+        },
+        {
+          "id": "tempoCombateMinutos",
+          "tipo": "numero",
+          "nome": "Tempo de Combate (minutos)",
+          "instrucao": "Informe o tempo estimado empregado nas ações de combate.",
+          "obrigatorio": false,
+          "opcoes": null
+        },
+        {
+          "id": "observacoesOperacionais",
+          "tipo": "areaTexto",
+          "nome": "Observações Operacionais",
+          "instrucao": "Registre informações adicionais relevantes.",
+          "obrigatorio": false,
+          "opcoes": null
+        }
+      ]
+    }
+  ]
+}

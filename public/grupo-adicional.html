@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CBMAM — Dados de Incêndio Florestal e Vegetação</title>
+  <link rel="icon" href="/icone-cbmam.png" type="image/png">
+  
+  <!-- Fonts Google: Plus Jakarta Sans e JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    :root {
+      --brand-dark: #062919;
+      --brand-main: #0F532D;
+      --brand-light: #186036;
+      --brand-accent: #C9A84C;
+      --brand-bg: #F4F7F5;
+      --surface: #FFFFFF;
+      --ink: #111827;
+      --muted: #6B7280;
+      --border: #E5E7EB;
+      --danger: #EF4444;
+      --success: #10B981;
+      --warning: #F59E0B;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+      --radius: 12px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      background-color: var(--brand-bg);
+      color: var(--ink);
+      line-height: 1.5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Bar Header */
+    header {
+      background: linear-gradient(135deg, var(--brand-dark) 0%, var(--brand-main) 100%);
+      color: white;
+      padding: 1.25rem 2rem;
+      box-shadow: var(--shadow-md);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      border-bottom: 3px solid var(--brand-accent);
+    }
+
+    .header-container {
+      max-width: 1280px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1.5rem;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .brand-logo {
+      width: 48px;
+      height: 56px;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+    }
+
+    .brand-text h1 {
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .brand-text p {
+      font-size: 0.825rem;
+      color: rgba(255, 255, 255, 0.8);
+      font-weight: 500;
+    }
+
+    .header-badge {
+      background: rgba(201, 168, 76, 0.2);
+      border: 1px solid var(--brand-accent);
+      color: var(--brand-accent);
+      padding: 0.35rem 0.85rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Navigation Tabs */
+    .nav-tabs {
+      background: white;
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+    }
+
+    .nav-tabs-container {
+      max-width: 1280px;
+      margin: 0 auto;
+      display: flex;
+      gap: 1.5rem;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      padding: 1rem 0.5rem;
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      position: relative;
+      transition: all 0.2s ease;
+    }
+
+    .tab-btn:hover {
+      color: var(--brand-main);
+    }
+
+    .tab-btn.active {
+      color: var(--brand-main);
+    }
+
+    .tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--brand-main);
+      border-radius: 3px 3px 0 0;
+    }
+
+    /* Main Container */
+    main {
+      flex: 1;
+      max-width: 1280px;
+      width: 100%;
+      margin: 2rem auto;
+      padding: 0 1.5rem;
+    }
+
+    /* Banner Component */
+    .info-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--border);
+      margin-bottom: 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .info-card::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 5px;
+      background: var(--brand-main);
+    }
+
+    .info-title {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--brand-dark);
+      margin-bottom: 0.35rem;
+    }
+
+    .info-desc {
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .progress-box {
+      background: var(--brand-bg);
+      padding: 0.85rem 1.25rem;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      min-width: 220px;
+    }
+
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+    }
+
+    .progress-bar-bg {
+      height: 8px;
+      background: #E5E7EB;
+      border-radius: 9999px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--brand-light), var(--brand-main));
+      transition: width 0.3s ease;
+      border-radius: 9999px;
+    }
+
+    /* Form Layout Grid */
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .field-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .field-card:focus-within {
+      border-color: var(--brand-main);
+      box-shadow: 0 0 0 3px rgba(15, 83, 45, 0.1);
+    }
+
+    .field-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 0.4rem;
+    }
+
+    .field-label {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .required-tag {
+      color: var(--danger);
+      font-weight: 800;
+      font-size: 1rem;
+    }
+
+    .badge-req {
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      background: #FEE2E2;
+      color: #991B1B;
+      text-transform: uppercase;
+    }
+
+    .badge-opt {
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      background: #F3F4F6;
+      color: #6B7280;
+      text-transform: uppercase;
+    }
+
+    .field-instruction {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 1rem;
+      min-height: 2.2em;
+    }
+
+    /* Controls Styling */
+    .input-control, .select-control, .textarea-control {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      font-family: inherit;
+      font-size: 0.9rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #FAFAFA;
+      color: var(--ink);
+      transition: all 0.2s ease;
+      outline: none;
+    }
+
+    .input-control:focus, .select-control:focus, .textarea-control:focus {
+      background: #FFFFFF;
+      border-color: var(--brand-main);
+      box-shadow: 0 0 0 3px rgba(15, 83, 45, 0.12);
+    }
+
+    .textarea-control {
+      min-height: 90px;
+      resize: vertical;
+    }
+
+    /* Multi-select Pills */
+    .pills-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .pill-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.45rem 0.85rem;
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      background: #F3F4F6;
+      color: #4B5563;
+      border: 1px solid #E5E7EB;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.2s ease;
+    }
+
+    .pill-item:hover {
+      background: #E5E7EB;
+    }
+
+    .pill-item.selected {
+      background: var(--brand-main);
+      color: white;
+      border-color: var(--brand-dark);
+      box-shadow: 0 2px 4px rgba(15, 83, 45, 0.25);
+    }
+
+    .pill-item input {
+      display: none;
+    }
+
+    /* Form Actions Footer */
+    .form-actions {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.75rem;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-bottom: 3rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 700;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--brand-light) 0%, var(--brand-main) 100%);
+      color: white;
+      box-shadow: 0 4px 12px rgba(15, 83, 45, 0.25);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(15, 83, 45, 0.35);
+    }
+
+    .btn-secondary {
+      background: #F3F4F6;
+      color: var(--ink);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: #E5E7EB;
+    }
+
+    /* JSON & Schema Viewer Cards */
+    .schema-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      border: 1px solid var(--border);
+      margin-bottom: 1rem;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .schema-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .type-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-weight: 600;
+      background: #E0E7FF;
+      color: #3730A3;
+    }
+
+    .code-block {
+      background: #0F172A;
+      color: #F8FAFC;
+      padding: 1.5rem;
+      border-radius: var(--radius);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      line-height: 1.6;
+      overflow-x: auto;
+      box-shadow: var(--shadow-md);
+      position: relative;
+    }
+
+    .copy-btn {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 0.4rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      transition: all 0.2s ease;
+    }
+
+    .copy-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Modal Styling */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-box {
+      background: var(--surface);
+      border-radius: var(--radius);
+      max-width: 680px;
+      width: 90%;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+      transform: scale(0.95);
+      transition: transform 0.3s ease;
+    }
+
+    .modal-overlay.open .modal-box {
+      transform: scale(1);
+    }
+
+    .modal-header {
+      padding: 1.25rem 1.5rem;
+      background: var(--brand-dark);
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-body {
+      padding: 1.5rem;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .modal-footer {
+      padding: 1rem 1.5rem;
+      background: var(--brand-bg);
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="header-container">
+      <div class="brand-group">
+        <img src="/icone-cbmam.png" alt="Brasão CBMAM" class="brand-logo" onerror="this.style.display='none'">
+        <div class="brand-text">
+          <h1>CORPO DE BOMBEIROS MILITAR DO AMAZONAS</h1>
+          <p>Operação Amazonas + Verde · Dados Complementares de Incêndio Florestal</p>
+        </div>
+      </div>
+      <div class="header-badge">
+        <i data-lucide="shield-check" style="width: 14px; height: 14px;"></i> API Schema v1.0
+      </div>
+    </div>
+  </header>
+
+  <!-- Navigation Tabs -->
+  <nav class="nav-tabs">
+    <div class="nav-tabs-container">
+      <button class="tab-btn active" onclick="switchTab('form-tab', this)">
+        <i data-lucide="edit-3" style="width: 16px; height: 16px;"></i> Formulário Operacional
+      </button>
+      <button class="tab-btn" onclick="switchTab('schema-tab', this)">
+        <i data-lucide="file-json" style="width: 16px; height: 16px;"></i> Esquema dos Campos (API)
+      </button>
+      <button class="tab-btn" onclick="switchTab('raw-tab', this)">
+        <i data-lucide="code" style="width: 16px; height: 16px;"></i> JSON Raw (Resposta API)
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main Content Area -->
+  <main>
+
+    <!-- TAB 1: FORMULÁRIO OPERACIONAL DINÂMICO -->
+    <div id="form-tab" class="tab-content active">
+      <div class="info-card">
+        <div>
+          <h2 class="info-title" id="form-group-title">Carregando formulário...</h2>
+          <p class="info-desc" id="form-group-desc">Informações complementares de incêndio florestal e em vegetação.</p>
+        </div>
+        <div class="progress-box">
+          <div class="progress-header">
+            <span>Preenchimento</span>
+            <span id="progress-text">0%</span>
+          </div>
+          <div class="progress-bar-bg">
+            <div id="progress-bar-fill" class="progress-bar-fill"></div>
+          </div>
+        </div>
+      </div>
+
+      <form id="dynamic-form" onsubmit="handleFormSubmit(event)">
+        <div class="form-grid" id="form-fields-container">
+          <!-- Renderizado dinamicamente via JS -->
+        </div>
+
+        <div class="form-actions">
+          <div style="display: flex; gap: 0.75rem;">
+            <button type="button" class="btn btn-secondary" onclick="populateSampleData()">
+              <i data-lucide="sparkles" style="width: 16px; height: 16px;"></i> Preencher Exemplo
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="resetForm()">
+              <i data-lucide="rotate-ccw" style="width: 16px; height: 16px;"></i> Limpar
+            </button>
+          </div>
+          <button type="submit" class="btn btn-primary">
+            <i data-lucide="send" style="width: 16px; height: 16px;"></i> Gerar JSON do Registro
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- TAB 2: ESQUEMA DA API -->
+    <div id="schema-tab" class="tab-content">
+      <div class="info-card">
+        <div>
+          <h2 class="info-title">Definição dos Campos da API</h2>
+          <p class="info-desc">Especificação técnica dos atributos do grupo de incêndios florestais e vegetação.</p>
+        </div>
+        <div style="font-size: 0.85rem; font-weight: 700; color: var(--brand-main); background: #E6F4EA; padding: 0.5rem 1rem; border-radius: 8px;">
+          Total: <span id="schema-fields-count">0</span> campos
+        </div>
+      </div>
+
+      <div id="schema-fields-list">
+        <!-- Renderizado dinamicamente via JS -->
+      </div>
+    </div>
+
+    <!-- TAB 3: JSON RAW DA RESPOSTA -->
+    <div id="raw-tab" class="tab-content">
+      <div class="info-card">
+        <div>
+          <h2 class="info-title">Payload JSON Bruto da Rota API</h2>
+          <p class="info-desc">Resposta fornecida pela rota de integração de grupos adicionais do CBMAM.</p>
+        </div>
+      </div>
+
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyRawJson()">
+          <i data-lucide="copy" style="width: 14px; height: 14px;"></i> Copiar JSON
+        </button>
+        <pre><code id="raw-json-code">// Carregando JSON da API...</code></pre>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Modal para Exibir Payload Gerado -->
+  <div class="modal-overlay" id="payload-modal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <i data-lucide="check-circle" style="color: var(--success); width: 20px; height: 20px;"></i>
+          <h3 style="font-size: 1.1rem; font-weight: 700;">Payload Gerado com Sucesso</h3>
+        </div>
+        <button onclick="closeModal()" style="background: none; border: none; color: white; cursor: pointer;">
+          <i data-lucide="x" style="width: 20px; height: 20px;"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 1rem;">
+          Este é o objeto JSON gerado a partir das informações preenchidas no formulário, pronto para ser enviado para a API do CBMAM.
+        </p>
+        <div class="code-block" style="box-shadow: none;">
+          <pre><code id="generated-json-code"></code></pre>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal()">Fechar</button>
+        <button class="btn btn-primary" onclick="copyGeneratedJson()">
+          <i data-lucide="copy" style="width: 16px; height: 16px;"></i> Copiar JSON
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let apiData = null;
+    let schemaGroup = null;
+
+    // Carregar JSON da rota API ou fallback estático
+    async function loadApiData() {
+      try {
+        const res = await fetch('/api/grupo-adicional-incendio.json');
+        if (res.ok) {
+          apiData = await res.json();
+        } else {
+          throw new Error('Falha HTTP');
+        }
+      } catch (err) {
+        console.warn('Carregando JSON incorporado de fallback...');
+        apiData = {
+          "dadosComplementares": [
+            {
+              "id": "dados_incendio_florestal_vegetacao",
+              "nome": "Dados de Incêndio Florestal e Incêndio em Vegetação",
+              "descricao": "Informações complementares aplicáveis às ocorrências de incêndio florestal e incêndio em vegetação.",
+              "permiteLista": false,
+              "idsAgenciasObrigatorias": [],
+              "campos": [
+                {
+                  "id": "areaQueimadaCombatidaHa",
+                  "tipo": "numero",
+                  "nome": "Área Queimada Combatida (ha)",
+                  "instrucao": "Informe a área queimada combatida em hectares.",
+                  "obrigatorio": true
+                },
+                {
+                  "id": "numeroFocosCombatidos",
+                  "tipo": "numero",
+                  "nome": "Número de Focos Combatidos",
+                  "instrucao": "Informe a quantidade de focos combatidos na ocorrência.",
+                  "obrigatorio": true
+                },
+                {
+                  "id": "tipoVegetacaoPredominante",
+                  "tipo": "selecao",
+                  "nome": "Tipo de Vegetação Predominante",
+                  "instrucao": "Selecione o tipo predominante de vegetação atingida.",
+                  "obrigatorio": true,
+                  "opcoes": [
+                    { "valor": "pastagem", "rotulo": "Pastagem" },
+                    { "valor": "capoeira", "rotulo": "Capoeira" },
+                    { "valor": "mato_baixo", "rotulo": "Mato Baixo" },
+                    { "valor": "vegetacao_urbana", "rotulo": "Vegetação Urbana" },
+                    { "valor": "terreno_baldio", "rotulo": "Terreno Baldio" },
+                    { "valor": "floresta_nativa", "rotulo": "Floresta Nativa" },
+                    { "valor": "floresta_plantada", "rotulo": "Floresta Plantada" },
+                    { "valor": "mata_ciliar", "rotulo": "Mata Ciliar" },
+                    { "valor": "area_preservacao", "rotulo": "Área de Preservação" },
+                    { "valor": "lixao_aterro", "rotulo": "Lixão/Aterro" },
+                    { "valor": "outros", "rotulo": "Outros" }
+                  ]
+                },
+                {
+                  "id": "riscoPropagacao",
+                  "tipo": "selecao",
+                  "nome": "Risco de Propagação",
+                  "instrucao": "Selecione o nível de risco de propagação.",
+                  "obrigatorio": true,
+                  "opcoes": [
+                    { "valor": "baixo", "rotulo": "Baixo" },
+                    { "valor": "medio", "rotulo": "Médio" },
+                    { "valor": "alto", "rotulo": "Alto" },
+                    { "valor": "critico", "rotulo": "Crítico" }
+                  ]
+                },
+                {
+                  "id": "proximidadeEdificacoes",
+                  "tipo": "selecao",
+                  "nome": "Há Proximidade com Edificações?",
+                  "instrucao": "Informe se havia risco para residências, comércios ou outras edificações.",
+                  "obrigatorio": true,
+                  "opcoes": [
+                    { "valor": "sim", "rotulo": "Sim" },
+                    { "valor": "nao", "rotulo": "Não" }
+                  ]
+                },
+                {
+                  "id": "riscoRedeEletrica",
+                  "tipo": "selecao",
+                  "nome": "Há Risco à Rede Elétrica?",
+                  "instrucao": "Informe se havia risco ou proximidade com rede elétrica.",
+                  "obrigatorio": false,
+                  "opcoes": [
+                    { "valor": "sim", "rotulo": "Sim" },
+                    { "valor": "nao", "rotulo": "Não" }
+                  ]
+                },
+                {
+                  "id": "ameacaPatrimonio",
+                  "tipo": "selecao",
+                  "nome": "Houve Ameaça a Patrimônio?",
+                  "instrucao": "Informe se o incêndio ameaçou diretamente bens públicos ou privados.",
+                  "obrigatorio": false,
+                  "opcoes": [
+                    { "valor": "sim", "rotulo": "Sim" },
+                    { "valor": "nao", "rotulo": "Não" }
+                  ]
+                },
+                {
+                  "id": "atingiuAreaProtegida",
+                  "tipo": "selecao",
+                  "nome": "Atingiu Área Protegida?",
+                  "instrucao": "Informe se o incêndio atingiu ou ameaçou área legalmente protegida.",
+                  "obrigatorio": false,
+                  "opcoes": [
+                    { "valor": "nao", "rotulo": "Não" },
+                    { "valor": "unidade_conservacao", "rotulo": "Unidade de Conservação" },
+                    { "valor": "terra_indigena", "rotulo": "Terra Indígena" },
+                    { "valor": "area_militar", "rotulo": "Área Militar" },
+                    { "valor": "assentamento", "rotulo": "Assentamento Rural" },
+                    { "valor": "mais_de_uma", "rotulo": "Mais de uma categoria" }
+                  ]
+                },
+                {
+                  "id": "causaProvavel",
+                  "tipo": "selecao",
+                  "nome": "Causa Provável",
+                  "instrucao": "Selecione a causa provável do incêndio.",
+                  "obrigatorio": false,
+                  "opcoes": [
+                    { "valor": "queima_controlada_perdida", "rotulo": "Queima Controlada Perdida" },
+                    { "valor": "limpeza_terreno", "rotulo": "Limpeza de Terreno" },
+                    { "valor": "acao_criminosa", "rotulo": "Ação Criminosa" },
+                    { "valor": "fenomeno_natural", "rotulo": "Fenômeno Natural" },
+                    { "valor": "indeterminada", "rotulo": "Indeterminada" }
+                  ]
+                },
+                {
+                  "id": "fonteCausaProvavel",
+                  "tipo": "multiplaSelecao",
+                  "nome": "Origem da Informação da Causa Provável",
+                  "instrucao": "Informe as fontes utilizadas para indicar a causa provável.",
+                  "obrigatorio": false,
+                  "opcoes": [
+                    { "valor": "observacao_em_campo", "rotulo": "Observação em Campo" },
+                    { "valor": "relato_de_populares", "rotulo": "Relato de Populares" },
+                    { "valor": "relato_do_solicitante", "rotulo": "Relato do Solicitante" },
+                    { "valor": "vestigios_no_local", "rotulo": "Vestígios no Local" },
+                    { "valor": "informacao_orgao_ambiental", "rotulo": "Informação de Órgão Ambiental" },
+                    { "valor": "imagem_monitoramento", "rotulo": "Imagem de Satélite/Drone/Monitoramento" },
+                    { "valor": "nao_determinada", "rotulo": "Não Determinada" }
+                  ]
+                },
+                {
+                  "id": "aceiroRealizado",
+                  "tipo": "selecao",
+                  "nome": "Aceiro Realizado?",
+                  "instrucao": "Informe se foi realizado aceiro durante o combate.",
+                  "obrigatorio": false,
+                  "opcoes": [
+                    { "valor": "sim", "rotulo": "Sim" },
+                    { "valor": "nao", "rotulo": "Não" }
+                  ]
+                },
+                {
+                  "id": "apoioAereo",
+                  "tipo": "selecao",
+                  "nome": "Houve Apoio Aéreo?",
+                  "instrucao": "Informe se houve emprego de aeronaves.",
+                  "obrigatorio": false,
+                  "opcoes": [
+                    { "valor": "sim", "rotulo": "Sim" },
+                    { "valor": "nao", "rotulo": "Não" }
+                  ]
+                },
+                {
+                  "id": "apoioMaquinas",
+                  "tipo": "selecao",
+                  "nome": "Houve Emprego de Máquinas?",
+                  "instrucao": "Informe se houve utilização de tratores, escavadeiras ou máquinas similares.",
+                  "obrigatorio": false,
+                  "opcoes": [
+                    { "valor": "sim", "rotulo": "Sim" },
+                    { "valor": "nao", "rotulo": "Não" }
+                  ]
+                },
+                {
+                  "id": "tempoCombateMinutos",
+                  "tipo": "numero",
+                  "nome": "Tempo de Combate (minutos)",
+                  "instrucao": "Informe o tempo estimado empregado nas ações de combate.",
+                  "obrigatorio": false
+                },
+                {
+                  "id": "observacoesOperacionais",
+                  "tipo": "areaTexto",
+                  "nome": "Observações Operacionais",
+                  "instrucao": "Registre informações adicionais relevantes.",
+                  "obrigatorio": false
+                }
+              ]
+            }
+          ]
+        };
+      }
+
+      schemaGroup = apiData.dadosComplementares[0];
+      renderAll();
+    }
+
+    function renderAll() {
+      // 1. Preencher informações do grupo
+      document.getElementById('form-group-title').innerText = schemaGroup.nome;
+      document.getElementById('form-group-desc').innerText = schemaGroup.descricao;
+      document.getElementById('schema-fields-count').innerText = schemaGroup.campos.length;
+
+      // 2. Renderizar Formulário Dinâmico
+      renderFormFields(schemaGroup.campos);
+
+      // 3. Renderizar Esquema da API
+      renderSchemaView(schemaGroup.campos);
+
+      // 4. Renderizar JSON Raw
+      document.getElementById('raw-json-code').innerText = JSON.stringify(apiData, null, 2);
+
+      // Atualizar ícones do Lucide
+      lucide.createIcons();
+      updateProgress();
+    }
+
+    function renderFormFields(campos) {
+      const container = document.getElementById('form-fields-container');
+      container.innerHTML = '';
+
+      campos.forEach(c => {
+        const card = document.createElement('div');
+        card.className = 'field-card';
+
+        const reqBadge = c.obrigatorio 
+          ? `<span class="badge-req">* Obrigatório</span>` 
+          : `<span class="badge-opt">Opcional</span>`;
+
+        let inputHtml = '';
+
+        if (c.tipo === 'numero') {
+          inputHtml = `
+            <input type="number" step="any" min="0" id="${c.id}" name="${c.id}" 
+                   class="input-control" placeholder="0" 
+                   ${c.obrigatorio ? 'required' : ''} oninput="updateProgress()">
+          `;
+        } else if (c.tipo === 'selecao') {
+          const options = (c.opcoes || []).map(o => `<option value="${o.valor}">${o.rotulo}</option>`).join('');
+          inputHtml = `
+            <select id="${c.id}" name="${c.id}" class="select-control" ${c.obrigatorio ? 'required' : ''} onchange="updateProgress()">
+              <option value="" disabled selected>Selecione uma opção...</option>
+              ${options}
+            </select>
+          `;
+        } else if (c.tipo === 'multiplaSelecao') {
+          const pills = (c.opcoes || []).map(o => `
+            <label class="pill-item" onclick="togglePill(this)">
+              <input type="checkbox" name="${c.id}" value="${o.valor}" onchange="updateProgress()">
+              <span>${o.rotulo}</span>
+            </label>
+          `).join('');
+          inputHtml = `<div class="pills-grid">${pills}</div>`;
+        } else if (c.tipo === 'areaTexto') {
+          inputHtml = `
+            <textarea id="${c.id}" name="${c.id}" class="textarea-control" 
+                      placeholder="Digite observações adicionais da ocorrência..." oninput="updateProgress()"></textarea>
+          `;
+        }
+
+        card.innerHTML = `
+          <div>
+            <div class="field-header">
+              <label class="field-label" for="${c.id}">
+                ${c.nome} ${c.obrigatorio ? '<span class="required-tag">*</span>' : ''}
+              </label>
+              ${reqBadge}
+            </div>
+            <p class="field-instruction">${c.instrucao || ''}</p>
+          </div>
+          <div>${inputHtml}</div>
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    function togglePill(labelEl) {
+      const checkbox = labelEl.querySelector('input[type="checkbox"]');
+      setTimeout(() => {
+        if (checkbox.checked) {
+          labelEl.classList.add('selected');
+        } else {
+          labelEl.classList.remove('selected');
+        }
+        updateProgress();
+      }, 10);
+    }
+
+    function renderSchemaView(campos) {
+      const container = document.getElementById('schema-fields-list');
+      container.innerHTML = '';
+
+      campos.forEach(c => {
+        const card = document.createElement('div');
+        card.className = 'schema-card';
+
+        const opcoesHtml = c.opcoes ? `
+          <div style="margin-top: 0.75rem; background: var(--brand-bg); padding: 0.75rem; border-radius: 6px;">
+            <div style="font-size: 0.75rem; font-weight: 700; color: var(--muted); margin-bottom: 0.35rem;">OPÇÕES DISPONÍVEIS (${c.opcoes.length}):</div>
+            <div class="pills-grid">
+              ${c.opcoes.map(o => `<span class="pill-item" style="cursor: default; background: white;"><strong style="color: var(--brand-main);">${o.valor}:</strong> ${o.rotulo}</span>`).join('')}
+            </div>
+          </div>
+        ` : '';
+
+        card.innerHTML = `
+          <div class="schema-card-header">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <code style="font-size: 1rem; font-weight: 700; color: var(--brand-main);">${c.id}</code>
+              <span class="type-badge">${c.tipo}</span>
+            </div>
+            ${c.obrigatorio ? '<span class="badge-req">* Obrigatório</span>' : '<span class="badge-opt">Opcional</span>'}
+          </div>
+          <h4 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 0.25rem;">${c.nome}</h4>
+          <p style="font-size: 0.85rem; color: var(--muted);">${c.instrucao || 'Sem instruções específicas.'}</p>
+          ${opcoesHtml}
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function updateProgress() {
+      if (!schemaGroup) return;
+      const campos = schemaGroup.campos;
+      let filled = 0;
+
+      campos.forEach(c => {
+        if (c.tipo === 'multiplaSelecao') {
+          const checked = document.querySelectorAll(`input[name="${c.id}"]:checked`);
+          if (checked.length > 0) filled++;
+        } else {
+          const el = document.getElementById(c.id);
+          if (el && el.value && el.value.trim() !== '') {
+            filled++;
+          }
+        }
+      });
+
+      const percent = Math.round((filled / campos.length) * 100);
+      document.getElementById('progress-text').innerText = `${percent}%`;
+      document.getElementById('progress-bar-fill').style.width = `${percent}%`;
+    }
+
+    function populateSampleData() {
+      if (!schemaGroup) return;
+
+      const sampleValues = {
+        areaQueimadaCombatidaHa: 12.5,
+        numeroFocosCombatidos: 4,
+        tipoVegetacaoPredominante: 'floresta_nativa',
+        riscoPropagacao: 'alto',
+        proximidadeEdificacoes: 'sim',
+        riscoRedeEletrica: 'nao',
+        ameacaPatrimonio: 'sim',
+        atingiuAreaProtegida: 'unidade_conservacao',
+        causaProvavel: 'queima_controlada_perdida',
+        aceiroRealizado: 'sim',
+        apoioAereo: 'sim',
+        apoioMaquinas: 'nao',
+        tempoCombateMinutos: 180,
+        observacoesOperacionais: 'Atuação conjunta das equipes do CBMAM e brigadistas locais com emprego de aceiros e suporte de aeronave.'
+      };
+
+      // Set input values
+      Object.keys(sampleValues).forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = sampleValues[id];
+      });
+
+      // Set multi-select checkboxes
+      const checkboxes = document.querySelectorAll('input[name="fonteCausaProvavel"]');
+      checkboxes.forEach(cb => {
+        if (['observacao_em_campo', 'imagem_monitoramento'].includes(cb.value)) {
+          cb.checked = true;
+          cb.closest('.pill-item').classList.add('selected');
+        } else {
+          cb.checked = false;
+          cb.closest('.pill-item').classList.remove('selected');
+        }
+      });
+
+      updateProgress();
+    }
+
+    function resetForm() {
+      document.getElementById('dynamic-form').reset();
+      document.querySelectorAll('.pill-item').forEach(p => p.classList.remove('selected'));
+      updateProgress();
+    }
+
+    function handleFormSubmit(e) {
+      e.preventDefault();
+      if (!schemaGroup) return;
+
+      const payload = {
+        grupoId: schemaGroup.id,
+        timestamp: new Date().toISOString(),
+        valores: {}
+      };
+
+      schemaGroup.campos.forEach(c => {
+        if (c.tipo === 'multiplaSelecao') {
+          const checked = Array.from(document.querySelectorAll(`input[name="${c.id}"]:checked`)).map(cb => cb.value);
+          payload.valores[c.id] = checked;
+        } else {
+          const el = document.getElementById(c.id);
+          if (el) {
+            let val = el.value;
+            if (c.tipo === 'numero') val = val !== '' ? Number(val) : null;
+            payload.valores[c.id] = val;
+          }
+        }
+      });
+
+      document.getElementById('generated-json-code').innerText = JSON.stringify(payload, null, 2);
+      document.getElementById('payload-modal').classList.add('open');
+    }
+
+    function closeModal() {
+      document.getElementById('payload-modal').classList.remove('open');
+    }
+
+    function copyRawJson() {
+      navigator.clipboard.writeText(JSON.stringify(apiData, null, 2));
+      alert('JSON bruto copiado para a área de transferência!');
+    }
+
+    function copyGeneratedJson() {
+      const code = document.getElementById('generated-json-code').innerText;
+      navigator.clipboard.writeText(code);
+      alert('JSON do registro copiado para a área de transferência!');
+    }
+
+    function switchTab(tabId, btn) {
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+
+      document.getElementById(tabId).classList.add('active');
+      btn.classList.add('active');
+    }
+
+    // Inicialização
+    document.addEventListener('DOMContentLoaded', () => {
+      loadApiData();
+    });
+  </script>
+</body>
+</html>
