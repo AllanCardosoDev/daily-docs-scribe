@@ -73,31 +73,34 @@ export function buildSheetsPdfDoc(
     doc.text("RELATÓRIO DE OCORRÊNCIAS 2026", pageW / 2, 36, { align: "center" });
 
     // Oficiais Responsáveis (Esquerda)
-    doc.setFontSize(7);
+    doc.setFontSize(6.5);
     doc.setFont("helvetica", "bold");
-    doc.text("Comandante do Incidente:", 80, 16);
-    doc.text("Chefe de Operações Capital:", 80, 26);
-    doc.text("Chefe de Operações Interior:", 80, 36);
-    doc.text("Coordenador da Sala de Situação:", 80, 46);
+    doc.text("Comandante do Incidente:", 70, 16);
+    doc.text("Chefe de Operações Capital:", 70, 26);
+    doc.text("Chefe de Operações Interior:", 70, 36);
+    doc.text("Coordenador da Sala de Situação:", 70, 46);
 
     doc.setFont("helvetica", "normal");
-    doc.text(header.comandante || "CEL QOBM BORGES", 195, 16);
-    doc.text(header.chefeCapital || "CEL QOBM MENEZES", 195, 26);
-    doc.text(header.chefeInterior || "CEL QOBM MONTEIRO", 195, 36);
-    doc.text(header.coordSituacao || "TC QOBM FERREIRA", 195, 46);
+    doc.text(header.comandante || "CEL QOBM BORGES", 185, 16);
+    doc.text(header.chefeCapital || "CEL QOBM MENEZES", 185, 26);
+    doc.text(header.chefeInterior || "CEL QOBM MONTEIRO", 185, 36);
+    doc.text(header.coordSituacao || "TC QOBM FERREIRA", 185, 46);
 
-    // Cronograma & Período (Direita)
+    // Cronograma & Período (Direita) - Alinhado à margem direita (pageW - 16)
+    const rightMarginX = pageW - 16;
+    const labelStartX = pageW - 250;
+
     doc.setFont("helvetica", "bold");
-    doc.text("Período Operacional:", pageW - 200, 16);
-    doc.text("Próximo Período Operacional:", pageW - 200, 26);
-    doc.text("Reunião de Planejamento:", pageW - 200, 36);
-    doc.text("Reunião de Briefing:", pageW - 200, 46);
+    doc.text("Período Operacional:", labelStartX, 16);
+    doc.text("Próximo Período Operacional:", labelStartX, 26);
+    doc.text("Reunião de Planejamento:", labelStartX, 36);
+    doc.text("Reunião de Briefing:", labelStartX, 46);
 
     doc.setFont("helvetica", "normal");
-    doc.text(header.periodo || `${opDateStr} - 8H00`, pageW - 70, 16);
-    doc.text(header.proximoPeriodo || `05 / AGO / 2026 - 8H00`, pageW - 70, 26);
-    doc.text(header.reuniaoPlanejamento || `04 / AGO / 2026 - 8H15`, pageW - 70, 36);
-    doc.text(header.reuniaoBriefing || `04 / AGO / 2026 - 8H30`, pageW - 70, 46);
+    doc.text(header.periodo || `${opDateStr} - 8H00`, rightMarginX, 16, { align: "right" });
+    doc.text(header.proximoPeriodo || `05 / AGO / 2026 - 8H00`, rightMarginX, 26, { align: "right" });
+    doc.text(header.reuniaoPlanejamento || `04 / AGO / 2026 - 8H15`, rightMarginX, 36, { align: "right" });
+    doc.text(header.reuniaoBriefing || `04 / AGO / 2026 - 8H30`, rightMarginX, 46, { align: "right" });
   };
 
   // Rodapé das páginas
