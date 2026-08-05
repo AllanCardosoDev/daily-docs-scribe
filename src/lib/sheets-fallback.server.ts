@@ -66,6 +66,54 @@ function normaliseRecursos(
   });
 }
 
+import { compareMunicipios, canonicalMunicipio } from "./municipio-order";
+
+export async function fetchIncendiosAcumulado(
+  supabase: SupabaseClient<any>,
+  reportDateIso: string,
+) {
+  const { data: rows, error } = await supabase
+    .from("daily_reports")
+    .select("report_date, shift, incendios")
+    .gte("report_date", "2026-06-01")
+    .lte("report_date", reportDateIso)
+    .order("report_date", { ascending: true });
+
+  if (error || !rows || !rows.length) return [];
+
+  // Deduplica relatórios do mesmo dia (dando preferência para o turno 'noturno'/24h)
+  const byDate = new Map<string, any>();
+  for (const r of rows) {
+    const cur = byDate.get(r.report_date);
+    if (!cur || (r.shift === "noturno" && cur.shift !== "noturno")) {
+      byDate.set(r.report_date, r);
+    }
+  }
+
+  // Soma por município desde 01/06/2026 até a data do relatório
+  const map = new Map<
+    string,
+    { mun: string; urb: number; flor: number; focos: number; sat: number; area: number }
+  >();
+
+  for (const r of byDate.values()) {
+    const list = Array.isArray(r.incendios) ? r.incendios : [];
+    for (const item of list) {
+      const mun = canonicalMunicipio(item?.mun ?? item?.municipio);
+      if (!mun) continue;
+      const cur = map.get(mun) ?? { mun, urb: 0, flor: 0, focos: 0, sat: 0, area: 0 };
+      cur.urb += num(item?.urb);
+      cur.flor += num(item?.flor);
+      cur.focos += num(item?.focos);
+      cur.sat += num(item?.sat);
+      cur.area += num(item?.area);
+      map.set(mun, cur);
+    }
+  }
+
+  return Array.from(map.values()).sort((a, b) => compareMunicipios(a.mun, b.mun));
+}
+
 /**
  * Converte o último relatório diário sincronizado do Drive no formato usado
  * pelo painel operacional.
@@ -86,6 +134,7 @@ export async function loadLatestDriveReport(
 
   const shiftLabel = row.shift === "parcial" ? "Parcial (07:00–18:30)" : "24h (18:30–07:00)";
   const dateStr = formatDateBR(String(row.report_date));
+  const acum = await fetchIncendiosAcumulado(supabase, String(row.report_date));
 
   const data: SheetsData = {
     header: {
@@ -125,7 +174,7 @@ export async function loadLatestDriveReport(
       focos: num(r.focos),
       total_periodo: num(r.total_periodo),
     })),
-    incendios_acumulado: [],
+    incendios_acumulado: acum,
     outras_diarias: asRows(row.outras).map((r) => ({
       mun: str(r.mun ?? r.municipio),
       salvamento: num(r.salvamento),
@@ -158,6 +207,8 @@ export async function loadReportByDate(
 
   const shiftLabel = row.shift === "parcial" ? "Parcial (07:00–18:30)" : "24h (18:30–07:00)";
   const dateStr = formatDateBR(String(row.report_date));
+
+  const acum = await fetchIncendiosAcumulado(supabase, String(row.report_date));
 
   const data: SheetsData = {
     header: {
@@ -198,7 +249,7 @@ export async function loadReportByDate(
       focos: num(r.focos),
       total_periodo: num(r.total_periodo),
     })),
-    incendios_acumulado: [],
+    incendios_acumulado: acum,
     outras_diarias: asRows(row.outras).map((r) => ({
       mun: str((r.mun ?? r.salvamento) ? r.mun : r.municipio),
       salvamento: num(r.salvamento),
