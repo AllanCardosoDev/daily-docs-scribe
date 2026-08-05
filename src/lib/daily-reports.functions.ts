@@ -60,7 +60,7 @@ export const listDailyReports = createServerFn({ method: "GET" })
     let q = context.supabase
       .from("daily_reports")
       .select(
-        "id, report_date, shift, efetivo, recursos, incendios, outras, dados_complementares, notes, created_by, updated_by, updated_at",
+        "id, report_date, shift, efetivo, recursos, incendios, outras, notes, created_by, updated_by, updated_at",
       )
       .order("report_date", { ascending: false })
       .order("shift", { ascending: false })
@@ -115,7 +115,7 @@ export const getDailyReport = createServerFn({ method: "GET" })
       context.supabase
         .from("daily_reports")
         .select(
-          "id, report_date, shift, efetivo, recursos, incendios, outras, dados_complementares, notes, created_by, updated_by, updated_at, version",
+          "id, report_date, shift, efetivo, recursos, incendios, outras, notes, created_by, updated_by, updated_at, version",
         )
         .eq("report_date", data.date)
         .eq("shift", data.shift)
