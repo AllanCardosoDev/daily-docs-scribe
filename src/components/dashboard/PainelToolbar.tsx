@@ -2,9 +2,26 @@ import { memo } from "react";
 import { Button } from "@/components/ui/button";
 import { LazyCalendar } from "@/components/ui/lazy-calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { RefreshCcw, Download, FileText, Eye, CalendarIcon, X, Sparkles } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
+import { Link } from "@tanstack/react-router";
+import {
+  FileText,
+  Eye,
+  CalendarIcon,
+  X,
+  Sparkles,
+  ChevronDown,
+  FileSpreadsheet,
+  BarChart3,
+} from "lucide-react";
 import { ReportHistoryDialog } from "./ReportHistoryDialog";
-import { DriveSyncButton } from "./DriveSyncButton";
 import { fmtDateLong } from "@/lib/report-date";
 import { cn } from "@/lib/utils";
 import type { PdfQuality } from "@/lib/export-pdf";
@@ -146,23 +163,90 @@ export const PainelToolbar = memo(function PainelToolbar({
             </button>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap [&>*]:w-full sm:[&>*]:w-auto">
+          <div className="flex flex-wrap items-center gap-2">
             <ReportHistoryDialog />
 
-            <Button onClick={onExportXlsx} variant="outline" className="h-11 sm:h-10">
-              <Download className="w-4 h-4 mr-2 shrink-0" /> Excel
-            </Button>
-            <Button
-              onClick={onPreviewPdf}
-              variant="outline"
-              className="h-11 sm:h-10 border-primary/40 text-primary hover:bg-primary/10"
-            >
-              <Eye className="w-4 h-4 mr-2 shrink-0" />{" "}
-              <span className="truncate">Pré-visualizar</span>
-            </Button>
-            <Button onClick={onExportPdf} className="h-11 sm:h-10 hover-lift shadow-elevated">
-              <FileText className="w-4 h-4 mr-2 shrink-0" /> PDF
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="default"
+                  className="h-11 sm:h-10 bg-gradient-brand text-white hover:opacity-95 shadow-elevated gap-2 font-bold px-5 hover-lift"
+                >
+                  <FileText className="w-4 h-4 shrink-0 text-white" />
+                  <span className="text-sm">Gerar Relatório</span>
+                  <ChevronDown className="w-4 h-4 opacity-80 shrink-0" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80 p-2 shadow-2xl border-border">
+                <DropdownMenuLabel className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold px-2 py-1.5">
+                  Opções de Emissão de Relatório
+                </DropdownMenuLabel>
+                
+                <DropdownMenuItem
+                  onClick={onExportPdf}
+                  className="flex items-start gap-3 p-2.5 cursor-pointer rounded-lg hover:bg-muted focus:bg-muted transition-colors"
+                >
+                  <div className="p-2 rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 mt-0.5">
+                    <FileText className="w-4 h-4 shrink-0" />
+                  </div>
+                  <div>
+                    <div className="font-bold text-sm text-foreground">Relatório Diário Oficial (PDF)</div>
+                    <div className="text-xs text-muted-foreground leading-snug">
+                      Documento oficial formatado com cabeçalho institucional, efetivo, recursos e incêndios.
+                    </div>
+                  </div>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={onPreviewPdf}
+                  className="flex items-start gap-3 p-2.5 cursor-pointer rounded-lg hover:bg-muted focus:bg-muted transition-colors"
+                >
+                  <div className="p-2 rounded-md bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 mt-0.5">
+                    <Eye className="w-4 h-4 shrink-0" />
+                  </div>
+                  <div>
+                    <div className="font-bold text-sm text-foreground">Pré-visualizar Relatório</div>
+                    <div className="text-xs text-muted-foreground leading-snug">
+                      Visualização interativa em tela cheia antes de imprimir ou salvar.
+                    </div>
+                  </div>
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator className="my-1.5" />
+
+                <DropdownMenuItem
+                  onClick={onExportXlsx}
+                  className="flex items-start gap-3 p-2.5 cursor-pointer rounded-lg hover:bg-muted focus:bg-muted transition-colors"
+                >
+                  <div className="p-2 rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 mt-0.5">
+                    <FileSpreadsheet className="w-4 h-4 shrink-0" />
+                  </div>
+                  <div>
+                    <div className="font-bold text-sm text-foreground">Exportar Planilha (Excel .xlsx)</div>
+                    <div className="text-xs text-muted-foreground leading-snug">
+                      Exportação das matrizes brutas tabulares de efetivo, recursos e ocorrências.
+                    </div>
+                  </div>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  asChild
+                  className="flex items-start gap-3 p-2.5 cursor-pointer rounded-lg hover:bg-muted focus:bg-muted transition-colors"
+                >
+                  <Link to="/totais">
+                    <div className="p-2 rounded-md bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300 mt-0.5">
+                      <BarChart3 className="w-4 h-4 shrink-0" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-sm text-foreground">Relatório Acumulado (Período)</div>
+                      <div className="text-xs text-muted-foreground leading-snug">
+                        Gerar consolidado mensal/anual e relatórios de período longo em /totais.
+                      </div>
+                    </div>
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>
