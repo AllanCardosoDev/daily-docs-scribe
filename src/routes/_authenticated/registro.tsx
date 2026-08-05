@@ -323,16 +323,6 @@ function RegistroPage() {
             <div className="flex flex-wrap items-center gap-2 [&>*]:flex-1 [&>*]:min-w-[10rem] sm:[&>*]:flex-none">
               {q.data?.isAdmin && <DailyReportAuditDialog date={date} shift={shift} />}
 
-              <DriveImportDialog
-                disabled={!canEdit}
-                onImported={(d, s) => {
-                  dirtyRef.current = false;
-                  loadedKeyRef.current = "";
-                  setDate(d);
-                  setShift(s);
-                }}
-              />
-
               {!canEdit && (
                 <Badge variant="secondary" className="gap-1.5 justify-center">
                   <Lock className="w-3 h-3" /> Somente leitura

@@ -147,18 +147,6 @@ export const PainelToolbar = memo(function PainelToolbar({
           </div>
 
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap [&>*]:w-full sm:[&>*]:w-auto">
-            <Button
-              variant="outline"
-              onClick={onRefresh}
-              disabled={isRefreshing}
-              className="h-11 sm:h-10 transition-transform active:scale-95"
-            >
-              <RefreshCcw
-                className={`w-4 h-4 mr-2 shrink-0 ${isRefreshing ? "animate-spin" : ""}`}
-              />
-              Atualizar
-            </Button>
-            <DriveSyncButton onSynced={onRefresh} reportDate={reportDate} />
             <ReportHistoryDialog />
 
             <Button onClick={onExportXlsx} variant="outline" className="h-11 sm:h-10">
