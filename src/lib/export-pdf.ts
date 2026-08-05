@@ -3,41 +3,24 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { SheetsData } from "./sheets.types";
 import { NF } from "./formatters";
-import { fmtDateBR, fmtDateLong, fmtDateStamp, filterOccurrencesByDate } from "./report-date";
+import { fmtDateBR, fmtDateStamp } from "./report-date";
 import { CBMAM_LOGO_BASE64 } from "./cbmam-logo";
 
-/** Filename convention used by both preview and download. */
 export function reportFilename(reportDate: Date | null, generatedAt: Date = new Date()) {
   const suffix = reportDate ? `-${fmtDateStamp(reportDate)}` : `-${fmtDateStamp(generatedAt)}`;
   return `relatorio-operacional-cbmam${suffix}.pdf`;
 }
 
-// Institutional palette (CBMAM / Amazonas + Verde)
-const BRAND = { r: 8, g: 46, b: 31 }; // deep forest green
-const BRAND_LIGHT = { r: 24, g: 96, b: 54 };
-const GOLD = { r: 201, g: 168, b: 76 };
-const INK = { r: 20, g: 20, b: 20 };
-const MUTED = { r: 110, g: 118, b: 128 };
-const ROW_ALT = { r: 244, g: 251, b: 246 };
+// Colors
+const BRAND_DARK = { r: 8, g: 46, b: 31 }; // #082e1f
+const BRAND_GREEN = { r: 16, g: 78, b: 46 }; // #104e2e
+const HEADER_BLUE = { r: 28, g: 78, b: 128 }; // #1c4e80
+const HEADER_GREEN = { r: 16, g: 78, b: 46 };
+const TABLE_ALT = { r: 245, g: 248, b: 246 };
+const BORDER_COLOR: [number, number, number] = [180, 195, 185];
 
 export type PdfQuality = "standard" | "high";
 
-/**
- * Font/padding scaling for the "high legibility" export. Vector output stays
- * crisp at any zoom, so quality here means larger glyphs and roomier cells
- * — not more raster DPI.
- */
-function qualityScale(q: PdfQuality) {
-  return q === "high"
-    ? { body: 9, head: 8.5, cellPad: 5, metaBody: 9, titleBar: 10 }
-    : { body: 7, head: 7, cellPad: 3.5, metaBody: 8, titleBar: 9 };
-}
-
-/**
- * Generates the official operational report PDF.
- * `reportDate` (optional) sets the operational date printed on the cover
- * and filters daily occurrences to that day.
- */
 export function exportSheetsToPdf(
   data: SheetsData,
   reportDate: Date | null = null,
@@ -47,481 +30,569 @@ export function exportSheetsToPdf(
   doc.save(reportFilename(reportDate));
 }
 
-/**
- * Builds the official operational report and returns the jsPDF instance
- * WITHOUT saving it. Used by both the download flow (which saves) and the
- * WYSIWYG preview dialog (which streams it into an iframe via a blob URL).
- */
 export function buildSheetsPdfDoc(
   rawData: SheetsData,
   reportDate: Date | null = null,
-  quality: PdfQuality = "standard",
+  _quality: PdfQuality = "standard",
 ): jsPDF {
-  // Manaus (capital) sempre na primeira linha de todas as tabelas.
   const data = manausFirstSheets(rawData);
-  const Q = qualityScale(quality);
   const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
-  const pageW = doc.internal.pageSize.getWidth();
-  const pageH = doc.internal.pageSize.getHeight();
+  const pageW = doc.internal.pageSize.getWidth(); // ~841.89 pt
+  const pageH = doc.internal.pageSize.getHeight(); // ~595.28 pt
   const header = data.header ?? {};
   const generatedAt = new Date();
   const opDate = reportDate ?? generatedAt;
+  const opDateStr = fmtDateBR(opDate);
 
-  const { rows: occurrencesForDay, filtered: occurrencesFiltered } = filterOccurrencesByDate(
-    data.occurrences,
-    reportDate,
-  );
+  // Auxiliares de numeração e busca
+  const num = (v: any) => (typeof v === "number" && !isNaN(v) ? v : Number(v) || 0);
 
-  // ---------- Institutional header ----------
-  const drawInstitutionalHeader = () => {
-    // Top gold rule
-    doc.setFillColor(GOLD.r, GOLD.g, GOLD.b);
-    doc.rect(0, 0, pageW, 3, "F");
-    // Main green band
-    doc.setFillColor(BRAND.r, BRAND.g, BRAND.b);
-    doc.rect(0, 3, pageW, 82, "F");
-    // Diagonal accent
-    doc.setFillColor(BRAND_LIGHT.r, BRAND_LIGHT.g, BRAND_LIGHT.b);
-    doc.triangle(pageW - 220, 3, pageW, 3, pageW, 85, "F");
+  // ----------------------------------------------------
+  // CABEÇALHO INSTITUCIONAL DAS PÁGINAS
+  // ----------------------------------------------------
+  const drawPageHeader = (pageNumber: number) => {
+    doc.setPage(pageNumber);
 
-    // Official CBMAM Emblem (Brasão)
+    // Faixa Superior Escura
+    doc.setFillColor(BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b);
+    doc.rect(0, 0, pageW, 56, "F");
+
+    // Logo CBMAM
     try {
-      doc.addImage(CBMAM_LOGO_BASE64, "PNG", 24, 12, 48, 56);
+      doc.addImage(CBMAM_LOGO_BASE64, "PNG", 16, 6, 42, 44);
     } catch {
-      // Fallback ring if image fails
-      const cx = 46;
-      const cy = 44;
-      doc.setDrawColor(GOLD.r, GOLD.g, GOLD.b);
-      doc.setLineWidth(1.5);
-      doc.circle(cx, cy, 22, "S");
+      // Fallback
     }
 
-    // Titles
+    // Título Principal
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(13);
-    doc.text("CORPO DE BOMBEIROS MILITAR DO AMAZONAS", 84, 32);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9.5);
-    doc.text("Operação Amazonas + Verde", 84, 48);
+    doc.setFontSize(11);
+    doc.text("CORPO DE BOMBEIROS MILITAR DO AMAZONAS", pageW / 2, 20, { align: "center" });
+    doc.setFontSize(12);
+    doc.text("RELATÓRIO DE OCORRÊNCIAS 2026", pageW / 2, 36, { align: "center" });
 
-    // Right side — document identification
+    // Oficiais Responsáveis (Esquerda)
+    doc.setFontSize(7);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    doc.text("RELATÓRIO OPERACIONAL DIÁRIO", pageW - 20, 22, { align: "right" });
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.text(`Data operacional: ${fmtDateBR(opDate)}`, pageW - 20, 36, { align: "right" });
-    doc.text(`Emitido em: ${generatedAt.toLocaleString("pt-BR")}`, pageW - 20, 48, {
-      align: "right",
-    });
-    doc.text("Documento oficial — uso restrito", pageW - 20, 60, { align: "right" });
+    doc.text("Comandante do Incidente:", 80, 16);
+    doc.text("Chefe de Operações Capital:", 80, 26);
+    doc.text("Chefe de Operações Interior:", 80, 36);
+    doc.text("Coordenador da Sala de Situação:", 80, 46);
 
-    doc.setTextColor(INK.r, INK.g, INK.b);
+    doc.setFont("helvetica", "normal");
+    doc.text(header.comandante || "CEL QOBM BORGES", 195, 16);
+    doc.text(header.chefeCapital || "CEL QOBM MENEZES", 195, 26);
+    doc.text(header.chefeInterior || "CEL QOBM MONTEIRO", 195, 36);
+    doc.text(header.coordSituacao || "TC QOBM FERREIRA", 195, 46);
+
+    // Cronograma & Período (Direita)
+    doc.setFont("helvetica", "bold");
+    doc.text("Período Operacional:", pageW - 200, 16);
+    doc.text("Próximo Período Operacional:", pageW - 200, 26);
+    doc.text("Reunião de Planejamento:", pageW - 200, 36);
+    doc.text("Reunião de Briefing:", pageW - 200, 46);
+
+    doc.setFont("helvetica", "normal");
+    doc.text(header.periodo || `${opDateStr} - 8H00`, pageW - 70, 16);
+    doc.text(header.proximoPeriodo || `05 / AGO / 2026 - 8H00`, pageW - 70, 26);
+    doc.text(header.reuniaoPlanejamento || `04 / AGO / 2026 - 8H15`, pageW - 70, 36);
+    doc.text(header.reuniaoBriefing || `04 / AGO / 2026 - 8H30`, pageW - 70, 46);
   };
 
-  // ---------- Cover metadata block (only page 1) ----------
-  drawInstitutionalHeader();
+  // Rodapé das páginas
+  const drawPageFooter = (pageNumber: number) => {
+    doc.setPage(pageNumber);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Documento oficial — uso restrito`, 20, pageH - 12);
+    doc.text(`Página ${pageNumber} de 3`, pageW - 20, pageH - 12, { align: "right" });
+  };
 
-  // Report title
+  // ====================================================
+  // PÁGINA 1: EFETIVO & RECURSOS
+  // ====================================================
+  drawPageHeader(1);
+
+  // EFETIVO - Separar em 3 colunas de municípios + 1 resumo
+  const efetivoList = data.efetivo ?? [];
+  const col1Muns = [
+    "Manaus",
+    "Apuí",
+    "Atalaia do Norte",
+    "Autazes",
+    "Barcelos",
+    "Coari",
+    "Envira",
+    "Humaitá",
+    "Iranduba",
+    "Itacoatiara",
+    "Jutaí",
+    "Lábrea",
+  ];
+  const col2Muns = [
+    "Manaquiri",
+    "Manacapuru",
+    "Manicoré",
+    "Maués",
+    "Novo Airão",
+    "Novo Aripuanã",
+    "Parintins",
+    "Presidente Figueiredo",
+    "Rio Preto da Eva",
+    "Tabatinga",
+    "Tapauá",
+    "Tefé",
+  ];
+  const col3Muns = [
+    "Boca do Acre",
+    "Borba",
+    "Canutama",
+    "Careiro",
+    "Nhamundá",
+    "Uricurituba",
+  ];
+
+  const getEfetivoRow = (munName: string) => {
+    const found = efetivoList.find((r) => r.mun?.toLowerCase() === munName.toLowerCase());
+    return {
+      mun: munName,
+      ord: num(found?.ord),
+      seg: num(found?.seg),
+      brig: num(found?.brig),
+    };
+  };
+
+  const efetivoCol1 = col1Muns.map(getEfetivoRow);
+  const efetivoCol2 = col2Muns.map(getEfetivoRow);
+  const efetivoCol3 = col3Muns.map(getEfetivoRow);
+
+  // Totais do Efetivo
+  const totOrdCol2 = efetivoCol2.reduce((s, r) => s + r.ord, 0);
+  const totSegCol2 = efetivoCol2.reduce((s, r) => s + r.seg, 0);
+  const totBrigCol2 = efetivoCol2.reduce((s, r) => s + r.brig, 0);
+
+  const totOrdCol3 = efetivoCol3.reduce((s, r) => s + r.ord, 0);
+  const totSegCol3 = efetivoCol3.reduce((s, r) => s + r.seg, 0);
+  const totBrigCol3 = efetivoCol3.reduce((s, r) => s + r.brig, 0);
+
+  // Resumo Efetivo (Missão, Capital, Interior, Total)
+  const manausEf = getEfetivoRow("Manaus");
+  const capitalOrd = manausEf.ord;
+  const capitalSeg = manausEf.seg;
+  const capitalBrig = manausEf.brig;
+
+  const allInteriorEf = efetivoList.filter((r) => r.mun?.toLowerCase() !== "manaus");
+  const interiorOrd = allInteriorEf.reduce((s, r) => s + num(r.ord), 0);
+  const interiorSeg = allInteriorEf.reduce((s, r) => s + num(r.seg), 0);
+  const interiorBrig = allInteriorEf.reduce((s, r) => s + num(r.brig), 0);
+
+  // Tabela Efetivo Coluna 1
+  autoTable(doc, {
+    startY: 65,
+    margin: { left: 16 },
+    tableWidth: 175,
+    head: [["MUNICÍPIO", "SERV. ORDINÁRIO", "SEG", "BRIGADISTA"]],
+    body: efetivoCol1.map((r) => [r.mun, r.ord || "", r.seg || "", r.brig || ""]),
+    styles: { fontSize: 6.5, cellPadding: 1.5, lineColor: BORDER_COLOR, lineWidth: 0.3 },
+    headStyles: { fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b], textColor: 255, fontStyle: "bold", fontSize: 6.5, halign: "center" },
+    columnStyles: { 0: { halign: "left" }, 1: { halign: "center" }, 2: { halign: "center" }, 3: { halign: "center" } },
+  });
+
+  // Tabela Efetivo Coluna 2
+  autoTable(doc, {
+    startY: 65,
+    margin: { left: 198 },
+    tableWidth: 175,
+    head: [["MUNICÍPIO", "SERV. ORDINÁRIO", "SEG", "BRIGADISTA"]],
+    body: [
+      ...efetivoCol2.map((r) => [r.mun, r.ord || "", r.seg || "", r.brig || ""]),
+      ["Total", totOrdCol2 || "0", totSegCol2 || "0", totBrigCol2 || "0"],
+    ],
+    styles: { fontSize: 6.5, cellPadding: 1.5, lineColor: BORDER_COLOR, lineWidth: 0.3 },
+    headStyles: { fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b], textColor: 255, fontStyle: "bold", fontSize: 6.5, halign: "center" },
+    columnStyles: { 0: { halign: "left" }, 1: { halign: "center" }, 2: { halign: "center" }, 3: { halign: "center" } },
+  });
+
+  // Tabela Efetivo Coluna 3 (Bases Temporárias)
+  autoTable(doc, {
+    startY: 65,
+    margin: { left: 380 },
+    tableWidth: 175,
+    head: [["BASES TEMPORÁRIAS", "SERV. ORDINÁRIO", "SEG", "BRIGADISTA"]],
+    body: [
+      ...efetivoCol3.map((r) => [r.mun, r.ord || "", r.seg || "", r.brig || ""]),
+      ["TOTAL", totOrdCol3 || "0", totSegCol3 || "0", totBrigCol3 || "0"],
+    ],
+    styles: { fontSize: 6.5, cellPadding: 1.5, lineColor: BORDER_COLOR, lineWidth: 0.3 },
+    headStyles: { fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b], textColor: 255, fontStyle: "bold", fontSize: 6.5, halign: "center" },
+    columnStyles: { 0: { halign: "left" }, 1: { halign: "center" }, 2: { halign: "center" }, 3: { halign: "center" } },
+  });
+
+  // Tabela Resumo Efetivo
+  autoTable(doc, {
+    startY: 65,
+    margin: { left: 562 },
+    tableWidth: 260,
+    head: [["MISSÃO", "CAPITAL", "INTERIOR", "TOTAL"]],
+    body: [
+      ["SV ORD", capitalOrd, interiorOrd, capitalOrd + interiorOrd],
+      ["SEG", capitalSeg, interiorSeg, capitalSeg + interiorSeg],
+      ["BRIGADISTA", capitalBrig, interiorBrig, capitalBrig + interiorBrig],
+      ["TOTAL", capitalOrd + capitalSeg + capitalBrig, interiorOrd + interiorSeg + interiorBrig, capitalOrd + capitalSeg + capitalBrig + interiorOrd + interiorSeg + interiorBrig],
+    ],
+    styles: { fontSize: 7, cellPadding: 2.5, lineColor: BORDER_COLOR, lineWidth: 0.3 },
+    headStyles: { fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b], textColor: 255, fontStyle: "bold", fontSize: 7, halign: "center" },
+    columnStyles: { 0: { fontStyle: "bold" }, 1: { halign: "center" }, 2: { halign: "center" }, 3: { halign: "center", fontStyle: "bold" } },
+  });
+
+  // ----------------------------------------------------
+  // RECURSOS EMPREGADOS (Tabela Principal + Resumo)
+  // ----------------------------------------------------
+  const recursosList = data.recursos ?? [];
+  const recKeys = [
+    "abt", "at", "atp", "ata", "abf", "atf", "abs", "pipa", "dosa", "crs", "ar", "ur", "gse", "mt", "ta", "embarcacao", "picape_fn", "picape_muni", "autoarp", "picape_esfron", "helicoptero", "aviao", "jetski", "quadriciclo", "aem"
+  ];
+  const recLabels = [
+    "ABT", "AT", "ATP", "ATA", "ABF", "ATF", "ABS", "PIPA", "DOSA", "CRS", "AR", "UR", "GSE", "MT", "TA", "EMBARC.", "PIC.FN", "PIC.MUNI", "AUTOARP", "PIC.ESFRON", "HELIC.", "AVIÃO", "JET SKI", "QUADRIC.", "AEM"
+  ];
+
+  const recBody = recursosList.map((r) => {
+    const rowVals = recKeys.map((k) => (num(r[k]) ? num(r[k]) : ""));
+    const rowTot = recKeys.reduce((s, k) => s + num(r[k]), 0);
+    return [r.mun, ...rowVals, rowTot || ""];
+  });
+
+  const recTotaisCols = recKeys.map((k) => recursosList.reduce((s, r) => s + num(r[k]), 0));
+  const recGrandTotal = recTotaisCols.reduce((a, b) => a + b, 0);
+
+  autoTable(doc, {
+    startY: 235,
+    margin: { left: 16 },
+    tableWidth: 540,
+    head: [["MUNICÍPIO", ...recLabels, "TOTAL"]],
+    body: [
+      ...recBody,
+      ["TOTAL GERAL", ...recTotaisCols.map((v) => v || "0"), recGrandTotal],
+    ],
+    styles: { fontSize: 5.5, cellPadding: 1, lineColor: BORDER_COLOR, lineWidth: 0.25 },
+    headStyles: { fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b], textColor: 255, fontStyle: "bold", fontSize: 5.5, halign: "center" },
+    columnStyles: Object.fromEntries([
+      [0, { cellWidth: 70, fontStyle: "bold" }],
+      ...recKeys.map((_, i) => [i + 1, { cellWidth: 17, halign: "center" }]),
+      [recKeys.length + 1, { cellWidth: 22, halign: "center", fontStyle: "bold" }],
+    ]),
+  });
+
+  // Resumo Recursos (Direita)
+  const resumoRec1 = [
+    ["ABT", recTotaisCols[0] || 0],
+    ["AT", recTotaisCols[1] || 0],
+    ["AEM", recTotaisCols[24] || 0],
+    ["ATP", recTotaisCols[2] || 0],
+    ["ATA", recTotaisCols[3] || 0],
+    ["ABF", recTotaisCols[4] || 0],
+    ["ATF", recTotaisCols[5] || 0],
+    ["ABS", recTotaisCols[6] || 0],
+    ["PIPA", recTotaisCols[7] || 0],
+    ["DOSA", recTotaisCols[8] || 0],
+    ["CRS", recTotaisCols[9] || 0],
+    ["AR", recTotaisCols[10] || 0],
+    ["UR", recTotaisCols[11] || 0],
+    ["GSE", recTotaisCols[12] || 0],
+  ];
+
+  const resumoRec2 = [
+    ["MT", recTotaisCols[13] || 0],
+    ["TA", recTotaisCols[14] || 0],
+    ["QUADRICICLO", recTotaisCols[23] || 0],
+    ["EMBARCAÇÃO", recTotaisCols[15] || 0],
+    ["PICAPE FN", recTotaisCols[16] || 0],
+    ["PICAPE MUNI", recTotaisCols[17] || 0],
+    ["AUTOARP", recTotaisCols[18] || 0],
+    ["PICAPE ESFRON", recTotaisCols[19] || 0],
+    ["HELICÓPTERO", recTotaisCols[20] || 0],
+    ["AVIÃO", recTotaisCols[21] || 0],
+    ["JET SKI", recTotaisCols[22] || 0],
+  ];
+
+  autoTable(doc, {
+    startY: 235,
+    margin: { left: 562 },
+    tableWidth: 125,
+    head: [["RECURSOS", "QTD"]],
+    body: resumoRec1,
+    styles: { fontSize: 6.5, cellPadding: 1.5, lineColor: BORDER_COLOR, lineWidth: 0.3 },
+    headStyles: { fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b], textColor: 255, fontStyle: "bold", fontSize: 6.5, halign: "center" },
+    columnStyles: { 0: { fontStyle: "bold" }, 1: { halign: "center", fontStyle: "bold" } },
+  });
+
+  autoTable(doc, {
+    startY: 235,
+    margin: { left: 693 },
+    tableWidth: 129,
+    head: [["RECURSOS", "QTD"]],
+    body: [
+      ...resumoRec2,
+      [{ content: "TOTAL RECURSOS", colSpan: 1, styles: { fontStyle: "bold" } }, { content: recGrandTotal, styles: { fontStyle: "bold", halign: "center" } }],
+    ],
+    styles: { fontSize: 6.5, cellPadding: 1.5, lineColor: BORDER_COLOR, lineWidth: 0.3 },
+    headStyles: { fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b], textColor: 255, fontStyle: "bold", fontSize: 6.5, halign: "center" },
+    columnStyles: { 0: { fontStyle: "bold" }, 1: { halign: "center", fontStyle: "bold" } },
+  });
+
+  drawPageFooter(1);
+
+  // ====================================================
+  // PÁGINA 2: INCÊNDIOS DIÁRIOS & ACUMULADOS
+  // ====================================================
+  doc.addPage();
+  drawPageHeader(2);
+
+  const incDiarios = data.incendios_diario ?? [];
+  const incAcumulados = data.incendios_acumulado ?? [];
+
+  // Tabela Esquerda: INCÊNDIOS DIÁRIOS
+  const incDiariosBody = incDiarios.map((r) => {
+    const u = num(r.urb);
+    const f = num(r.flor);
+    const foc = num(r.focos);
+    const tot = u + f; // Focos NÃO entra no total
+    return [r.mun, u || "", f || "", foc || "", tot || ""];
+  });
+
+  const totDiarioUrb = incDiarios.reduce((s, r) => s + num(r.urb), 0);
+  const totDiarioFlor = incDiarios.reduce((s, r) => s + num(r.flor), 0);
+  const totDiarioFocos = incDiarios.reduce((s, r) => s + num(r.focos), 0);
+  const totDiarioOcorrencias = totDiarioUrb + totDiarioFlor;
+
+  autoTable(doc, {
+    startY: 65,
+    margin: { left: 16 },
+    tableWidth: 320,
+    head: [
+      [{ content: `INCÊNDIOS - OCORRÊNCIAS DIÁRIAS EM ${opDateStr}`, colSpan: 5, styles: { fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b], textColor: 255, fontStyle: "bold", halign: "center" } }],
+      ["MUNICÍPIO", "INCÊNDIO URBANO", "INCÊNDIO FLORESTAL", "FOCOS COMBATIDOS", "TOTAL DE OCORRÊNCIAS"],
+    ],
+    body: [
+      ...incDiariosBody,
+      ["TOTAL", totDiarioUrb, totDiarioFlor, totDiarioFocos, totDiarioOcorrencias],
+    ],
+    styles: { fontSize: 6.5, cellPadding: 1.5, lineColor: BORDER_COLOR, lineWidth: 0.3 },
+    headStyles: { fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b], textColor: 255, fontStyle: "bold", fontSize: 6, halign: "center" },
+    columnStyles: { 0: { fontStyle: "bold", cellWidth: 100 }, 1: { halign: "center" }, 2: { halign: "center" }, 3: { halign: "center" }, 4: { halign: "center", fontStyle: "bold" } },
+  });
+
+  // Tabela Direita: INCÊNDIOS ACUMULADOS
+  const incAcumBody = incAcumulados.map((r, idx) => {
+    const u = num(r.urb);
+    const f = num(r.flor);
+    const foc = num(r.focos);
+    const sat = num(r.sat);
+    const area = num(r.area);
+    const tot = u + f;
+    return [idx + 1, r.mun, u || "", f || "", foc || "", sat || "", area ? NF.format(area) : "", tot || ""];
+  });
+
+  const totAcumUrb = incAcumulados.reduce((s, r) => s + num(r.urb), 0);
+  const totAcumFlor = incAcumulados.reduce((s, r) => s + num(r.flor), 0);
+  const totAcumFocos = incAcumulados.reduce((s, r) => s + num(r.focos), 0);
+  const totAcumSat = incAcumulados.reduce((s, r) => s + num(r.sat), 0);
+  const totAcumArea = incAcumulados.reduce((s, r) => s + num(r.area), 0);
+  const totAcumOcorrencias = totAcumUrb + totAcumFlor;
+
+  autoTable(doc, {
+    startY: 65,
+    margin: { left: 345 },
+    tableWidth: 480,
+    head: [
+      [{ content: `INCÊNDIOS - OCORRÊNCIAS DE 01/06/2026 À ${opDateStr}`, colSpan: 8, styles: { fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b], textColor: 255, fontStyle: "bold", halign: "center" } }],
+      ["Nº", "MUNICÍPIO", "INCÊNDIO URBANO", "INCÊNDIO FLORESTAL", "FOCOS COMBATIDOS", "FOCOS DETECTADOS SATÉLITE", "TOTAL DE ÁREA POR METROS²", "TOTAL DE OCORRÊNCIAS"],
+    ],
+    body: [
+      ...incAcumBody,
+      ["TOTAL", "", totAcumUrb, totAcumFlor, totAcumFocos, totAcumSat, NF.format(totAcumArea), totAcumOcorrencias],
+    ],
+    styles: { fontSize: 6.5, cellPadding: 1.5, lineColor: BORDER_COLOR, lineWidth: 0.3 },
+    headStyles: { fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b], textColor: 255, fontStyle: "bold", fontSize: 5.8, halign: "center" },
+    columnStyles: { 0: { cellWidth: 20, halign: "center" }, 1: { fontStyle: "bold", cellWidth: 100 }, 2: { halign: "center" }, 3: { halign: "center" }, 4: { halign: "center" }, 5: { halign: "center" }, 6: { halign: "right" }, 7: { halign: "center", fontStyle: "bold" } },
+  });
+
+  drawPageFooter(2);
+
+  // ====================================================
+  // PÁGINA 3: RESUMOS, OUTRAS OCORRÊNCIAS & ASSINATURAS
+  // ====================================================
+  doc.addPage();
+  drawPageHeader(3);
+
+  // 1. INCÊNDIOS - RESUMO DO DIA (Topo Esquerda)
+  const manausIncDiario = incDiarios.find((r) => r.mun?.toLowerCase() === "manaus");
+  const interiorIncDiario = incDiarios.filter((r) => r.mun?.toLowerCase() !== "manaus");
+
+  const capUrbD = num(manausIncDiario?.urb);
+  const capFlorD = num(manausIncDiario?.flor);
+  const capFocosD = num(manausIncDiario?.focos);
+
+  const intUrbD = interiorIncDiario.reduce((s, r) => s + num(r.urb), 0);
+  const intFlorD = interiorIncDiario.reduce((s, r) => s + num(r.flor), 0);
+  const intFocosD = interiorIncDiario.reduce((s, r) => s + num(r.focos), 0);
+
+  autoTable(doc, {
+    startY: 65,
+    margin: { left: 16 },
+    tableWidth: 260,
+    head: [
+      [{ content: `INCÊNDIOS - RESUMO DE ${opDateStr}`, colSpan: 5, styles: { fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b], textColor: 255, fontStyle: "bold", halign: "center" } }],
+      ["REGIÃO", "INCÊNDIO URBANO", "INCÊNDIO FLORESTAL", "FOCOS DOS INC. FLORESTAIS", "TOTAL DE OCORRÊNCIAS"],
+    ],
+    body: [
+      ["CAPITAL", capUrbD, capFlorD, capFocosD, capUrbD + capFlorD],
+      ["INTERIOR", intUrbD, intFlorD, intFocosD, intUrbD + intFlorD],
+      ["TOTAL", capUrbD + intUrbD, capFlorD + intFlorD, capFocosD + intFocosD, capUrbD + capFlorD + intUrbD + intFlorD],
+    ],
+    styles: { fontSize: 6.5, cellPadding: 2, lineColor: BORDER_COLOR, lineWidth: 0.3 },
+    headStyles: { fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b], textColor: 255, fontStyle: "bold", fontSize: 6, halign: "center" },
+    columnStyles: { 0: { fontStyle: "bold" }, 1: { halign: "center" }, 2: { halign: "center" }, 3: { halign: "center" }, 4: { halign: "center", fontStyle: "bold" } },
+  });
+
+  // 2. INCÊNDIOS - RESUMO ACUMULADO (Topo Centro)
+  const manausIncAcum = incAcumulados.find((r) => r.mun?.toLowerCase() === "manaus");
+  const interiorIncAcum = incAcumulados.filter((r) => r.mun?.toLowerCase() !== "manaus");
+
+  const capUrbA = num(manausIncAcum?.urb);
+  const capFlorA = num(manausIncAcum?.flor);
+  const capFocosA = num(manausIncAcum?.focos);
+
+  const intUrbA = interiorIncAcum.reduce((s, r) => s + num(r.urb), 0);
+  const intFlorA = interiorIncAcum.reduce((s, r) => s + num(r.flor), 0);
+  const intFocosA = interiorIncAcum.reduce((s, r) => s + num(r.focos), 0);
+
+  autoTable(doc, {
+    startY: 65,
+    margin: { left: 286 },
+    tableWidth: 320,
+    head: [
+      [{ content: `INCÊNDIOS - OCORRÊNCIAS DE 01/06/2026 ATÉ ${opDateStr}`, colSpan: 5, styles: { fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b], textColor: 255, fontStyle: "bold", halign: "center" } }],
+      ["REGIÃO", "INCÊNDIO URBANO", "INCÊNDIO FLORESTAL", "FOCOS DOS INC. FLORESTAIS", "TOTAL DE OCORRÊNCIAS"],
+    ],
+    body: [
+      ["CAPITAL", capUrbA, capFlorA, capFocosA, capUrbA + capFlorA],
+      ["INTERIOR", intUrbA, intFlorA, intFocosA, intUrbA + intFlorA],
+      ["TOTAL", capUrbA + intUrbA, capFlorA + intFlorA, capFocosA + intFocosA, capUrbA + capFlorA + intUrbA + intFlorA],
+    ],
+    styles: { fontSize: 6.5, cellPadding: 2, lineColor: BORDER_COLOR, lineWidth: 0.3 },
+    headStyles: { fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b], textColor: 255, fontStyle: "bold", fontSize: 6, halign: "center" },
+    columnStyles: { 0: { fontStyle: "bold" }, 1: { halign: "center" }, 2: { halign: "center" }, 3: { halign: "center" }, 4: { halign: "center", fontStyle: "bold" } },
+  });
+
+  // 3. CONCEITOS / OBSERVAÇÕES (Topo Direita)
+  autoTable(doc, {
+    startY: 65,
+    margin: { left: 616 },
+    tableWidth: 209,
+    head: [
+      [{ content: "CONCEITOS / OBSERVAÇÕES", styles: { fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b], textColor: 255, fontStyle: "bold", halign: "center" } }],
+    ],
+    body: [
+      [
+        "FOCOS: São contabilizados das Ocorrências de Incêndios Florestais confirmados, in loco, ainda que não ocorra o combate mas com mensuração de área queimada.\n\nDESCONSIDERADAS as OCORRÊNCIAS DE TROTE, se in loco não houver confirmação de populares ou identificação da área queimada.\n\nINCÊNDIO FLORESTAL: deve ser igual ao número.",
+      ],
+    ],
+    styles: { fontSize: 5.5, cellPadding: 3, lineColor: BORDER_COLOR, lineWidth: 0.3 },
+    headStyles: { fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b], textColor: 255, fontStyle: "bold", fontSize: 6, halign: "center" },
+  });
+
+  // 4. OUTRAS OCORRÊNCIAS DIÁRIAS (Centro Esquerda)
+  const outrasList = data.outras_diarias ?? [];
+  const outrasBody = outrasList.map((r) => [
+    r.mun,
+    num(r.salvamento) || "",
+    num(r.acidentes) || "",
+    num(r.aph) || "",
+    num(r.prevencao) || "",
+    num(r.servicos) || "",
+  ]);
+
+  const totSalv = outrasList.reduce((s, r) => s + num(r.salvamento), 0);
+  const totAcid = outrasList.reduce((s, r) => s + num(r.acidentes), 0);
+  const totAph = outrasList.reduce((s, r) => s + num(r.aph), 0);
+  const totPrev = outrasList.reduce((s, r) => s + num(r.prevencao), 0);
+  const totServ = outrasList.reduce((s, r) => s + num(r.servicos), 0);
+
+  autoTable(doc, {
+    startY: 145,
+    margin: { left: 16 },
+    tableWidth: 400,
+    head: [
+      [{ content: `OUTRAS OCORRÊNCIAS DIÁRIAS EM ${opDateStr}`, colSpan: 6, styles: { fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b], textColor: 255, fontStyle: "bold", halign: "center" } }],
+      ["MUNICÍPIO", "SALVAMENTO", "ACIDENTES", "APH", "AÇÃO DE PREVENÇÃO", "SERVIÇOS"],
+    ],
+    body: [
+      ...outrasBody,
+      ["TOTAL", totSalv, totAcid, totAph, totPrev, totServ],
+    ],
+    styles: { fontSize: 6.5, cellPadding: 1.5, lineColor: BORDER_COLOR, lineWidth: 0.3 },
+    headStyles: { fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b], textColor: 255, fontStyle: "bold", fontSize: 6, halign: "center" },
+    columnStyles: { 0: { fontStyle: "bold", cellWidth: 100 }, 1: { halign: "center" }, 2: { halign: "center" }, 3: { halign: "center" }, 4: { halign: "center" }, 5: { halign: "center" } },
+  });
+
+  // 5. TOTAL GERAL DE OCORRÊNCIAS DIÁRIAS (Centro Direita)
+  const manausOutras = outrasList.find((r) => r.mun?.toLowerCase() === "manaus");
+  const interiorOutras = outrasList.filter((r) => r.mun?.toLowerCase() !== "manaus");
+
+  const capSalv = num(manausOutras?.salvamento);
+  const capAcid = num(manausOutras?.acidentes);
+  const capAph = num(manausOutras?.aph);
+  const capPrev = num(manausOutras?.prevencao);
+  const capServ = num(manausOutras?.servicos);
+
+  const intSalv = interiorOutras.reduce((s, r) => s + num(r.salvamento), 0);
+  const intAcid = interiorOutras.reduce((s, r) => s + num(r.acidentes), 0);
+  const intAph = interiorOutras.reduce((s, r) => s + num(r.aph), 0);
+  const intPrev = interiorOutras.reduce((s, r) => s + num(r.prevencao), 0);
+  const intServ = interiorOutras.reduce((s, r) => s + num(r.servicos), 0);
+
+  autoTable(doc, {
+    startY: 145,
+    margin: { left: 430 },
+    tableWidth: 395,
+    head: [
+      [{ content: "TOTAL GERAL DE OCORRÊNCIAS DIÁRIAS", colSpan: 6, styles: { fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b], textColor: 255, fontStyle: "bold", halign: "center" } }],
+      ["REGIÃO / TIPO DE OCORRÊNCIA", "SALVAMENTO", "ACIDENTES", "APH", "AÇÃO DE PREVENÇÃO", "SERVIÇOS"],
+    ],
+    body: [
+      ["CAPITAL", capSalv, capAcid, capAph, capPrev, capServ],
+      ["INTERIOR", intSalv, intAcid, intAph, intPrev, intServ],
+      ["TOTAL", capSalv + intSalv, capAcid + intAcid, capAph + intAph, capPrev + intPrev, capServ + intServ],
+    ],
+    styles: { fontSize: 6.5, cellPadding: 2.5, lineColor: BORDER_COLOR, lineWidth: 0.3 },
+    headStyles: { fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b], textColor: 255, fontStyle: "bold", fontSize: 6, halign: "center" },
+    columnStyles: { 0: { fontStyle: "bold", cellWidth: 120 }, 1: { halign: "center" }, 2: { halign: "center" }, 3: { halign: "center" }, 4: { halign: "center" }, 5: { halign: "center" } },
+  });
+
+  // 6. BLUDO DE ASSINATURAS (Rodapé Direita da Página 3)
+  const sigY = 410;
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
-  doc.setTextColor(INK.r, INK.g, INK.b);
-  doc.text(header.titulo || "RELATÓRIO DE OCORRÊNCIAS", 40, 112);
-  doc.setDrawColor(GOLD.r, GOLD.g, GOLD.b);
-  doc.setLineWidth(1);
-  doc.line(40, 118, 200, 118);
+  doc.setFontSize(8);
+  doc.setTextColor(0, 0, 0);
 
+  // Assinatura 1: Coordenador da Operação
+  doc.text("TC QOBM CRISTIANO BRAZ FERREIRA", pageW - 200, sigY, { align: "center" });
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(INK.r, INK.g, INK.b);
+  doc.setFontSize(7.5);
+  doc.text("Coordenador da Operação Amazonas + Verde", pageW - 200, sigY + 10, { align: "center" });
 
-  // Two-column meta table
-  const metaLeft: [string, string][] = [
-    ["Período Operacional", header.periodo ?? "—"],
-    ["Próximo Período", header.proximoPeriodo ?? "—"],
-    ["Reunião de Planejamento", header.reuniaoPlanejamento ?? "—"],
-    ["Reunião de Briefing", header.reuniaoBriefing ?? "—"],
-  ];
-  const metaRight: [string, string][] = [
-    ["Comandante do Incidente", header.comandante ?? "—"],
-    ["Chefe de Operações — Capital", header.chefeCapital ?? "—"],
-    ["Chefe de Operações — Interior", header.chefeInterior ?? "—"],
-    ["Coordenador — Sala de Situação", header.coordSituacao ?? "—"],
-  ];
-
-  autoTable(doc, {
-    startY: 144,
-    body: metaLeft,
-    theme: "plain",
-    styles: { fontSize: Q.metaBody, cellPadding: { top: 3, right: 4, bottom: 3, left: 4 } },
-    columnStyles: {
-      0: { fontStyle: "bold", textColor: [MUTED.r, MUTED.g, MUTED.b], cellWidth: 130 },
-      1: { textColor: [INK.r, INK.g, INK.b] },
-    },
-    margin: { left: 40, right: pageW / 2 + 10 },
-    tableWidth: pageW / 2 - 50,
-  });
-  autoTable(doc, {
-    startY: 144,
-    body: metaRight,
-    theme: "plain",
-    styles: { fontSize: Q.metaBody, cellPadding: { top: 3, right: 4, bottom: 3, left: 4 } },
-    columnStyles: {
-      0: { fontStyle: "bold", textColor: [MUTED.r, MUTED.g, MUTED.b], cellWidth: 150 },
-      1: { textColor: [INK.r, INK.g, INK.b] },
-    },
-    margin: { left: pageW / 2 + 10, right: 40 },
-    tableWidth: pageW / 2 - 50,
-  });
-
-  let cursorY = Math.max((doc as any).lastAutoTable?.finalY ?? 220, 220) + 18;
-
-  // Vertical reserved zones so autoTable never collides with the
-  // institutional header (top) or footer (bottom).
-  const HEADER_RESERVED = 100;
-  const FOOTER_RESERVED = 40;
-
-  // ---------- Section renderer ----------
-  // Each section is rendered as an INDEPENDENT block: it always starts on
-  // a fresh page (after the cover), so it never shares a page with another
-  // section and its title/header/body stay visually cohesive. If the section
-  // itself is larger than a single page, autoTable paginates it and the
-  // section title bar + institutional header are reprinted on every
-  // continuation page so the block reads as one continuous unit.
-  let sectionsRendered = 0;
-
-  const drawSectionTitleBar = (
-    romanIndex: string,
-    title: string,
-    subtitle: string,
-    y: number,
-    continuation = false,
-  ) => {
-    doc.setFillColor(BRAND.r, BRAND.g, BRAND.b);
-    doc.rect(20, y, pageW - 40, 20, "F");
-    doc.setFillColor(GOLD.r, GOLD.g, GOLD.b);
-    doc.rect(20, y, 4, 20, "F");
-    doc.setTextColor(255, 255, 255);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(Q.titleBar);
-    const label = `${romanIndex}  ·  ${title.toUpperCase()}${continuation ? "  (continuação)" : ""}`;
-    doc.text(label, 32, y + 13);
-    if (subtitle) {
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(7.5);
-      doc.setTextColor(220, 235, 225);
-      doc.text(subtitle, pageW - 28, y + 13, { align: "right" });
-    }
-    doc.setTextColor(INK.r, INK.g, INK.b);
-  };
-
-  const addSection = (
-    romanIndex: string,
-    title: string,
-    subtitle: string,
-    cols: { key: string; label: string; numeric?: boolean }[],
-    rows: any[],
-  ) => {
-    if (!rows?.length) return;
-
-    // Always start a new page for each section (except the first, which
-    // continues right after the cover metadata block if there's room).
-    if (sectionsRendered > 0 || cursorY > pageH - HEADER_RESERVED - 80) {
-      doc.addPage();
-      drawInstitutionalHeader();
-      cursorY = HEADER_RESERVED;
-    }
-
-    // Reserved space for the section title bar on each page of this section.
-    const SECTION_TITLE_H = 22;
-
-    // Draw the title bar for the first page of the section.
-    drawSectionTitleBar(romanIndex, title, subtitle, cursorY);
-    const bodyStartY = cursorY + SECTION_TITLE_H;
-
-    let lastDrawnPage = (doc as any).internal.getCurrentPageInfo().pageNumber;
-    const sectionStartPage = lastDrawnPage;
-
-    const tableBody = rows.map((r) =>
-      cols.map((c) => {
-        if (c.key === "total" && c.numeric === true) {
-          const rowTotal = cols
-            .filter(
-              (col) =>
-                col.numeric &&
-                col.key !== "total" &&
-                col.key !== "total_periodo" &&
-                col.key !== "focos" &&
-                col.key !== "sat" &&
-                col.key !== "area",
-            )
-            .reduce((s, col) => s + (Number(r[col.key]) || 0), 0);
-          return NF.format(rowTotal);
-        }
-        return c.numeric ? NF.format(Number(r[c.key]) || 0) : String(r[c.key] ?? "");
-      }),
-    );
-
-    // Add footer total row if there are multiple columns and numeric values
-    const numericCols = cols.filter((c) => c.numeric);
-    if (numericCols.length > 0 && rows.length > 0) {
-      const footerRow = cols.map((c, i) => {
-        if (i === 0) return "TOTAL";
-        if (c.numeric) {
-          const sum = rows.reduce((acc, r) => {
-            if (c.key === "total") {
-              return (
-                acc +
-                cols
-                  .filter(
-                    (col) =>
-                      col.numeric &&
-                      col.key !== "total" &&
-                      col.key !== "total_periodo" &&
-                      col.key !== "focos" &&
-                      col.key !== "sat" &&
-                      col.key !== "area",
-                  )
-                  .reduce((s, col) => s + (Number(r[col.key]) || 0), 0)
-              );
-            }
-            return acc + (Number(r[c.key]) || 0);
-          }, 0);
-          return NF.format(sum);
-        }
-        return "";
-      });
-      tableBody.push(footerRow);
-    }
-
-    autoTable(doc, {
-      startY: bodyStartY,
-      head: [cols.map((c) => c.label)],
-      body: tableBody,
-      styles: {
-        fontSize: Q.body,
-        cellPadding: Q.cellPad,
-        lineColor: [220, 226, 222],
-        lineWidth: 0.25,
-        overflow: "linebreak",
-        valign: "middle",
-      },
-      headStyles: {
-        fillColor: [BRAND_LIGHT.r, BRAND_LIGHT.g, BRAND_LIGHT.b],
-        textColor: 255,
-        fontStyle: "bold",
-        fontSize: Q.head,
-        halign: "center",
-      },
-      bodyStyles: { textColor: [INK.r, INK.g, INK.b] },
-      alternateRowStyles: { fillColor: [ROW_ALT.r, ROW_ALT.g, ROW_ALT.b] },
-      columnStyles: Object.fromEntries(
-        cols.map((c, i) => {
-          const style: any = { halign: c.numeric ? "right" : "left" };
-          const col0Width = cols.length > 15 ? 85 : 130;
-          if (i === 0) {
-            style.cellWidth = col0Width;
-          } else {
-            style.cellWidth = (555.28 - col0Width) / (cols.length - 1);
-          }
-          return [i, style];
-        }),
-      ),
-      // Reserve room at the top of every continuation page for the reprinted
-      // institutional header + the section title bar, so the block stays
-      // visually contiguous across page breaks.
-      margin: {
-        left: 20,
-        right: 20,
-        top: HEADER_RESERVED + SECTION_TITLE_H,
-        bottom: FOOTER_RESERVED,
-      },
-      showHead: "everyPage",
-      rowPageBreak: "avoid",
-      pageBreak: "auto",
-      didDrawPage: (hookData: any) => {
-        const current = hookData.pageNumber;
-        if (current > sectionStartPage && current !== lastDrawnPage) {
-          // Continuation page: reprint institutional header and section bar with (continuação).
-          drawInstitutionalHeader();
-          drawSectionTitleBar(romanIndex, title, subtitle, HEADER_RESERVED, true);
-          lastDrawnPage = current;
-        }
-      },
-    });
-
-    cursorY = (doc as any).lastAutoTable.finalY + 16;
-    sectionsRendered += 1;
-    // Silence unused variable lint while keeping section boundary intent clear.
-    void sectionStartPage;
-  };
-
-  addSection(
-    "I",
-    "Efetivo empregado",
-    "Distribuição por município",
-    [
-      { key: "mun", label: "Município" },
-      { key: "ord", label: "Serv. Ordinário", numeric: true },
-      { key: "seg", label: "SEG", numeric: true },
-      { key: "brig", label: "Brigadista", numeric: true },
-      { key: "total", label: "Total", numeric: true },
-    ],
-    data.efetivo,
-  );
-
-  addSection(
-    "II",
-    "Recursos empregados",
-    "Meios materiais em campo",
-    [
-      { key: "mun", label: "Município" },
-      { key: "abt", label: "ABT", numeric: true },
-      { key: "at", label: "AT", numeric: true },
-      { key: "aem", label: "AEM", numeric: true },
-      { key: "atp", label: "ATP", numeric: true },
-      { key: "ata", label: "ATA", numeric: true },
-      { key: "abf", label: "ABF", numeric: true },
-      { key: "atf", label: "ATF", numeric: true },
-      { key: "abs", label: "ABS", numeric: true },
-      { key: "pipa", label: "Pipa", numeric: true },
-      { key: "dosa", label: "DOSA", numeric: true },
-      { key: "crs", label: "CRS", numeric: true },
-      { key: "ar", label: "AR", numeric: true },
-      { key: "ur", label: "UR", numeric: true },
-      { key: "gse", label: "GSE", numeric: true },
-      { key: "mt", label: "MT", numeric: true },
-      { key: "ta", label: "TA", numeric: true },
-      { key: "quadriciclo", label: "Quadric.", numeric: true },
-      { key: "embarcacao", label: "Embarc.", numeric: true },
-      { key: "picape_fn", label: "Pic.FN", numeric: true },
-      { key: "picape_muni", label: "Pic.MUNI", numeric: true },
-      { key: "autoarp", label: "Autoarp", numeric: true },
-      { key: "picape_esfron", label: "Pic.ESFRON", numeric: true },
-      { key: "helicoptero", label: "Helic.", numeric: true },
-      { key: "aviao", label: "Avião", numeric: true },
-      { key: "jetski", label: "Jet Ski", numeric: true },
-      { key: "total", label: "Total", numeric: true },
-    ],
-    data.recursos,
-  );
-
-  addSection(
-    "III",
-    "Incêndios do dia",
-    "Ocorrências registradas nas últimas 24h",
-    [
-      { key: "mun", label: "Município" },
-      { key: "urb", label: "Urbanos", numeric: true },
-      { key: "flor", label: "Florestais", numeric: true },
-      { key: "focos", label: "Focos", numeric: true },
-      { key: "total", label: "Total", numeric: true },
-    ],
-    data.incendios_diario,
-  );
-
-  addSection(
-    "IV",
-    "Incêndios acumulados",
-    "Consolidado do período",
-    [
-      { key: "mun", label: "Município" },
-      { key: "urb", label: "Urbanos", numeric: true },
-      { key: "flor", label: "Florestais", numeric: true },
-      { key: "focos", label: "Focos", numeric: true },
-      { key: "sat", label: "Satélite", numeric: true },
-      { key: "area", label: "Área (m²)", numeric: true },
-      { key: "total", label: "Total", numeric: true },
-    ],
-    data.incendios_acumulado,
-  );
-
-  addSection(
-    "V",
-    "Ocorrências do dia",
-    "Salvamento, APH, prevenção e serviços",
-    [
-      { key: "mun", label: "Município" },
-      { key: "salvamento", label: "Salvamento", numeric: true },
-      { key: "acidentes", label: "Acidentes", numeric: true },
-      { key: "aph", label: "APH", numeric: true },
-      { key: "prevencao", label: "Prevenção", numeric: true },
-      { key: "servicos", label: "Serviços", numeric: true },
-      { key: "total", label: "Total", numeric: true },
-    ],
-    data.outras_diarias,
-  );
-
-  addSection(
-    "VI",
-    "Ocorrências detalhadas",
-    occurrencesFiltered
-      ? `Filtrado por ${fmtDateBR(opDate)} — ${occurrencesForDay.length} registro(s)`
-      : `${occurrencesForDay.length} registro(s)`,
-    [
-      { key: "data", label: "Data" },
-      { key: "municipio", label: "Município" },
-      { key: "horario", label: "Horário" },
-      { key: "natureza", label: "Natureza" },
-      { key: "endereco", label: "Endereço" },
-      { key: "area", label: "Área (m²)", numeric: true },
-      { key: "agua", label: "Água (L)", numeric: true },
-    ],
-    occurrencesForDay,
-  );
-
-  // ---------- Signature block ----------
-  if (cursorY > pageH - 160) {
-    doc.addPage();
-    drawInstitutionalHeader();
-    cursorY = 120;
-  } else {
-    cursorY += 20;
-  }
-
-  doc.setDrawColor(GOLD.r, GOLD.g, GOLD.b);
-  doc.setLineWidth(0.5);
-  doc.line(40, cursorY, pageW - 40, cursorY);
-  cursorY += 22;
-
-  doc.setFontSize(9);
+  // Assinatura 2: Subcomandante-Geral
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(INK.r, INK.g, INK.b);
-  doc.text("AUTENTICAÇÃO DO DOCUMENTO", pageW / 2, cursorY, { align: "center" });
-  cursorY += 32;
+  doc.setFontSize(8);
+  doc.text("CEL QOBM HELYANTHUS FRANK DA SILVA BORGES", pageW - 200, sigY + 50, { align: "center" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.text("Subcomandante-Geral do CBMAM", pageW - 200, sigY + 60, { align: "center" });
 
-  const sigWidth = (pageW - 120) / 2;
-  const drawSig = (x: number, name: string, role: string) => {
-    doc.setDrawColor(60, 60, 60);
-    doc.setLineWidth(0.5);
-    doc.line(x, cursorY, x + sigWidth, cursorY);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    doc.setTextColor(INK.r, INK.g, INK.b);
-    doc.text(name || "—", x + sigWidth / 2, cursorY + 14, { align: "center" });
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7.5);
-    doc.setTextColor(MUTED.r, MUTED.g, MUTED.b);
-    doc.text(role, x + sigWidth / 2, cursorY + 24, { align: "center" });
-  };
-  drawSig(40, header.comandante ?? "", "Comandante do Incidente");
-  drawSig(pageW / 2 + 20, header.coordSituacao ?? "", "Coordenador — Sala de Situação");
-
-  // ---------- Footer on every page ----------
-  const pageCount = (doc as any).internal.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    // Footer rule
-    doc.setDrawColor(BRAND.r, BRAND.g, BRAND.b);
-    doc.setLineWidth(0.4);
-    doc.line(20, pageH - 28, pageW - 20, pageH - 28);
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7.5);
-    doc.setTextColor(MUTED.r, MUTED.g, MUTED.b);
-    doc.text(`Página ${i} de ${pageCount}`, pageW - 20, pageH - 14, { align: "right" });
-  }
+  drawPageFooter(3);
 
   return doc;
 }
