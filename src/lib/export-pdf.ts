@@ -419,7 +419,7 @@ export function buildSheetsPdfDoc(
     ],
     styles: { fontSize: 6.5, cellPadding: 1.5, lineColor: BORDER_COLOR, lineWidth: 0.3 },
     headStyles: { fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b], textColor: 255, fontStyle: "bold", fontSize: 5.8, halign: "center" },
-    columnStyles: { 0: { cellWidth: 20, halign: "center" }, 1: { fontStyle: "bold", cellWidth: 100 }, 2: { halign: "center" }, 3: { halign: "center" }, 4: { halign: "center" }, 5: { halign: "center" }, 6: { halign: "right" }, 7: { halign: "center", fontStyle: "bold" } },
+    columnStyles: { 0: { cellWidth: 20, halign: "center" }, 1: { fontStyle: "bold", cellWidth: 100 }, 2: { halign: "center" }, 3: { halign: "center" }, 4: { halign: "center" }, 5: { halign: "center" }, 6: { halign: "center" }, 7: { halign: "center", fontStyle: "bold" } },
   });
 
   drawPageFooter(2);
