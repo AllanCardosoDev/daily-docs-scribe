@@ -79,7 +79,7 @@ function aggregateSnapshot(rows: AnyRow[], field: string, keys: string[]) {
 }
 
 function TotaisPage() {
-  const [from, setFrom] = useState<string>(firstOfMonthISO());
+  const [from, setFrom] = useState<string>("2026-06-01");
   const [to, setTo] = useState<string>(todayISO());
   const getLatest = useServerFn(getLatestReportDate);
 
