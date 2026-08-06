@@ -9,6 +9,7 @@
  */
 import * as XLSX from "xlsx";
 import type { ReportShift } from "./report-shift";
+import { canonicalMunicipio } from "./municipio-order";
 
 export type DriveFile = {
   id: string;
@@ -321,21 +322,31 @@ export function parseDailyReportSheet(rows: any[][]): ParsedDailyReport {
     }
   }
 
-  // Blocos repetidos lado a lado podem listar o mesmo município mais de uma
-  // vez; mantém apenas a primeira ocorrência de cada um.
-  const dedupe = <T extends { mun: string }>(list: T[]) => {
-    const seen = new Set<string>();
-    return list.filter((r) => {
-      const k = norm(r.mun);
-      if (!k || seen.has(k)) return false;
-      seen.add(k);
-      return true;
-    });
+  // Consolida municípios duplicados (como Boca do Acre), somando seus valores.
+  const consolidate = <T extends Record<string, any>>(list: T[]) => {
+    const map = new Map<string, T>();
+    for (const row of list) {
+      const rawMun = row.mun ?? row.municipio;
+      if (!rawMun) continue;
+      const mun = canonicalMunicipio(rawMun);
+      const existing = map.get(mun);
+      if (!existing) {
+        const copy = { ...row, mun };
+        map.set(mun, copy);
+      } else {
+        for (const [k, v] of Object.entries(row)) {
+          if (k === "mun" || k === "municipio") continue;
+          (existing as any)[k] = num((existing as any)[k]) + num(v);
+        }
+      }
+    }
+    return Array.from(map.values());
   };
-  out.efetivo = dedupe(out.efetivo);
-  out.recursos = dedupe(out.recursos as Array<{ mun: string }>) as any;
-  out.incendios = dedupe(out.incendios);
-  out.outras = dedupe(out.outras);
+
+  out.efetivo = consolidate(out.efetivo);
+  out.recursos = consolidate(out.recursos as Array<Record<string, any>>) as any;
+  out.incendios = consolidate(out.incendios);
+  out.outras = consolidate(out.outras);
 
   return out;
 }

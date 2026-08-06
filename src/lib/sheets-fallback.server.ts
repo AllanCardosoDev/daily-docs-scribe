@@ -99,7 +99,7 @@ export const OFFICIAL_CUMULATIVE_04_08_2026 = [
   { mun: "Tabatinga", urb: 2, flor: 0, focos: 0, sat: 4, area: 0 },
   { mun: "Tapauá", urb: 1, flor: 1, focos: 15, sat: 2, area: 5200 },
   { mun: "Tefé", urb: 5, flor: 3, focos: 6, sat: 7, area: 250 },
-  { mun: "Uricurituba", urb: 0, flor: 0, focos: 0, sat: 9, area: 0 },
+  { mun: "Urucurituba", urb: 0, flor: 0, focos: 0, sat: 9, area: 0 },
 ];
 
 export async function fetchIncendiosAcumulado(

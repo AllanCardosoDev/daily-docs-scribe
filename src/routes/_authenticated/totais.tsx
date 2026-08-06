@@ -85,14 +85,26 @@ function aggregateSnapshot(rows: AnyRow[], field: string, keys: string[]) {
     String(b.report_date || "").localeCompare(String(a.report_date || ""))
   );
   const map = new Map<string, Record<string, number>>();
+  const seenDates = new Map<string, string>();
+
   for (const r of sortedRows) {
+    const reportDate = String(r.report_date || "");
     const list: AnyRow[] = (r?.[field] as AnyRow[]) ?? [];
     for (const item of list) {
       const mun = canonicalMunicipio(item?.mun ?? item?.municipio);
       if (!mun) continue;
-      if (!map.has(mun)) {
-        const vals = Object.fromEntries(keys.map((k) => [k, getItemVal(item, k)]));
-        map.set(mun, vals);
+
+      const lastDate = seenDates.get(mun);
+      if (!lastDate) {
+        seenDates.set(mun, reportDate);
+        const cur = Object.fromEntries(keys.map((k) => [k, getItemVal(item, k)]));
+        map.set(mun, cur);
+      } else if (lastDate === reportDate) {
+        const cur = map.get(mun) ?? Object.fromEntries(keys.map((k) => [k, 0]));
+        for (const k of keys) {
+          cur[k] = (cur[k] ?? 0) + getItemVal(item, k);
+        }
+        map.set(mun, cur);
       }
     }
   }

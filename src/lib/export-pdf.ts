@@ -1,4 +1,4 @@
-import { manausFirstSheets } from "./municipio-order";
+import { manausFirstSheets, canonicalMunicipio } from "./municipio-order";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { SheetsData } from "./sheets.types";
@@ -154,16 +154,19 @@ export function buildSheetsPdfDoc(
     "Canutama",
     "Careiro",
     "Nhamundá",
-    "Uricurituba",
+    "Urucurituba",
   ];
 
   const getEfetivoRow = (munName: string) => {
-    const found = efetivoList.find((r) => r.mun?.toLowerCase() === munName.toLowerCase());
+    const canonicalTarget = canonicalMunicipio(munName).toLowerCase();
+    const matches = efetivoList.filter(
+      (r) => canonicalMunicipio(r.mun).toLowerCase() === canonicalTarget,
+    );
     return {
       mun: munName,
-      ord: num(found?.ord),
-      seg: num(found?.seg),
-      brig: num(found?.brig),
+      ord: matches.reduce((s, r) => s + num(r.ord), 0),
+      seg: matches.reduce((s, r) => s + num(r.seg), 0),
+      brig: matches.reduce((s, r) => s + num(r.brig), 0),
     };
   };
 
