@@ -4,7 +4,9 @@ import { DASHBOARD_COLUMNS, OCCURRENCES_PREVIEW_LIMIT } from "@/lib/dashboard-co
 import type { SheetsData } from "@/lib/sheets.types";
 import type { SectionSavers } from "@/hooks/use-sheets";
 import { manausFirstSheets } from "@/lib/municipio-order";
-import { Flame, Users, ClipboardList } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { Button } from "@/components/ui/button";
+import { Flame, Users, ClipboardList, BarChart3 } from "lucide-react";
 
 interface Props {
   data: SheetsData;
@@ -111,12 +113,32 @@ export const DashboardSections = memo(function DashboardSections({
             rows={data.incendios_diario}
           />
           <DataTable
-            title="Outras ocorrências"
+            title="Outras ocorrências do dia"
             editable={canEdit}
             onRowsChange={savers.outras_diarias}
             columns={DASHBOARD_COLUMNS.outras_diarias}
             rows={data.outras_diarias}
           />
+        </div>
+
+        <div className="rounded-xl border border-primary/20 bg-gradient-brand-soft p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-xl bg-primary/10 text-primary shrink-0">
+              <BarChart3 className="w-6 h-6" />
+            </div>
+            <div>
+              <h4 className="font-bold text-sm sm:text-base text-foreground">Totais Acumulados do Período</h4>
+              <p className="text-xs text-muted-foreground">
+                Consultar consolidado mensal, anual, satélite e área queimada (m²) em tela dedicada.
+              </p>
+            </div>
+          </div>
+          <Button asChild size="default" className="bg-gradient-brand text-white font-bold gap-2 shrink-0">
+            <Link to="/totais">
+              <BarChart3 className="w-4 h-4" />
+              Ver Totais Acumulados
+            </Link>
+          </Button>
         </div>
       </section>
 

@@ -33,12 +33,12 @@ describe("computeKpis", () => {
     expect(kpis[1].label).toBe("Efetivo empenhado");
     expect(kpis[1].value).toBe("28");
 
-    // Combates a incêndio (urb: 2+1=3, flor: 3+0=3 => 6)
-    expect(kpis[2].label).toBe("Combates a incêndio");
+    // Incêndios (do dia) (urb: 2+1=3, flor: 3+0=3 => 6)
+    expect(kpis[2].label).toBe("Incêndios (do dia)");
     expect(kpis[2].value).toBe("6");
 
-    // Outras ocorrências (1+2+3+4+5 = 15)
-    expect(kpis[3].label).toBe("Outras ocorrências");
+    // Outras ocorrências (do dia) (1+2+3+4+5 = 15)
+    expect(kpis[3].label).toBe("Outras ocorrências (do dia)");
     expect(kpis[3].value).toBe("15");
   });
 
