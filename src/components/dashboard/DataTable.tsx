@@ -238,6 +238,18 @@ export const DataTable = memo(function DataTable({
   );
 });
 
+const OCCURRENCE_KEYS = new Set([
+  "urb",
+  "flor",
+  "focos",
+  "salvamento",
+  "acidentes",
+  "aph",
+  "prevencao",
+  "servicos",
+  "total_periodo",
+]);
+
 /** Single cell — read-only or editable — kept local to isolate rendering logic. */
 function DataCell({
   column,
@@ -257,7 +269,7 @@ function DataCell({
   if (editable) {
     const isNum = column.numeric;
     const numVal = isNum ? Number(value) || 0 : 0;
-    const isRed = isNum && numVal > 0;
+    const isRed = isNum && numVal > 0 && OCCURRENCE_KEYS.has(column.key);
     return (
       <TableCell className={`p-1 align-middle ${widthCls}`}>
         <Input
@@ -281,7 +293,7 @@ function DataCell({
   }
   const isNum = column.numeric;
   const numVal = isNum ? Number(value) || 0 : 0;
-  const isRed = isNum && numVal > 0;
+  const isRed = isNum && numVal > 0 && OCCURRENCE_KEYS.has(column.key);
   return (
     <TableCell className={`p-1 align-middle ${widthCls}`}>
       <div

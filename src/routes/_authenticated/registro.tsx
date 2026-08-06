@@ -471,9 +471,9 @@ function RegistroPage() {
                       disabled={!canEdit}
                     />
                   </TableCell>
-                  <NumCell v={r.urb} on={(v) => patch({ urb: v })} disabled={!canEdit} />
-                  <NumCell v={r.flor} on={(v) => patch({ flor: v })} disabled={!canEdit} />
-                  <NumCell v={r.focos} on={(v) => patch({ focos: v })} disabled={!canEdit} />
+                  <NumCell v={r.urb} on={(v) => patch({ urb: v })} disabled={!canEdit} isPrevFilled={shift === "noturno"} />
+                  <NumCell v={r.flor} on={(v) => patch({ flor: v })} disabled={!canEdit} isPrevFilled={shift === "noturno"} />
+                  <NumCell v={r.focos} on={(v) => patch({ focos: v })} disabled={!canEdit} isPrevFilled={shift === "noturno"} />
                 </>
               )}
             />
@@ -500,19 +500,22 @@ function RegistroPage() {
                     v={r.salvamento}
                     on={(v) => patch({ salvamento: v })}
                     disabled={!canEdit}
+                    isPrevFilled={shift === "noturno"}
                   />
                   <NumCell
                     v={r.acidentes}
                     on={(v) => patch({ acidentes: v })}
                     disabled={!canEdit}
+                    isPrevFilled={shift === "noturno"}
                   />
-                  <NumCell v={r.aph} on={(v) => patch({ aph: v })} disabled={!canEdit} />
+                  <NumCell v={r.aph} on={(v) => patch({ aph: v })} disabled={!canEdit} isPrevFilled={shift === "noturno"} />
                   <NumCell
                     v={r.prevencao}
                     on={(v) => patch({ prevencao: v })}
                     disabled={!canEdit}
+                    isPrevFilled={shift === "noturno"}
                   />
-                  <NumCell v={r.servicos} on={(v) => patch({ servicos: v })} disabled={!canEdit} />
+                  <NumCell v={r.servicos} on={(v) => patch({ servicos: v })} disabled={!canEdit} isPrevFilled={shift === "noturno"} />
                 </>
               )}
             />
