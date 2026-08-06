@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { DashboardHeader } from "@/components/dashboard/Header";
 import { KpiCards } from "@/components/dashboard/KpiCards";
 import { DashboardSections } from "@/components/dashboard/DashboardSections";
@@ -13,6 +13,8 @@ import { EMPTY_SHEETS_DATA } from "@/lib/sheets.types";
 import { useExporters } from "@/hooks/use-exporters";
 import { useServerFn } from "@tanstack/react-start";
 import { getLatestReportDate } from "@/lib/daily-reports.functions";
+import { canonicalMunicipio } from "@/lib/municipio-order";
+import { toast } from "sonner";
 
 /**
  * Diálogos pesados (visualizador de PDF e configurações) são carregados
@@ -76,6 +78,63 @@ function PainelPage() {
   }, []);
   const { exportXlsx, exportPdf } = useExporters(data, reportDate, pdfQuality);
 
+  const existingMunicipios = useMemo(() => {
+    const list = data.incendios_diario ?? [];
+    return list.map((r) => r.mun);
+  }, [data.incendios_diario]);
+
+  const handleAddMunicipio = useCallback(
+    async (name: string) => {
+      const canonicalName = canonicalMunicipio(name);
+      const appendRow = <T extends { mun?: string; municipio?: string }>(
+        list: T[],
+        newRow: T,
+      ) => {
+        if (
+          list.some(
+            (r) =>
+              canonicalMunicipio(r.mun ?? r.municipio).toLowerCase() ===
+              canonicalName.toLowerCase(),
+          )
+        ) {
+          return list;
+        }
+        return [...list, { ...newRow, mun: canonicalName }];
+      };
+
+      const updatedEfetivo = appendRow(data.efetivo ?? [], {
+        mun: canonicalName,
+        ord: 0,
+        seg: 0,
+        brig: 0,
+      });
+      const updatedRecursos = appendRow(data.recursos ?? [], { mun: canonicalName });
+      const updatedIncendios = appendRow(data.incendios_diario ?? [], {
+        mun: canonicalName,
+        urb: 0,
+        flor: 0,
+        focos: 0,
+        total_periodo: 0,
+      });
+      const updatedOutras = appendRow(data.outras_diarias ?? [], {
+        mun: canonicalName,
+        salvamento: 0,
+        acidentes: 0,
+        aph: 0,
+        prevencao: 0,
+        servicos: 0,
+        total_periodo: 0,
+      });
+
+      await savers.efetivo(updatedEfetivo);
+      await savers.recursos(updatedRecursos);
+      await savers.incendios_diario(updatedIncendios);
+      await savers.outras_diarias(updatedOutras);
+      toast.success(`Município ${canonicalName} inserido no relatório!`);
+    },
+    [data, savers],
+  );
+
   const isBooting = configQuery.isLoading || (dataQuery.isLoading && !dataQuery.isPlaceholderData);
   // A fonte oficial é sempre a pasta do Google Drive — não há configuração manual.
 
@@ -105,6 +164,8 @@ function PainelPage() {
               onExportXlsx={exportXlsx}
               onExportPdf={exportPdf}
               onPreviewPdf={openPreview}
+              existingMunicipios={existingMunicipios}
+              onAddMunicipio={handleAddMunicipio}
             />
             <EditableHeader header={data.header ?? {}} editable={canEdit} onSave={savers.header} />
             <KpiCards data={data} />

@@ -22,6 +22,7 @@ import {
   BarChart3,
 } from "lucide-react";
 import { ReportHistoryDialog } from "./ReportHistoryDialog";
+import { AddMunicipioDialog } from "./AddMunicipioDialog";
 import { fmtDateLong } from "@/lib/report-date";
 import { cn } from "@/lib/utils";
 import type { PdfQuality } from "@/lib/export-pdf";
@@ -37,6 +38,8 @@ interface Props {
   onExportXlsx: () => void;
   onExportPdf: () => void;
   onPreviewPdf: () => void;
+  existingMunicipios?: string[];
+  onAddMunicipio?: (name: string) => Promise<void> | void;
 }
 
 /**
@@ -54,6 +57,8 @@ export const PainelToolbar = memo(function PainelToolbar({
   onExportXlsx,
   onExportPdf,
   onPreviewPdf,
+  existingMunicipios = [],
+  onAddMunicipio,
 }: Props) {
   return (
     <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-elevated animate-fade-in-soft">
@@ -164,6 +169,13 @@ export const PainelToolbar = memo(function PainelToolbar({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {onAddMunicipio && (
+              <AddMunicipioDialog
+                existingMunicipios={existingMunicipios}
+                onAddMunicipio={onAddMunicipio}
+                disabled={!canEdit}
+              />
+            )}
             <ReportHistoryDialog />
 
             <DropdownMenu>
