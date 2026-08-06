@@ -155,6 +155,31 @@ export async function fetchIncendiosAcumulado(
   return result.length ? result : OFFICIAL_CUMULATIVE_04_08_2026.sort((a, b) => compareMunicipios(a.mun, b.mun));
 }
 
+function consolidateAndCanonicalizeRows<T extends Record<string, any>>(
+  rows: T[],
+  numericKeys: string[],
+): T[] {
+  const map = new Map<string, T>();
+  for (const r of rows) {
+    const rawMun = r.mun ?? r.municipio;
+    if (!rawMun) continue;
+    const mun = canonicalMunicipio(rawMun);
+    const existing = map.get(mun);
+    if (!existing) {
+      const copy = { ...r, mun };
+      for (const k of numericKeys) {
+        (copy as any)[k] = num(r[k]);
+      }
+      map.set(mun, copy);
+    } else {
+      for (const k of numericKeys) {
+        (existing as any)[k] = num((existing as any)[k]) + num(r[k]);
+      }
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => compareMunicipios(a.mun, b.mun));
+}
+
 /**
  * Converte o último relatório diário sincronizado do Drive no formato usado
  * pelo painel operacional.
@@ -177,6 +202,38 @@ export async function loadLatestDriveReport(
   const dateStr = formatDateBR(String(row.report_date));
   const acum = await fetchIncendiosAcumulado(supabase, String(row.report_date));
 
+  const rawEfetivo = asRows(row.efetivo).map((r) => {
+    const mun = canonicalMunicipio(r.mun ?? r.municipio);
+    const isItapiranga = mun.toLowerCase().includes("itapiranga");
+    return {
+      mun,
+      ord: isItapiranga ? num(r.ord) || 6 : num(r.ord),
+      seg: num(r.seg),
+      brig: isItapiranga ? num(r.brig) || 12 : num(r.brig),
+    };
+  });
+  if (!rawEfetivo.some((r) => r.mun.toLowerCase().includes("itapiranga"))) {
+    rawEfetivo.push({ mun: "Itapiranga", ord: 6, seg: 0, brig: 12 });
+  }
+
+  const rawInc = asRows(row.incendios).map((r) => ({
+    mun: canonicalMunicipio(r.mun ?? r.municipio),
+    urb: num(r.urb),
+    flor: num(r.flor),
+    focos: num(r.focos),
+    total_periodo: num(r.total_periodo),
+  }));
+
+  const rawOutras = asRows(row.outras).map((r) => ({
+    mun: canonicalMunicipio(r.mun ?? r.municipio),
+    salvamento: num(r.salvamento),
+    acidentes: num(r.acidentes),
+    aph: num(r.aph),
+    prevencao: num(r.prevencao),
+    servicos: num(r.servicos),
+    total_periodo: num(r.total_periodo),
+  }));
+
   const data: SheetsData = {
     header: {
       titulo: "Relatório Diário — Sala de Situação",
@@ -191,44 +248,23 @@ export async function loadLatestDriveReport(
       coordenador: "Coordenador Amazonas + Verde",
       subcomandante: "Subcomandante-Geral do CBMAM",
     },
-    efetivo: (() => {
-      const rows = asRows(row.efetivo).map((r) => {
-        const mun = str(r.mun ?? r.municipio);
-        const isItapiranga = mun.toLowerCase().includes("itapiranga");
-        return {
-          mun,
-          ord: isItapiranga ? num(r.ord) || 6 : num(r.ord),
-          seg: num(r.seg),
-          brig: isItapiranga ? num(r.brig) || 12 : num(r.brig),
-        };
-      });
-      if (!rows.some((r) => r.mun.toLowerCase().includes("itapiranga"))) {
-        rows.push({ mun: "Itapiranga", ord: 6, seg: 0, brig: 12 });
-      }
-      return rows;
-    })(),
+    efetivo: consolidateAndCanonicalizeRows(rawEfetivo, ["ord", "seg", "brig"]),
     recursos: normaliseRecursos(asRows(row.recursos)),
-    incendios_diario: asRows(row.incendios).map((r) => ({
-      mun: str(r.mun ?? r.municipio),
-      urb: num(r.urb),
-      flor: num(r.flor),
-      focos: num(r.focos),
-      total_periodo: num(r.total_periodo),
-    })),
+    incendios_diario: consolidateAndCanonicalizeRows(rawInc, ["urb", "flor", "focos", "total_periodo"]),
     incendios_acumulado: acum,
-    outras_diarias: asRows(row.outras).map((r) => ({
-      mun: str(r.mun ?? r.municipio),
-      salvamento: num(r.salvamento),
-      acidentes: num(r.acidentes),
-      aph: num(r.aph),
-      prevencao: num(r.prevencao),
-      servicos: num(r.servicos),
-      total_periodo: num(r.total_periodo),
-    })),
+    outras_diarias: consolidateAndCanonicalizeRows(rawOutras, [
+      "salvamento",
+      "acidentes",
+      "aph",
+      "prevencao",
+      "servicos",
+      "total_periodo",
+    ]),
     occurrences: [],
   };
   return { data, found: true };
 }
+
 /**
  * Carrega um relatório específico por data e turno.
  */
@@ -248,8 +284,39 @@ export async function loadReportByDate(
 
   const shiftLabel = row.shift === "parcial" ? "Parcial (07:00–18:30)" : "24h (18:30–07:00)";
   const dateStr = formatDateBR(String(row.report_date));
-
   const acum = await fetchIncendiosAcumulado(supabase, String(row.report_date));
+
+  const rawEfetivo = asRows(row.efetivo).map((r) => {
+    const mun = canonicalMunicipio(r.mun ?? r.municipio);
+    const isItapiranga = mun.toLowerCase().includes("itapiranga");
+    return {
+      mun,
+      ord: isItapiranga ? num(r.ord) || 6 : num(r.ord),
+      seg: num(r.seg),
+      brig: isItapiranga ? num(r.brig) || 12 : num(r.brig),
+    };
+  });
+  if (!rawEfetivo.some((r) => r.mun.toLowerCase().includes("itapiranga"))) {
+    rawEfetivo.push({ mun: "Itapiranga", ord: 6, seg: 0, brig: 12 });
+  }
+
+  const rawInc = asRows(row.incendios).map((r) => ({
+    mun: canonicalMunicipio(r.mun ?? r.municipio),
+    urb: num(r.urb),
+    flor: num(r.flor),
+    focos: num(r.focos),
+    total_periodo: num(r.total_periodo),
+  }));
+
+  const rawOutras = asRows(row.outras).map((r) => ({
+    mun: canonicalMunicipio(r.mun ?? r.municipio),
+    salvamento: num(r.salvamento),
+    acidentes: num(r.acidentes),
+    aph: num(r.aph),
+    prevencao: num(r.prevencao),
+    servicos: num(r.servicos),
+    total_periodo: num(r.total_periodo),
+  }));
 
   const data: SheetsData = {
     header: {
@@ -265,41 +332,18 @@ export async function loadReportByDate(
       coordenador: "Coordenador Amazonas + Verde",
       subcomandante: "Subcomandante-Geral do CBMAM",
     },
-    efetivo: (() => {
-      const rows = asRows(row.efetivo).map((r) => {
-        const mun = str(r.mun ?? r.municipio);
-        const isItapiranga = mun.toLowerCase().includes("itapiranga");
-        return {
-          mun,
-          ord: isItapiranga ? num(r.ord) || 6 : num(r.ord),
-          seg: num(r.seg),
-          brig: isItapiranga ? num(r.brig) || 12 : num(r.brig),
-        };
-      });
-      // Garante que Itapiranga (Tapiranga) esteja presente se faltar na planilha
-      if (!rows.some((r) => r.mun.toLowerCase().includes("itapiranga"))) {
-        rows.push({ mun: "Itapiranga", ord: 6, seg: 0, brig: 12 });
-      }
-      return rows;
-    })(),
+    efetivo: consolidateAndCanonicalizeRows(rawEfetivo, ["ord", "seg", "brig"]),
     recursos: normaliseRecursos(asRows(row.recursos)),
-    incendios_diario: asRows(row.incendios).map((r) => ({
-      mun: str(r.mun ?? r.municipio),
-      urb: num(r.urb),
-      flor: num(r.flor),
-      focos: num(r.focos),
-      total_periodo: num(r.total_periodo),
-    })),
+    incendios_diario: consolidateAndCanonicalizeRows(rawInc, ["urb", "flor", "focos", "total_periodo"]),
     incendios_acumulado: acum,
-    outras_diarias: asRows(row.outras).map((r) => ({
-      mun: str((r.mun ?? r.salvamento) ? r.mun : r.municipio),
-      salvamento: num(r.salvamento),
-      acidentes: num(r.acidentes),
-      aph: num(r.aph),
-      prevencao: num(r.prevencao),
-      servicos: num(r.servicos),
-      total_periodo: num(r.total_periodo),
-    })),
+    outras_diarias: consolidateAndCanonicalizeRows(rawOutras, [
+      "salvamento",
+      "acidentes",
+      "aph",
+      "prevencao",
+      "servicos",
+      "total_periodo",
+    ]),
     occurrences: [],
   };
 

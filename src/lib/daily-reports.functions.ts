@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireBackendAuth } from "@/integrations/backend/auth-middleware";
 import { dbFail } from "./server-errors";
 import { ShiftEnum } from "./report-shift";
+import { canonicalMunicipio, compareMunicipios } from "./municipio-order";
 
 // ---------- Schemas ----------
 
@@ -132,6 +133,54 @@ export const getDailyReport = createServerFn({ method: "GET" })
 
     if (reportRes.error) dbFail(reportRes.error, "daily-reports");
     const row = reportRes.data;
+
+    if (row) {
+      const num = (v: any) => (Number(v) || 0);
+      const cleanList = <T extends Record<string, any>>(list: any[], numericKeys: string[]): T[] => {
+        if (!Array.isArray(list)) return [];
+        const map = new Map<string, T>();
+        for (const r of list) {
+          const rawMun = r?.mun ?? r?.municipio;
+          if (!rawMun) continue;
+          const mun = canonicalMunicipio(rawMun);
+          const existing = map.get(mun);
+          if (!existing) {
+            const copy = { ...r, mun };
+            for (const k of numericKeys) (copy as any)[k] = num(r[k]);
+            map.set(mun, copy);
+          } else {
+            for (const k of numericKeys) {
+              (existing as any)[k] = num((existing as any)[k]) + num(r[k]);
+            }
+          }
+        }
+        return Array.from(map.values()).sort((a, b) => compareMunicipios(a.mun, b.mun));
+      };
+
+      (row as any).efetivo = cleanList((row as any).efetivo, ["ord", "seg", "brig"]);
+      (row as any).incendios = cleanList((row as any).incendios, ["urb", "flor", "focos"]);
+      (row as any).outras = cleanList((row as any).outras, ["salvamento", "acidentes", "aph", "prevencao", "servicos"]);
+
+      // Recursos
+      if (Array.isArray((row as any).recursos)) {
+        const recMap = new Map<string, Record<string, any>>();
+        for (const item of (row as any).recursos) {
+          const rawMun = item?.mun ?? item?.municipio;
+          if (!rawMun) continue;
+          const mun = canonicalMunicipio(rawMun);
+          const existing = recMap.get(mun);
+          if (!existing) {
+            recMap.set(mun, { ...item, mun });
+          } else {
+            for (const [k, v] of Object.entries(item)) {
+              if (k === "mun" || k === "municipio") continue;
+              existing[k] = num(existing[k]) + num(v);
+            }
+          }
+        }
+        (row as any).recursos = Array.from(recMap.values()).sort((a, b) => compareMunicipios(a.mun, b.mun));
+      }
+    }
 
     const roles = new Set((rolesRes.data ?? []).map((r) => r.role));
     const isAdmin = roles.has("admin");
