@@ -255,6 +255,9 @@ function DataCell({
   const widthCls = isFirst ? "min-w-[160px]" : column.numeric ? "min-w-[92px]" : "min-w-[140px]";
 
   if (editable) {
+    const isNum = column.numeric;
+    const numVal = isNum ? Number(value) || 0 : 0;
+    const isRed = isNum && numVal > 0;
     return (
       <TableCell className={`p-1 align-middle ${widthCls}`}>
         <Input
@@ -262,22 +265,31 @@ function DataCell({
           inputMode={column.numeric ? "numeric" : undefined}
           value={(value as string | number | undefined) ?? ""}
           onChange={(e) => onChange(e.target.value)}
-          className={`h-9 w-full bg-transparent border-transparent hover:border-border focus:border-ring transition-colors px-3 ${
+          className={`h-9 w-full border-transparent hover:border-border focus:border-ring transition-colors px-3 ${
             column.numeric
-              ? "text-center tabular-nums font-normal text-foreground [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              : "font-bold text-foreground"
+              ? `text-center tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+                  isRed
+                    ? "border-red-500/50 bg-red-50/30 dark:bg-red-950/20 text-red-600 dark:text-red-400 font-bold"
+                    : "font-normal text-foreground bg-transparent"
+                }`
+              : "font-bold text-foreground bg-transparent"
           }`}
           aria-label={column.label}
         />
       </TableCell>
     );
   }
+  const isNum = column.numeric;
+  const numVal = isNum ? Number(value) || 0 : 0;
+  const isRed = isNum && numVal > 0;
   return (
     <TableCell className={`p-1 align-middle ${widthCls}`}>
       <div
         className={`h-9 w-full flex items-center px-3 ${
           column.numeric
-            ? "justify-center text-center tabular-nums font-normal whitespace-nowrap"
+            ? `justify-center text-center tabular-nums whitespace-nowrap ${
+                isRed ? "text-red-600 dark:text-red-400 font-bold" : "font-normal text-foreground"
+              }`
             : "justify-start break-words whitespace-normal leading-snug font-bold text-foreground"
         }`}
       >

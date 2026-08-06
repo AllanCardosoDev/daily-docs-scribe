@@ -15,6 +15,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { getLatestReportDate } from "@/lib/daily-reports.functions";
 import { canonicalMunicipio } from "@/lib/municipio-order";
 import { toast } from "sonner";
+import { ReportShift } from "@/lib/report-shift";
 
 /**
  * Diálogos pesados (visualizador de PDF e configurações) são carregados
@@ -42,6 +43,7 @@ function PainelPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [reportDate, setReportDate] = useState<Date | null>(null);
+  const [shift, setShift] = useState<ReportShift>("noturno");
   const getLatest = useServerFn(getLatestReportDate);
 
   useEffect(() => {
@@ -166,6 +168,8 @@ function PainelPage() {
               onPreviewPdf={openPreview}
               existingMunicipios={existingMunicipios}
               onAddMunicipio={handleAddMunicipio}
+              shift={shift}
+              onShiftChange={setShift}
             />
             <EditableHeader header={data.header ?? {}} editable={canEdit} onSave={savers.header} />
             <KpiCards data={data} />

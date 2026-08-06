@@ -4,7 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Plus, Trash2, CalendarDays, Lock } from "lucide-react";
+import { ArrowLeft, Save, Plus, Trash2, CalendarDays, Lock, FileText } from "lucide-react";
+import { exportDailyPdf } from "@/lib/daily-export";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -332,10 +334,34 @@ function RegistroPage() {
               <Button
                 onClick={() => save.mutate()}
                 disabled={!canEdit || save.isPending || q.isPlaceholderData || q.isLoading}
-                className="gap-2"
+                variant="outline"
+                className="gap-2 font-semibold"
               >
-                <Save className="w-4 h-4" />
-                {save.isPending ? "Salvando…" : "Salvar registro"}
+                <Save className="w-4 h-4 text-primary" />
+                {save.isPending ? "Salvando…" : "Salvar Rascunho"}
+              </Button>
+
+              <Button
+                onClick={async () => {
+                  try {
+                    await save.mutateAsync();
+                    exportDailyPdf({
+                      date,
+                      shift,
+                      row: { efetivo, recursos, incendios, outras, notes },
+                    });
+                    toast.success(
+                      `🎉 Relatório ${shift === "noturno" ? "24h" : "Parcial"} finalizado! Arquivo PDF baixado com sucesso.`,
+                    );
+                  } catch (err: any) {
+                    toast.error("Erro ao finalizar relatório", { description: err?.message });
+                  }
+                }}
+                disabled={!canEdit || save.isPending || q.isPlaceholderData || q.isLoading}
+                className="gap-2 bg-gradient-brand text-white font-bold shadow-elevated hover:opacity-95 hover-lift px-5"
+              >
+                <FileText className="w-4 h-4 text-white" />
+                Finalizar {shift === "noturno" ? "24h" : "Parcial"} e Baixar PDF
               </Button>
             </div>
           </div>
@@ -608,21 +634,47 @@ function SectionTable<T extends { mun: string }>(props: {
   );
 }
 
-function NumCell({ v, on, disabled }: { v: number; on: (v: number) => void; disabled?: boolean }) {
+function NumCell({
+  v,
+  on,
+  disabled,
+  minVal = 0,
+  isPrevFilled = false,
+}: {
+  v: number;
+  on: (v: number) => void;
+  disabled?: boolean;
+  minVal?: number;
+  isPrevFilled?: boolean;
+}) {
+  const current = Number.isFinite(v) ? v : 0;
+  const isRed = isPrevFilled || (minVal > 0 && current > 0);
+
   return (
     <TableCell className="w-24">
       <Input
         type="number"
-        min={0}
+        min={minVal}
         step={1}
         inputMode="numeric"
-        value={Number.isFinite(v) ? v : 0}
+        value={current}
         onChange={(e) => {
-          // Nunca envia NaN nem negativo — o servidor rejeita valores < 0.
           const n = Math.trunc(Number(e.target.value));
-          on(Number.isFinite(n) && n > 0 ? n : 0);
+          const val = Number.isFinite(n) && n > 0 ? n : 0;
+          if (minVal > 0 && val < minVal) {
+            toast.warning(`No Relatório 24h, o valor não pode ser menor que o prévio (${minVal}).`);
+            on(minVal);
+            return;
+          }
+          on(val);
         }}
         disabled={disabled}
+        className={cn(
+          "text-center transition-colors font-medium",
+          isRed &&
+            "border-red-500/60 bg-red-50/40 text-red-600 dark:bg-red-950/30 dark:text-red-400 font-bold focus-visible:ring-red-500",
+        )}
+        title={minVal > 0 ? `Valor acumulado prévio: ${minVal} (piso mínimo)` : undefined}
       />
     </TableCell>
   );

@@ -27,6 +27,8 @@ import { fmtDateLong } from "@/lib/report-date";
 import { cn } from "@/lib/utils";
 import type { PdfQuality } from "@/lib/export-pdf";
 
+import { ReportShift, SHIFT_TAB } from "@/lib/report-shift";
+
 interface Props {
   canEdit: boolean;
   isRefreshing: boolean;
@@ -40,6 +42,8 @@ interface Props {
   onPreviewPdf: () => void;
   existingMunicipios?: string[];
   onAddMunicipio?: (name: string) => Promise<void> | void;
+  shift?: ReportShift;
+  onShiftChange?: (s: ReportShift) => void;
 }
 
 /**
@@ -59,6 +63,8 @@ export const PainelToolbar = memo(function PainelToolbar({
   onPreviewPdf,
   existingMunicipios = [],
   onAddMunicipio,
+  shift = "noturno",
+  onShiftChange,
 }: Props) {
   return (
     <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-elevated animate-fade-in-soft">
@@ -88,6 +94,40 @@ export const PainelToolbar = memo(function PainelToolbar({
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap lg:items-center lg:justify-end">
+          {/* Shift selector: 24h vs Parcial */}
+          {onShiftChange && (
+            <div className="flex items-center rounded-lg border border-border bg-muted/50 p-1 h-11 sm:h-10">
+              <button
+                type="button"
+                onClick={() => onShiftChange("noturno")}
+                className={cn(
+                  "px-3 h-full rounded-md text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5",
+                  shift === "noturno"
+                    ? "bg-red-600 text-white shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+                title="Relatório 24h (07:00 da manhã — consolidação com pré-preenchimento em vermelho)"
+              >
+                <span className={cn("w-2 h-2 rounded-full", shift === "noturno" ? "bg-white animate-pulse" : "bg-red-500")} />
+                Relatório 24h
+              </button>
+              <button
+                type="button"
+                onClick={() => onShiftChange("parcial")}
+                className={cn(
+                  "px-3 h-full rounded-md text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5",
+                  shift === "parcial"
+                    ? "bg-emerald-600 text-white shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+                title="Relatório Parcial (18:30 da tarde — ocorrências zeradas para entrada do dia)"
+              >
+                <span className={cn("w-2 h-2 rounded-full", shift === "parcial" ? "bg-white animate-pulse" : "bg-emerald-500")} />
+                Relatório Parcial
+              </button>
+            </div>
+          )}
+
           {/* Report date selector */}
           <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/50 pl-1 pr-1 py-1 min-w-0">
             <Popover>
