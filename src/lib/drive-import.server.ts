@@ -287,11 +287,16 @@ export function parseDailyReportSheet(rows: any[][]): ParsedDailyReport {
       )
         continue;
       eachRow(rows, incIdx + 2, b.munCol, (row, mun) => {
+        const rawUrb = urb === undefined ? 0 : num(row[urb]);
+        const rawFlor = flor === undefined ? 0 : num(row[flor]);
+        const rawFocos = focos === undefined ? 0 : num(row[focos]);
+        // Se a coluna lida for o acumulado anual (>30), registramos como 0 no diário
+        const isCum = rawUrb > 30 || rawFlor > 30 || rawFocos > 100;
         out.incendios.push({
           mun,
-          urb: urb === undefined ? 0 : num(row[urb]),
-          flor: flor === undefined ? 0 : num(row[flor]),
-          focos: focos === undefined ? 0 : num(row[focos]),
+          urb: isCum ? 0 : rawUrb,
+          flor: isCum ? 0 : rawFlor,
+          focos: isCum ? 0 : rawFocos,
           sat: sat === undefined ? 0 : num(row[sat]),
           area: area === undefined ? 0 : num(row[area]),
         });
