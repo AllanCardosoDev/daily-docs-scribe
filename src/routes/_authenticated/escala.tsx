@@ -44,6 +44,18 @@ import {
   deleteShift,
 } from "@/lib/escala.functions";
 import { seedEscala } from "@/lib/seed-escala.functions";
+import { exportEscalaPdf } from "@/lib/export-escala-pdf";
+
+function getDefaultShiftTimes(dateStr: string) {
+  if (!dateStr) return { start_time: "14:00", end_time: "19:00" };
+  const d = new Date(dateStr + "T12:00:00");
+  const dayOfWeek = d.getDay(); // 0 = Domingo, 6 = Sábado
+  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+  if (isWeekend) {
+    return { start_time: "07:00", end_time: "19:00" };
+  }
+  return { start_time: "14:00", end_time: "19:00" };
+}
 
 export const Route = createFileRoute("/_authenticated/escala")({
   head: () => ({
@@ -317,6 +329,15 @@ function ShiftsView({
           <Button variant="outline" size="sm" onClick={goNext}>
             →
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => exportEscalaPdf({ currentMonth, operators, shifts })}
+            className="gap-2 bg-emerald-950/40 border-emerald-700 text-emerald-100 hover:bg-emerald-800 font-medium"
+            title="Gerar PDF oficial com o calendário e relação de militares escalados"
+          >
+            <Download className="w-4 h-4 text-emerald-400" /> Imprimir Calendário PDF
+          </Button>
           {isAdmin && (
             <Button
               size="sm"
@@ -440,21 +461,24 @@ function ShiftsView({
       <ShiftDialog
         open={!!editing || !!creatingDate}
         initial={useMemo(
-          () =>
-            editing ??
-            (creatingDate
-              ? {
-                  id: undefined as unknown as string,
-                  shift_date: creatingDate,
-                  start_time: "14:00",
-                  end_time: "19:00",
-                  operator_id: operators[0]?.id ?? "",
-                  notes: "",
-                }
-              : null),
+          () => {
+            if (editing) return editing;
+            if (creatingDate) {
+              const def = getDefaultShiftTimes(creatingDate);
+              return {
+                id: undefined as unknown as string,
+                shift_date: creatingDate,
+                start_time: def.start_time,
+                end_time: def.end_time,
+                operator_id: operators[0]?.id ?? "",
+                notes: "",
+              };
+            }
+            return null;
+          },
           // Stable identity while the dialog is open — prevents a background
           // refetch from wiping in-progress form input via useMemoSync.
-          [editing, creatingDate],
+          [editing, creatingDate, operators],
         )}
         operators={operators}
         onClose={() => {
@@ -512,6 +536,15 @@ function ShiftDialog({
     setNotes(initial.notes ?? "");
   });
 
+  const handleDateChange = (newDate: string) => {
+    setDate(newDate);
+    if (!isEdit && newDate) {
+      const def = getDefaultShiftTimes(newDate);
+      setStart(def.start_time);
+      setEnd(def.end_time);
+    }
+  };
+
   const save = useMutation({
     mutationFn: async () =>
       saveFn({
@@ -553,7 +586,7 @@ function ShiftDialog({
         <div className="grid gap-3">
           <div className="grid gap-1.5">
             <Label htmlFor="date">Data</Label>
-            <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <Input id="date" type="date" value={date} onChange={(e) => handleDateChange(e.target.value)} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
