@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { manausFirst } from "@/lib/municipio-order";
+import { manausFirst, canonicalMunicipio } from "@/lib/municipio-order";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -136,6 +136,24 @@ function RegistroPage() {
     enabled: shift === "noturno",
     staleTime: 60_000,
   });
+
+  const prevIncMap = useMemo(() => {
+    const map = new Map<string, IncendioRow>();
+    const list = (prevParcialQuery.data?.row?.incendios as IncendioRow[]) ?? [];
+    for (const item of list) {
+      if (item.mun) map.set(canonicalMunicipio(item.mun).toLowerCase(), item);
+    }
+    return map;
+  }, [prevParcialQuery.data?.row?.incendios]);
+
+  const prevOutrasMap = useMemo(() => {
+    const map = new Map<string, OutraRow>();
+    const list = (prevParcialQuery.data?.row?.outras as OutraRow[]) ?? [];
+    for (const item of list) {
+      if (item.mun) map.set(canonicalMunicipio(item.mun).toLowerCase(), item);
+    }
+    return map;
+  }, [prevParcialQuery.data?.row?.outras]);
 
   // Enquanto `placeholderData` mantém o resultado da data anterior na tela,
   // o formulário é limpo — assim o usuário nunca salva dados de outro dia
@@ -502,20 +520,42 @@ function RegistroPage() {
                 dirtyRef.current = true;
                 toast.success("Incêndios do dia zerados para nova digitação.");
               }}
-              renderCells={(r, patch) => (
-                <>
-                  <TableCell>
-                    <Input
-                      value={r.mun}
-                      onChange={(e) => patch({ mun: e.target.value })}
+              renderCells={(r, patch) => {
+                const key = canonicalMunicipio(r.mun).toLowerCase();
+                const prev = shift === "noturno" ? prevIncMap.get(key) : undefined;
+                return (
+                  <>
+                    <TableCell>
+                      <Input
+                        value={r.mun}
+                        onChange={(e) => patch({ mun: e.target.value })}
+                        disabled={!canEdit}
+                      />
+                    </TableCell>
+                    <NumCell
+                      v={r.urb}
+                      on={(v) => patch({ urb: v })}
                       disabled={!canEdit}
+                      minVal={prev?.urb || 0}
+                      isPrevFilled={shift === "noturno" && (prev?.urb || 0) > 0}
                     />
-                  </TableCell>
-                  <NumCell v={r.urb} on={(v) => patch({ urb: v })} disabled={!canEdit} isPrevFilled={shift === "noturno"} />
-                  <NumCell v={r.flor} on={(v) => patch({ flor: v })} disabled={!canEdit} isPrevFilled={shift === "noturno"} />
-                  <NumCell v={r.focos} on={(v) => patch({ focos: v })} disabled={!canEdit} isPrevFilled={shift === "noturno"} />
-                </>
-              )}
+                    <NumCell
+                      v={r.flor}
+                      on={(v) => patch({ flor: v })}
+                      disabled={!canEdit}
+                      minVal={prev?.flor || 0}
+                      isPrevFilled={shift === "noturno" && (prev?.flor || 0) > 0}
+                    />
+                    <NumCell
+                      v={r.focos}
+                      on={(v) => patch({ focos: v })}
+                      disabled={!canEdit}
+                      minVal={prev?.focos || 0}
+                      isPrevFilled={shift === "noturno" && (prev?.focos || 0) > 0}
+                    />
+                  </>
+                );
+              }}
             />
           </TabsContent>
 
@@ -542,37 +582,56 @@ function RegistroPage() {
                 dirtyRef.current = true;
                 toast.success("Ocorrências do dia zeradas para nova digitação.");
               }}
-              renderCells={(r, patch) => (
-                <>
-                  <TableCell>
-                    <Input
-                      value={r.mun}
-                      onChange={(e) => patch({ mun: e.target.value })}
+              renderCells={(r, patch) => {
+                const key = canonicalMunicipio(r.mun).toLowerCase();
+                const prev = shift === "noturno" ? prevOutrasMap.get(key) : undefined;
+                return (
+                  <>
+                    <TableCell>
+                      <Input
+                        value={r.mun}
+                        onChange={(e) => patch({ mun: e.target.value })}
+                        disabled={!canEdit}
+                      />
+                    </TableCell>
+                    <NumCell
+                      v={r.salvamento}
+                      on={(v) => patch({ salvamento: v })}
                       disabled={!canEdit}
+                      minVal={prev?.salvamento || 0}
+                      isPrevFilled={shift === "noturno" && (prev?.salvamento || 0) > 0}
                     />
-                  </TableCell>
-                  <NumCell
-                    v={r.salvamento}
-                    on={(v) => patch({ salvamento: v })}
-                    disabled={!canEdit}
-                    isPrevFilled={shift === "noturno"}
-                  />
-                  <NumCell
-                    v={r.acidentes}
-                    on={(v) => patch({ acidentes: v })}
-                    disabled={!canEdit}
-                    isPrevFilled={shift === "noturno"}
-                  />
-                  <NumCell v={r.aph} on={(v) => patch({ aph: v })} disabled={!canEdit} isPrevFilled={shift === "noturno"} />
-                  <NumCell
-                    v={r.prevencao}
-                    on={(v) => patch({ prevencao: v })}
-                    disabled={!canEdit}
-                    isPrevFilled={shift === "noturno"}
-                  />
-                  <NumCell v={r.servicos} on={(v) => patch({ servicos: v })} disabled={!canEdit} isPrevFilled={shift === "noturno"} />
-                </>
-              )}
+                    <NumCell
+                      v={r.acidentes}
+                      on={(v) => patch({ acidentes: v })}
+                      disabled={!canEdit}
+                      minVal={prev?.acidentes || 0}
+                      isPrevFilled={shift === "noturno" && (prev?.acidentes || 0) > 0}
+                    />
+                    <NumCell
+                      v={r.aph}
+                      on={(v) => patch({ aph: v })}
+                      disabled={!canEdit}
+                      minVal={prev?.aph || 0}
+                      isPrevFilled={shift === "noturno" && (prev?.aph || 0) > 0}
+                    />
+                    <NumCell
+                      v={r.prevencao}
+                      on={(v) => patch({ prevencao: v })}
+                      disabled={!canEdit}
+                      minVal={prev?.prevencao || 0}
+                      isPrevFilled={shift === "noturno" && (prev?.prevencao || 0) > 0}
+                    />
+                    <NumCell
+                      v={r.servicos}
+                      on={(v) => patch({ servicos: v })}
+                      disabled={!canEdit}
+                      minVal={prev?.servicos || 0}
+                      isPrevFilled={shift === "noturno" && (prev?.servicos || 0) > 0}
+                    />
+                  </>
+                );
+              }}
             />
           </TabsContent>
 
@@ -721,6 +780,36 @@ function NumCell({
 }) {
   const current = Number.isFinite(v) ? v : 0;
   const isRed = isPrevFilled || (minVal > 0 && current > 0);
+  const [localStr, setLocalStr] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLocalStr(null);
+  }, [v]);
+
+  const displayVal = localStr !== null ? localStr : (current === 0 ? "0" : String(current));
+
+  const validateAndCommit = (rawStr: string) => {
+    if (rawStr.trim() === "") {
+      if (minVal > 0) {
+        toast.warning(`No Relatório 24h, o valor não pode ser menor que o prévio acumulado (${minVal}).`);
+        on(minVal);
+      } else {
+        on(0);
+      }
+      setLocalStr(null);
+      return;
+    }
+    const parsed = Math.trunc(Number(rawStr));
+    const val = Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+    if (minVal > 0 && val < minVal) {
+      toast.warning(`No Relatório 24h, o valor não pode ser menor que o prévio acumulado (${minVal}).`);
+      on(minVal);
+      setLocalStr(null);
+      return;
+    }
+    on(val);
+    setLocalStr(null);
+  };
 
   return (
     <TableCell className="w-24">
@@ -729,24 +818,29 @@ function NumCell({
         min={minVal}
         step={1}
         inputMode="numeric"
-        value={current}
+        value={displayVal}
+        onFocus={(e) => e.target.select()}
         onChange={(e) => {
-          const n = Math.trunc(Number(e.target.value));
-          const val = Number.isFinite(n) && n > 0 ? n : 0;
-          if (minVal > 0 && val < minVal) {
-            toast.warning(`No Relatório 24h, o valor não pode ser menor que o prévio (${minVal}).`);
-            on(minVal);
-            return;
+          const raw = e.target.value;
+          setLocalStr(raw);
+          const parsed = Math.trunc(Number(raw));
+          if (raw !== "" && Number.isFinite(parsed)) {
+            if (minVal > 0 && parsed < minVal) {
+              toast.warning(`No Relatório 24h, o valor não pode ser menor que o prévio acumulado (${minVal}).`);
+              on(minVal);
+            } else {
+              on(parsed > 0 ? parsed : 0);
+            }
           }
-          on(val);
         }}
+        onBlur={(e) => validateAndCommit(e.target.value)}
         disabled={disabled}
         className={cn(
           "text-center transition-colors font-medium",
           isRed &&
             "border-red-500/60 bg-red-50/40 text-red-600 dark:bg-red-950/30 dark:text-red-400 font-bold focus-visible:ring-red-500",
         )}
-        title={minVal > 0 ? `Valor acumulado prévio: ${minVal} (piso mínimo)` : undefined}
+        title={minVal > 0 ? `Valor acumulado prévio: ${minVal} (piso mínimo imutável)` : undefined}
       />
     </TableCell>
   );
