@@ -875,14 +875,15 @@ function NumCell({
   const displayVal = localStr !== null ? localStr : (current === 0 ? "0" : String(current));
 
   const validateAndCommit = (rawStr: string) => {
-    if (rawStr.trim() === "") {
+    if (rawStr.trim() === "" || !Number.isFinite(Number(rawStr))) {
       if (minVal > 0) {
         toast.warning(`No Relatório 24h, o valor não pode ser menor que o prévio acumulado (${minVal}).`);
         on(minVal);
+        setLocalStr(String(minVal));
       } else {
         on(0);
+        setLocalStr("0");
       }
-      setLocalStr(null);
       return;
     }
     const parsed = Math.trunc(Number(rawStr));
@@ -890,7 +891,7 @@ function NumCell({
     if (minVal > 0 && val < minVal) {
       toast.warning(`No Relatório 24h, o valor não pode ser menor que o prévio acumulado (${minVal}).`);
       on(minVal);
-      setLocalStr(null);
+      setLocalStr(String(minVal));
       return;
     }
     on(val);
@@ -908,16 +909,15 @@ function NumCell({
         onFocus={(e) => e.target.select()}
         onChange={(e) => {
           const raw = e.target.value;
-          setLocalStr(raw);
           const parsed = Math.trunc(Number(raw));
-          if (raw !== "" && Number.isFinite(parsed)) {
-            if (minVal > 0 && parsed < minVal) {
-              toast.warning(`No Relatório 24h, o valor não pode ser menor que o prévio acumulado (${minVal}).`);
-              on(minVal);
-            } else {
-              on(parsed > 0 ? parsed : 0);
-            }
+          if (minVal > 0 && (raw === "" || !Number.isFinite(parsed) || parsed < minVal)) {
+            toast.warning(`No Relatório 24h, o valor não pode ser menor que o prévio acumulado (${minVal}).`);
+            on(minVal);
+            setLocalStr(String(minVal));
+            return;
           }
+          setLocalStr(raw);
+          on(parsed > 0 ? parsed : 0);
         }}
         onBlur={(e) => validateAndCommit(e.target.value)}
         disabled={disabled}
