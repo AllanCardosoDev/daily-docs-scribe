@@ -5,12 +5,33 @@
  */
 
 const CANONICAL_MUNICIPIOS: Record<string, string> = {
+  "manaus": "Manaus",
+  "apui": "Apuí",
+  "apui ": "Apuí",
   "boca de acre": "Boca do Acre",
   "boca do acre": "Boca do Acre",
-  "uricurituba": "Urucurituba",
-  "urucurituba": "Urucurituba",
+  "humaita": "Humaitá",
+  "labrea": "Lábrea",
+  "parintins": "Parintins",
+  "itacoatiara": "Itacoatiara",
+  "manacapuru": "Manacapuru",
+  "iranduba": "Iranduba",
+  "borba": "Borba",
+  "manicore": "Manicoré",
+  "novo airao": "Novo Airão",
+  "novo aripuana": "Novo Aripuanã",
+  "presidente figueiredo": "Presidente Figueiredo",
+  "rio preto da eva": "Rio Preto da Eva",
+  "tabatinga": "Tabatinga",
+  "tefe": "Tefé",
+  "autazes": "Autazes",
+  "canutama": "Canutama",
+  "careiro": "Careiro",
   "careiro da varzea": "Careiro da Várzea",
   "careiro da várzea": "Careiro da Várzea",
+  "nhamunda": "Nhamundá",
+  "uricurituba": "Urucurituba",
+  "urucurituba": "Urucurituba",
   "benjamim constant": "Benjamin Constant",
   "benjamin constant": "Benjamin Constant",
   "sao gabriel da cachoeira": "São Gabriel da Cachoeira",
@@ -29,7 +50,9 @@ export function canonicalMunicipio(mun: unknown): string {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
-  return CANONICAL_MUNICIPIOS[normKey] || s;
+  if (CANONICAL_MUNICIPIOS[normKey]) return CANONICAL_MUNICIPIOS[normKey];
+  // Fallback: Title Case para qualquer nome não cadastrado
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 const norm = (v: unknown) =>

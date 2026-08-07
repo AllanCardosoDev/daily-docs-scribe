@@ -65,18 +65,21 @@ function getItemVal(item: AnyRow | undefined, key: string): number {
 
 function aggregateSum(rows: AnyRow[], field: string, keys: string[]) {
   const map = new Map<string, Record<string, number>>();
+  const nameMap = new Map<string, string>();
   for (const r of rows) {
     const list: AnyRow[] = (r?.[field] as AnyRow[]) ?? [];
     for (const item of list) {
       const mun = canonicalMunicipio(item?.mun ?? item?.municipio);
-      if (!mun) continue;
-      const cur = map.get(mun) ?? Object.fromEntries(keys.map((k) => [k, 0]));
+      if (!mun || mun === "—") continue;
+      const key = mun.toLowerCase();
+      nameMap.set(key, mun);
+      const cur = map.get(key) ?? Object.fromEntries(keys.map((k) => [k, 0]));
       for (const k of keys) cur[k] = (cur[k] ?? 0) + getItemVal(item, k);
-      map.set(mun, cur);
+      map.set(key, cur);
     }
   }
   return Array.from(map.entries())
-    .map(([mun, vals]) => ({ mun, ...vals }))
+    .map(([key, vals]) => ({ mun: nameMap.get(key) || key, ...vals }))
     .sort((a, b) => compareMunicipios(a.mun, b.mun));
 }
 
@@ -85,6 +88,7 @@ function aggregateSnapshot(rows: AnyRow[], field: string, keys: string[]) {
     String(b.report_date || "").localeCompare(String(a.report_date || ""))
   );
   const map = new Map<string, Record<string, number>>();
+  const nameMap = new Map<string, string>();
   const seenDates = new Map<string, string>();
 
   for (const r of sortedRows) {
@@ -92,24 +96,26 @@ function aggregateSnapshot(rows: AnyRow[], field: string, keys: string[]) {
     const list: AnyRow[] = (r?.[field] as AnyRow[]) ?? [];
     for (const item of list) {
       const mun = canonicalMunicipio(item?.mun ?? item?.municipio);
-      if (!mun) continue;
+      if (!mun || mun === "—") continue;
+      const key = mun.toLowerCase();
+      nameMap.set(key, mun);
 
-      const lastDate = seenDates.get(mun);
+      const lastDate = seenDates.get(key);
       if (!lastDate) {
-        seenDates.set(mun, reportDate);
+        seenDates.set(key, reportDate);
         const cur = Object.fromEntries(keys.map((k) => [k, getItemVal(item, k)]));
-        map.set(mun, cur);
+        map.set(key, cur);
       } else if (lastDate === reportDate) {
-        const cur = map.get(mun) ?? Object.fromEntries(keys.map((k) => [k, 0]));
+        const cur = map.get(key) ?? Object.fromEntries(keys.map((k) => [k, 0]));
         for (const k of keys) {
           cur[k] = (cur[k] ?? 0) + getItemVal(item, k);
         }
-        map.set(mun, cur);
+        map.set(key, cur);
       }
     }
   }
   return Array.from(map.entries())
-    .map(([mun, vals]) => ({ mun, ...vals }))
+    .map(([key, vals]) => ({ mun: nameMap.get(key) || key, ...vals }))
     .sort((a, b) => compareMunicipios(a.mun, b.mun));
 }
 
