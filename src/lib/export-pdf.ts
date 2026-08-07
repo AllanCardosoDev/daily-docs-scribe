@@ -199,7 +199,7 @@ export function buildSheetsPdfDoc(
     startY: 65,
     margin: { left: 16 },
     tableWidth: 175,
-    head: [["MUNICÍPIO", "SERV. ORDINÁRIO", "SEG", "BRIGADISTA"]],
+    head: [["MUNICÍPIO", "SERV. ORDINÁRIO", "SEGURANÇA", "BRIGADISTA"]],
     body: efetivoCol1.map((r) => [r.mun, r.ord || "", r.seg || "", r.brig || ""]),
     styles: { fontSize: 6.5, cellPadding: 1.5, lineColor: BORDER_COLOR, lineWidth: 0.3 },
     headStyles: { fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b], textColor: 255, fontStyle: "bold", fontSize: 6.5, halign: "center" },
@@ -211,7 +211,7 @@ export function buildSheetsPdfDoc(
     startY: 65,
     margin: { left: 198 },
     tableWidth: 175,
-    head: [["MUNICÍPIO", "SERV. ORDINÁRIO", "SEG", "BRIGADISTA"]],
+    head: [["MUNICÍPIO", "SERV. ORDINÁRIO", "SEGURANÇA", "BRIGADISTA"]],
     body: [
       ...efetivoCol2.map((r) => [r.mun, r.ord || "", r.seg || "", r.brig || ""]),
       ["Total", totOrdCol2 || "0", totSegCol2 || "0", totBrigCol2 || "0"],
@@ -226,7 +226,7 @@ export function buildSheetsPdfDoc(
     startY: 65,
     margin: { left: 380 },
     tableWidth: 175,
-    head: [["BASES TEMPORÁRIAS", "SERV. ORDINÁRIO", "SEG", "BRIGADISTA"]],
+    head: [["BASES TEMPORÁRIAS", "SERV. ORDINÁRIO", "SEGURANÇA", "BRIGADISTA"]],
     body: [
       ...efetivoCol3.map((r) => [r.mun, r.ord || "", r.seg || "", r.brig || ""]),
       ["TOTAL", totOrdCol3 || "0", totSegCol3 || "0", totBrigCol3 || "0"],
@@ -244,7 +244,7 @@ export function buildSheetsPdfDoc(
     head: [["MISSÃO", "CAPITAL", "INTERIOR", "TOTAL"]],
     body: [
       ["SV ORD", capitalOrd, interiorOrd, capitalOrd + interiorOrd],
-      ["SEG", capitalSeg, interiorSeg, capitalSeg + interiorSeg],
+      ["SEGURANÇA", capitalSeg, interiorSeg, capitalSeg + interiorSeg],
       ["BRIGADISTA", capitalBrig, interiorBrig, capitalBrig + interiorBrig],
       ["TOTAL", capitalOrd + capitalSeg + capitalBrig, interiorOrd + interiorSeg + interiorBrig, capitalOrd + capitalSeg + capitalBrig + interiorOrd + interiorSeg + interiorBrig],
     ],

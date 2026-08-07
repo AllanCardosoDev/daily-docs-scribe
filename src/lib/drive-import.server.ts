@@ -224,7 +224,7 @@ export function parseDailyReportSheet(rows: any[][]): ParsedDailyReport {
     const header = rows[efIdx + 1] ?? [];
     for (const b of headerBlocks(header)) {
       const ord = pick(b.labels, "SERV. ORDINARIO", "SERV ORDINARIO", "ORDINARIO");
-      const seg = pick(b.labels, "SEG");
+      const seg = pick(b.labels, "SEGURANCA", "SEGURANÇA", "SEG. PUBLICA", "SEG");
       const brig = pick(b.labels, "BRIGADISTA");
       eachRow(rows, efIdx + 2, b.munCol, (row, mun) => {
         out.efetivo.push({
