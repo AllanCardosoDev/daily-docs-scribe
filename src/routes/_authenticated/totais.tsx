@@ -145,6 +145,7 @@ function TotaisPage() {
   }, [getLatest]);
   const [scope, setScope] = useState<"periodo" | "geral">("periodo");
   const [shift, setShift] = useState<ReportShift | "ambos">("ambos");
+  const [activeTab, setActiveTab] = useState<"incendios" | "outras" | "efetivo" | "recursos">("incendios");
 
   const listFn = useServerFn(listDailyReports);
   const q = useQuery({
@@ -348,9 +349,9 @@ function TotaisPage() {
           </div>
         </section>
 
-        <AnnualReportsCard />
+        <AnnualReportsCard activeTab={activeTab} />
 
-        <Tabs defaultValue="incendios">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
           <TabsList className="flex-wrap">
             <TabsTrigger value="incendios">Incêndios</TabsTrigger>
             <TabsTrigger value="outras">Ocorrências</TabsTrigger>
@@ -459,20 +460,31 @@ function TotaisPage() {
   );
 }
 
-function AnnualReportsCard() {
-  // Somente o ano corrente: é o único período cujas planilhas são
-  // consumidas/registradas no sistema.
+function AnnualReportsCard({
+  activeTab,
+}: {
+  activeTab: "incendios" | "outras" | "efetivo" | "recursos";
+}) {
   const year = new Date().getFullYear();
+  const [scope, setScope] = useState<"current" | "todos">("current");
   const [busy, setBusy] = useState<"completo" | "consolidado" | null>(null);
   const fetchAnnual = useServerFn(getAnnualIncendios);
+
+  const TAB_LABELS: Record<string, string> = {
+    incendios: "Incêndios",
+    outras: "Ocorrências",
+    efetivo: "Efetivo",
+    recursos: "Recursos",
+  };
 
   const generate = async (kind: "completo" | "consolidado") => {
     setBusy(kind);
     try {
       const data = await fetchAnnual({ data: { years: [year] } });
       const mod = await import("@/lib/export-annual-pdf");
-      if (kind === "completo") mod.exportAnnualIncendiosPdf(data);
-      else mod.exportConsolidatedIncendiosPdf(data);
+      const targetCategory = scope === "current" ? activeTab : "todos";
+      if (kind === "completo") mod.exportAnnualIncendiosPdf(data, targetCategory);
+      else mod.exportConsolidatedIncendiosPdf(data, targetCategory);
       toast.success("PDF gerado. Verifique seus downloads.");
     } catch (e) {
       toast.error("Falha ao gerar o relatório", { description: (e as Error)?.message });
@@ -483,11 +495,38 @@ function AnnualReportsCard() {
 
   return (
     <section className="rounded-xl bg-card shadow-elevated p-4 sm:p-5">
-      <div className="flex flex-col gap-1 mb-4">
-        <h2 className="font-semibold text-base">Comparativo e Resumos Consolidados · {year}</h2>
-        <p className="text-xs sm:text-sm text-muted-foreground">
-          Gera os documentos oficiais de comparativo e totais acumulados de {year} abrangendo todos os tipos de ocorrências (Incêndios, Atendimentos Diversos, Efetivo e Recursos): o detalhado por município (Resumo Completo por Seção) e o executivo consolidado (Resumo Geral Operacional).
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+        <div>
+          <h2 className="font-semibold text-base">Comparativo e Resumos Consolidados · {year}</h2>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+            Gera os documentos oficiais de comparativo e totais acumulados de {year} conforme o tipo selecionado na aba abaixo ou o relatório geral completo.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-lg border border-border shrink-0 text-xs">
+          <button
+            type="button"
+            onClick={() => setScope("current")}
+            className={`px-2.5 py-1 rounded-md transition-colors ${
+              scope === "current"
+                ? "bg-card shadow-sm font-semibold text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Tipo Atual ({TAB_LABELS[activeTab]})
+          </button>
+          <button
+            type="button"
+            onClick={() => setScope("todos")}
+            className={`px-2.5 py-1 rounded-md transition-colors ${
+              scope === "todos"
+                ? "bg-card shadow-sm font-semibold text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Todas as Seções (Geral)
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-2 sm:flex sm:justify-end">
@@ -502,7 +541,7 @@ function AnnualReportsCard() {
           ) : (
             <FileText className="w-4 h-4 mr-1.5" />
           )}
-          Resumo detalhado por município
+          Resumo detalhado por município ({scope === "current" ? TAB_LABELS[activeTab] : "Geral"})
         </Button>
         <Button size="sm" disabled={busy !== null} onClick={() => generate("consolidado")}>
           {busy === "consolidado" ? (
@@ -510,7 +549,7 @@ function AnnualReportsCard() {
           ) : (
             <Layers className="w-4 h-4 mr-1.5" />
           )}
-          Resumo consolidado
+          Resumo consolidado ({scope === "current" ? TAB_LABELS[activeTab] : "Geral"})
         </Button>
       </div>
     </section>
