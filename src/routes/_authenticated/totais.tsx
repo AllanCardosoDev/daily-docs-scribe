@@ -486,9 +486,7 @@ function AnnualReportsCard() {
       <div className="flex flex-col gap-1 mb-4">
         <h2 className="font-semibold text-base">Comparativo e Resumos Consolidados · {year}</h2>
         <p className="text-xs sm:text-sm text-muted-foreground">
-          Gera os documentos oficiais de comparativo e totais acumulados de {year} a partir dos
-          registros: o detalhado por município (Resumo Completo) e o executivo consolidado
-          (Comparativo Anual).
+          Gera os documentos oficiais de comparativo e totais acumulados de {year} abrangendo todos os tipos de ocorrências (Incêndios, Atendimentos Diversos, Efetivo e Recursos): o detalhado por município (Resumo Completo por Seção) e o executivo consolidado (Resumo Geral Operacional).
         </p>
       </div>
 
