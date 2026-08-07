@@ -124,6 +124,19 @@ function RegistroPage() {
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, []);
 
+  const prevDateISO = useMemo(() => {
+    const d = new Date(`${date}T00:00:00Z`);
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().slice(0, 10);
+  }, [date]);
+
+  const prevParcialQuery = useQuery({
+    queryKey: ["daily-report", prevDateISO, "parcial"],
+    queryFn: () => getFn({ data: { date: prevDateISO, shift: "parcial" } }),
+    enabled: shift === "noturno",
+    staleTime: 60_000,
+  });
+
   // Enquanto `placeholderData` mantém o resultado da data anterior na tela,
   // o formulário é limpo — assim o usuário nunca salva dados de outro dia
   // na data recém-selecionada.
@@ -142,16 +155,36 @@ function RegistroPage() {
       return;
     }
     const row: any = q.data?.row;
+
+    // Se o relatório de 24h estiver sendo aberto pela primeira vez e houver parcial do dia anterior:
+    const prevParcialRow = prevParcialQuery.data?.row;
+    let initialInc = (row?.incendios as IncendioRow[]) ?? [];
+    let initialOutras = (row?.outras as OutraRow[]) ?? [];
+
+    if (shift === "noturno" && initialInc.length === 0 && prevParcialRow?.incendios) {
+      initialInc = prevParcialRow.incendios as IncendioRow[];
+    }
+    if (shift === "noturno" && initialOutras.length === 0 && prevParcialRow?.outras) {
+      initialOutras = prevParcialRow.outras as OutraRow[];
+    }
+
     // Manaus (capital) sempre na primeira linha de todas as seções.
     setEfetivo(manausFirst((row?.efetivo as EfetivoRow[]) ?? []));
     setRecursos(manausFirst((row?.recursos as RecursoRow[]) ?? []));
-    setIncendios(manausFirst((row?.incendios as IncendioRow[]) ?? []));
-    setOutras(manausFirst((row?.outras as OutraRow[]) ?? []));
+    setIncendios(manausFirst(initialInc));
+    setOutras(manausFirst(initialOutras));
     setDadosComplementares((row?.dados_complementares as DadosComplementaresState) ?? {});
     setNotes(row?.notes ?? "");
     loadedKeyRef.current = key;
     dirtyRef.current = false;
-  }, [date, shift, q.isPlaceholderData, q.data?.row?.id, q.data?.row?.updated_at]);
+  }, [
+    date,
+    shift,
+    q.isPlaceholderData,
+    q.data?.row?.id,
+    q.data?.row?.updated_at,
+    prevParcialQuery.data?.row,
+  ]);
 
   const canEdit = !!q.data?.canEdit;
 
