@@ -130,6 +130,13 @@ function RegistroPage() {
     return d.toISOString().slice(0, 10);
   }, [date]);
 
+  const sameDayParcialQuery = useQuery({
+    queryKey: ["daily-report", date, "parcial"],
+    queryFn: () => getFn({ data: { date, shift: "parcial" } }),
+    enabled: shift === "noturno",
+    staleTime: 60_000,
+  });
+
   const prevParcialQuery = useQuery({
     queryKey: ["daily-report", prevDateISO, "parcial"],
     queryFn: () => getFn({ data: { date: prevDateISO, shift: "parcial" } }),
@@ -137,23 +144,28 @@ function RegistroPage() {
     staleTime: 60_000,
   });
 
+  const parcialBaselineRow = sameDayParcialQuery.data?.row || prevParcialQuery.data?.row;
+
   const prevIncMap = useMemo(() => {
     const map = new Map<string, IncendioRow>();
-    const list = (prevParcialQuery.data?.row?.incendios as IncendioRow[]) ?? [];
+    const list = (parcialBaselineRow?.incendios as IncendioRow[]) ?? [];
     for (const item of list) {
       if (item.mun) map.set(canonicalMunicipio(item.mun).toLowerCase(), item);
     }
     return map;
-  }, [prevParcialQuery.data?.row?.incendios]);
+  }, [parcialBaselineRow?.incendios]);
 
   const prevOutrasMap = useMemo(() => {
     const map = new Map<string, OutraRow>();
-    const list = (prevParcialQuery.data?.row?.outras as OutraRow[]) ?? [];
+    const list = (parcialBaselineRow?.outras as OutraRow[]) ?? [];
     for (const item of list) {
       if (item.mun) map.set(canonicalMunicipio(item.mun).toLowerCase(), item);
     }
     return map;
-  }, [prevParcialQuery.data?.row?.outras]);
+  }, [parcialBaselineRow?.outras]);
+
+  const [noturnoBaselineIncMap, setNoturnoBaselineIncMap] = useState<Map<string, IncendioRow>>(new Map());
+  const [noturnoBaselineOutrasMap, setNoturnoBaselineOutrasMap] = useState<Map<string, OutraRow>>(new Map());
 
   // Enquanto `placeholderData` mantém o resultado da data anterior na tela,
   // o formulário é limpo — assim o usuário nunca salva dados de outro dia
@@ -174,16 +186,32 @@ function RegistroPage() {
     }
     const row: any = q.data?.row;
 
-    // Se o relatório de 24h estiver sendo aberto pela primeira vez e houver parcial do dia anterior:
-    const prevParcialRow = prevParcialQuery.data?.row;
+    // Se o relatório de 24h estiver sendo aberto pela primeira vez e houver parcial:
+    const baselineRow = sameDayParcialQuery.data?.row || prevParcialQuery.data?.row;
     let initialInc = (row?.incendios as IncendioRow[]) ?? [];
     let initialOutras = (row?.outras as OutraRow[]) ?? [];
 
-    if (shift === "noturno" && initialInc.length === 0 && prevParcialRow?.incendios) {
-      initialInc = prevParcialRow.incendios as IncendioRow[];
+    if (shift === "noturno" && initialInc.length === 0 && baselineRow?.incendios) {
+      initialInc = baselineRow.incendios as IncendioRow[];
     }
-    if (shift === "noturno" && initialOutras.length === 0 && prevParcialRow?.outras) {
-      initialOutras = prevParcialRow.outras as OutraRow[];
+    if (shift === "noturno" && initialOutras.length === 0 && baselineRow?.outras) {
+      initialOutras = baselineRow.outras as OutraRow[];
+    }
+
+    if (shift === "noturno") {
+      const incMap = new Map<string, IncendioRow>();
+      for (const item of initialInc) {
+        if (item.mun) incMap.set(canonicalMunicipio(item.mun).toLowerCase(), item);
+      }
+      const outMap = new Map<string, OutraRow>();
+      for (const item of initialOutras) {
+        if (item.mun) outMap.set(canonicalMunicipio(item.mun).toLowerCase(), item);
+      }
+      setNoturnoBaselineIncMap(incMap);
+      setNoturnoBaselineOutrasMap(outMap);
+    } else {
+      setNoturnoBaselineIncMap(new Map());
+      setNoturnoBaselineOutrasMap(new Map());
     }
 
     // Manaus (capital) sempre na primeira linha de todas as seções.
@@ -201,6 +229,7 @@ function RegistroPage() {
     q.isPlaceholderData,
     q.data?.row?.id,
     q.data?.row?.updated_at,
+    sameDayParcialQuery.data?.row,
     prevParcialQuery.data?.row,
   ]);
 
@@ -514,15 +543,39 @@ function RegistroPage() {
               empty={INCENDIO_EMPTY}
               canEdit={canEdit}
               onReset={() => {
-                setIncendios((prev) =>
-                  prev.map((r) => ({ ...r, urb: 0, flor: 0, focos: 0, total_periodo: 0 })),
-                );
-                dirtyRef.current = true;
-                toast.success("Incêndios do dia zerados para nova digitação.");
+                if (shift === "noturno") {
+                  setIncendios((prev) =>
+                    prev.map((r) => {
+                      const key = canonicalMunicipio(r.mun).toLowerCase();
+                      const baseInc = prevIncMap.get(key) || noturnoBaselineIncMap.get(key);
+                      return {
+                        ...r,
+                        urb: baseInc?.urb || 0,
+                        flor: baseInc?.flor || 0,
+                        focos: baseInc?.focos || 0,
+                        total_periodo: (baseInc?.urb || 0) + (baseInc?.flor || 0) + (baseInc?.focos || 0),
+                      };
+                    }),
+                  );
+                  dirtyRef.current = true;
+                  toast.success("Incêndios do dia restaurados para o piso mínimo do Parcial.");
+                } else {
+                  setIncendios((prev) =>
+                    prev.map((r) => ({ ...r, urb: 0, flor: 0, focos: 0, total_periodo: 0 })),
+                  );
+                  dirtyRef.current = true;
+                  toast.success("Incêndios do dia zerados para nova digitação.");
+                }
               }}
               renderCells={(r, patch) => {
                 const key = canonicalMunicipio(r.mun).toLowerCase();
-                const prev = shift === "noturno" ? prevIncMap.get(key) : undefined;
+                const prevQueryItem = shift === "noturno" ? prevIncMap.get(key) : undefined;
+                const loadedItem = shift === "noturno" ? noturnoBaselineIncMap.get(key) : undefined;
+
+                const minUrb = shift === "noturno" ? Math.max(prevQueryItem?.urb || 0, loadedItem?.urb || 0) : 0;
+                const minFlor = shift === "noturno" ? Math.max(prevQueryItem?.flor || 0, loadedItem?.flor || 0) : 0;
+                const minFocos = shift === "noturno" ? Math.max(prevQueryItem?.focos || 0, loadedItem?.focos || 0) : 0;
+
                 return (
                   <>
                     <TableCell>
@@ -536,22 +589,22 @@ function RegistroPage() {
                       v={r.urb}
                       on={(v) => patch({ urb: v })}
                       disabled={!canEdit}
-                      minVal={prev?.urb || 0}
-                      isPrevFilled={shift === "noturno" && (prev?.urb || 0) > 0}
+                      minVal={minUrb}
+                      isPrevFilled={shift === "noturno" && minUrb > 0}
                     />
                     <NumCell
                       v={r.flor}
                       on={(v) => patch({ flor: v })}
                       disabled={!canEdit}
-                      minVal={prev?.flor || 0}
-                      isPrevFilled={shift === "noturno" && (prev?.flor || 0) > 0}
+                      minVal={minFlor}
+                      isPrevFilled={shift === "noturno" && minFlor > 0}
                     />
                     <NumCell
                       v={r.focos}
                       on={(v) => patch({ focos: v })}
                       disabled={!canEdit}
-                      minVal={prev?.focos || 0}
-                      isPrevFilled={shift === "noturno" && (prev?.focos || 0) > 0}
+                      minVal={minFocos}
+                      isPrevFilled={shift === "noturno" && minFocos > 0}
                     />
                   </>
                 );
@@ -568,23 +621,56 @@ function RegistroPage() {
               empty={OUTRA_EMPTY}
               canEdit={canEdit}
               onReset={() => {
-                setOutras((prev) =>
-                  prev.map((r) => ({
-                    ...r,
-                    salvamento: 0,
-                    acidentes: 0,
-                    aph: 0,
-                    prevencao: 0,
-                    servicos: 0,
-                    total_periodo: 0,
-                  })),
-                );
-                dirtyRef.current = true;
-                toast.success("Ocorrências do dia zeradas para nova digitação.");
+                if (shift === "noturno") {
+                  setOutras((prev) =>
+                    prev.map((r) => {
+                      const key = canonicalMunicipio(r.mun).toLowerCase();
+                      const baseOut = prevOutrasMap.get(key) || noturnoBaselineOutrasMap.get(key);
+                      return {
+                        ...r,
+                        salvamento: baseOut?.salvamento || 0,
+                        acidentes: baseOut?.acidentes || 0,
+                        aph: baseOut?.aph || 0,
+                        prevencao: baseOut?.prevencao || 0,
+                        servicos: baseOut?.servicos || 0,
+                        total_periodo:
+                          (baseOut?.salvamento || 0) +
+                          (baseOut?.acidentes || 0) +
+                          (baseOut?.aph || 0) +
+                          (baseOut?.prevencao || 0) +
+                          (baseOut?.servicos || 0),
+                      };
+                    }),
+                  );
+                  dirtyRef.current = true;
+                  toast.success("Ocorrências do dia restauradas para o piso mínimo do Parcial.");
+                } else {
+                  setOutras((prev) =>
+                    prev.map((r) => ({
+                      ...r,
+                      salvamento: 0,
+                      acidentes: 0,
+                      aph: 0,
+                      prevencao: 0,
+                      servicos: 0,
+                      total_periodo: 0,
+                    })),
+                  );
+                  dirtyRef.current = true;
+                  toast.success("Ocorrências do dia zeradas para nova digitação.");
+                }
               }}
               renderCells={(r, patch) => {
                 const key = canonicalMunicipio(r.mun).toLowerCase();
-                const prev = shift === "noturno" ? prevOutrasMap.get(key) : undefined;
+                const prevQueryItem = shift === "noturno" ? prevOutrasMap.get(key) : undefined;
+                const loadedItem = shift === "noturno" ? noturnoBaselineOutrasMap.get(key) : undefined;
+
+                const minSal = shift === "noturno" ? Math.max(prevQueryItem?.salvamento || 0, loadedItem?.salvamento || 0) : 0;
+                const minAcid = shift === "noturno" ? Math.max(prevQueryItem?.acidentes || 0, loadedItem?.acidentes || 0) : 0;
+                const minAph = shift === "noturno" ? Math.max(prevQueryItem?.aph || 0, loadedItem?.aph || 0) : 0;
+                const minPrev = shift === "noturno" ? Math.max(prevQueryItem?.prevencao || 0, loadedItem?.prevencao || 0) : 0;
+                const minServ = shift === "noturno" ? Math.max(prevQueryItem?.servicos || 0, loadedItem?.servicos || 0) : 0;
+
                 return (
                   <>
                     <TableCell>
@@ -598,36 +684,36 @@ function RegistroPage() {
                       v={r.salvamento}
                       on={(v) => patch({ salvamento: v })}
                       disabled={!canEdit}
-                      minVal={prev?.salvamento || 0}
-                      isPrevFilled={shift === "noturno" && (prev?.salvamento || 0) > 0}
+                      minVal={minSal}
+                      isPrevFilled={shift === "noturno" && minSal > 0}
                     />
                     <NumCell
                       v={r.acidentes}
                       on={(v) => patch({ acidentes: v })}
                       disabled={!canEdit}
-                      minVal={prev?.acidentes || 0}
-                      isPrevFilled={shift === "noturno" && (prev?.acidentes || 0) > 0}
+                      minVal={minAcid}
+                      isPrevFilled={shift === "noturno" && minAcid > 0}
                     />
                     <NumCell
                       v={r.aph}
                       on={(v) => patch({ aph: v })}
                       disabled={!canEdit}
-                      minVal={prev?.aph || 0}
-                      isPrevFilled={shift === "noturno" && (prev?.aph || 0) > 0}
+                      minVal={minAph}
+                      isPrevFilled={shift === "noturno" && minAph > 0}
                     />
                     <NumCell
                       v={r.prevencao}
                       on={(v) => patch({ prevencao: v })}
                       disabled={!canEdit}
-                      minVal={prev?.prevencao || 0}
-                      isPrevFilled={shift === "noturno" && (prev?.prevencao || 0) > 0}
+                      minVal={minPrev}
+                      isPrevFilled={shift === "noturno" && minPrev > 0}
                     />
                     <NumCell
                       v={r.servicos}
                       on={(v) => patch({ servicos: v })}
                       disabled={!canEdit}
-                      minVal={prev?.servicos || 0}
-                      isPrevFilled={shift === "noturno" && (prev?.servicos || 0) > 0}
+                      minVal={minServ}
+                      isPrevFilled={shift === "noturno" && minServ > 0}
                     />
                   </>
                 );
