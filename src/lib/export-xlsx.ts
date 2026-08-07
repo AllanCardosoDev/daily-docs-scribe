@@ -55,7 +55,7 @@ export function exportSheetsToXlsx(
     [
       { key: "mun", label: "Município" },
       { key: "ord", label: "Ordinário" },
-      { key: "seg", label: "Segurança" },
+      { key: "seg", label: "SEG" },
       { key: "brig", label: "Brigadistas" },
     ],
     data.efetivo,

@@ -18,7 +18,7 @@ const SECTIONS: { key: string; label: string; fields: Record<string, string> }[]
   {
     key: "efetivo",
     label: "Efetivo",
-    fields: { ord: "Ordinário", seg: "Segurança", brig: "Brigadistas" },
+    fields: { ord: "Ordinário", seg: "SEG", brig: "Brigadistas" },
   },
   {
     key: "recursos",

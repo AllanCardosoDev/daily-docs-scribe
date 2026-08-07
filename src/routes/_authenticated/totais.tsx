@@ -386,7 +386,7 @@ function TotaisPage() {
           <TabsContent value="efetivo">
             <AggTable
               title="Efetivo por município"
-              headers={["Município", "Ordinário", "Segurança", "Brigada", "Total"]}
+              headers={["Município", "Ordinário", "SEG", "Brigada", "Total"]}
               rows={efetivo}
               keys={["ord", "seg", "brig"]}
             />
