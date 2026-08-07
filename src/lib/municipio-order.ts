@@ -57,16 +57,48 @@ export function sortByMunicipio<T extends { mun?: unknown }>(rows: T[]): T[] {
 }
 
 /**
- * Mantém a ordem original das linhas, apenas promovendo Manaus ao topo.
- * Usado onde a sequência de digitação deve ser preservada.
+ * Funde linhas com o mesmo município (somando valores numéricos)
+ * e garante ordenação institucional com Manaus em primeiro lugar.
  */
-export function manausFirst<T extends { mun?: unknown }>(rows: T[]): T[] {
-  const manaus = rows.filter((r) => isManaus(r?.mun));
-  if (!manaus.length) return rows;
-  return [...manaus, ...rows.filter((r) => !isManaus(r?.mun))];
+export function deduplicateAndOrderMunicipios<T extends Record<string, any>>(rows: T[]): T[] {
+  if (!Array.isArray(rows) || rows.length === 0) return [];
+  const map = new Map<string, T>();
+
+  for (const r of rows) {
+    const rawMun = r?.mun ?? r?.municipio;
+    if (!rawMun) continue;
+    const mun = canonicalMunicipio(rawMun);
+    const key = mun.toLowerCase();
+
+    const existing = map.get(key);
+    if (!existing) {
+      const copy = { ...r, mun };
+      if ("municipio" in copy) delete (copy as any).municipio;
+      map.set(key, copy);
+    } else {
+      for (const [k, v] of Object.entries(r)) {
+        if (k === "mun" || k === "municipio") continue;
+        const num1 = Number((existing as any)[k]) || 0;
+        const num2 = Number(v) || 0;
+        (existing as any)[k] = num1 + num2;
+      }
+    }
+  }
+
+  const result = Array.from(map.values());
+  const manaus = result.filter((r) => isManaus(r?.mun));
+  const rest = result.filter((r) => !isManaus(r?.mun));
+  return [...manaus, ...rest];
 }
 
-/** Reordena todas as seções municipais de um SheetsData, com Manaus no topo. */
+/**
+ * Mantém a ordem institucional (Manaus no topo) e elimina qualquer duplicidade somando os valores.
+ */
+export function manausFirst<T extends Record<string, any>>(rows: T[]): T[] {
+  return deduplicateAndOrderMunicipios(rows);
+}
+
+/** Reordena e desduplica todas as seções municipais de um SheetsData, com Manaus no topo. */
 export function manausFirstSheets<T extends Record<string, any>>(data: T): T {
   const sections = [
     "efetivo",
@@ -78,7 +110,7 @@ export function manausFirstSheets<T extends Record<string, any>>(data: T): T {
   ] as const;
   const out: Record<string, any> = { ...data };
   for (const s of sections) {
-    if (Array.isArray(out[s])) out[s] = manausFirst(out[s]);
+    if (Array.isArray(out[s])) out[s] = deduplicateAndOrderMunicipios(out[s]);
   }
   return out as T;
 }
