@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Plus, Trash2, CalendarDays, Lock, FileText } from "lucide-react";
+import { ArrowLeft, Save, Plus, Trash2, CalendarDays, Lock, FileText, RotateCcw } from "lucide-react";
 import { exportDailyPdf } from "@/lib/daily-export";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -462,6 +462,13 @@ function RegistroPage() {
               onChange={mark(setIncendios)}
               empty={INCENDIO_EMPTY}
               canEdit={canEdit}
+              onReset={() => {
+                setIncendios((prev) =>
+                  prev.map((r) => ({ ...r, urb: 0, flor: 0, focos: 0, total_periodo: 0 })),
+                );
+                dirtyRef.current = true;
+                toast.success("Incêndios do dia zerados para nova digitação.");
+              }}
               renderCells={(r, patch) => (
                 <>
                   <TableCell>
@@ -487,6 +494,21 @@ function RegistroPage() {
               onChange={mark(setOutras)}
               empty={OUTRA_EMPTY}
               canEdit={canEdit}
+              onReset={() => {
+                setOutras((prev) =>
+                  prev.map((r) => ({
+                    ...r,
+                    salvamento: 0,
+                    acidentes: 0,
+                    aph: 0,
+                    prevencao: 0,
+                    servicos: 0,
+                    total_periodo: 0,
+                  })),
+                );
+                dirtyRef.current = true;
+                toast.success("Ocorrências do dia zeradas para nova digitação.");
+              }}
               renderCells={(r, patch) => (
                 <>
                   <TableCell>
@@ -565,23 +587,37 @@ function SectionTable<T extends { mun: string }>(props: {
   onChange: (rows: T[]) => void;
   empty: T;
   canEdit: boolean;
+  onReset?: () => void;
   renderCells: (row: T, patch: (p: Partial<T>) => void) => React.ReactNode;
 }) {
-  const { title, headers, rows, onChange, empty, canEdit, renderCells } = props;
+  const { title, headers, rows, onChange, empty, canEdit, onReset, renderCells } = props;
   return (
     <div className="rounded-xl bg-card shadow-elevated p-4 sm:p-5 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-semibold text-base min-w-0">{title}</h2>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={!canEdit}
-          onClick={() => onChange([...rows, { ...empty }])}
-          className="gap-1.5 shrink-0"
-        >
-          <Plus className="w-4 h-4" /> <span className="hidden xs:inline">Adicionar linha</span>
-          <span className="xs:hidden">Adicionar</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          {onReset && canEdit && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={onReset}
+              className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+              title="Zerar todos os campos desta seção para nova digitação"
+            >
+              <RotateCcw className="w-3.5 h-3.5" /> Zerar valores
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!canEdit}
+            onClick={() => onChange([...rows, { ...empty }])}
+            className="gap-1.5 shrink-0"
+          >
+            <Plus className="w-4 h-4" /> <span className="hidden xs:inline">Adicionar linha</span>
+            <span className="xs:hidden">Adicionar</span>
+          </Button>
+        </div>
       </div>
       <div className="-mx-4 sm:-mx-5 overflow-x-auto px-4 sm:px-5">
         <Table className="min-w-[36rem]">
