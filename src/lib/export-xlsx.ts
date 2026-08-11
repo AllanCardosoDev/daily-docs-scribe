@@ -126,3 +126,106 @@ export function exportSheetsToXlsx(
   const suffix = reportDate ? fmtDateStamp(reportDate) : fmtDateStampGeneric();
   XLSX.writeFile(wb, filename ?? `relatorio-operacional-cbmam-${suffix}.xlsx`);
 }
+
+export function exportTotaisToXlsx(
+  incendios: Array<Record<string, any>>,
+  outras: Array<Record<string, any>>,
+  efetivo: Array<Record<string, any>>,
+  recursos: Array<Record<string, any>>,
+  periodoLabel: string,
+) {
+  const wb = XLSX.utils.book_new();
+
+  const addSheet = (name: string, headers: string[], keys: string[], rows: any[]) => {
+    const aoa = [
+      headers,
+      ...rows.map((r) => {
+        const rowData = [r.mun];
+        for (const k of keys) {
+          rowData.push(r[k] ?? 0);
+        }
+        return rowData;
+      }),
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws["!cols"] = headers.map((h) => ({ wch: Math.max(h.length + 2, 14) }));
+    XLSX.utils.book_append_sheet(wb, ws, name);
+  };
+
+  addSheet(
+    "Incêndios",
+    ["Município", "Urbano", "Florestal", "Focos"],
+    ["urb", "flor", "focos"],
+    incendios,
+  );
+
+  addSheet(
+    "Ocorrências",
+    ["Município", "Salvamento", "Acidentes", "APH", "Prevenção", "Serviços"],
+    ["salvamento", "acidentes", "aph", "prevencao", "servicos"],
+    outras,
+  );
+
+  addSheet(
+    "Efetivo",
+    ["Município", "Ordinário", "SEG", "Brigada"],
+    ["ord", "seg", "brig"],
+    efetivo,
+  );
+
+  addSheet(
+    "Recursos",
+    [
+      "Município",
+      "ABT",
+      "AT",
+      "AEM",
+      "ATP",
+      "ATA",
+      "ABF",
+      "ATF",
+      "ABS",
+      "Pipa",
+      "DOSA",
+      "CRS",
+      "AR",
+      "UR",
+      "GSE",
+      "MT",
+      "TA",
+      "Quadriciclo",
+      "Embarcação",
+      "Helicóptero",
+      "Avião",
+      "Jet Ski",
+    ],
+    [
+      "abt",
+      "at",
+      "aem",
+      "atp",
+      "ata",
+      "abf",
+      "atf",
+      "abs",
+      "pipa",
+      "dosa",
+      "crs",
+      "ar",
+      "ur",
+      "gse",
+      "mt",
+      "ta",
+      "quadriciclo",
+      "embarcacao",
+      "helicoptero",
+      "aviao",
+      "jetski",
+    ],
+    recursos,
+  );
+
+  const cleanPeriodo = periodoLabel.replace(/[^a-z0-9]/gi, "-").toLowerCase();
+  XLSX.writeFile(wb, `totais-acumulados-cbmam-${cleanPeriodo}.xlsx`);
+}
+

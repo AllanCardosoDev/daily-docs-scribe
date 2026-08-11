@@ -3,7 +3,23 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState, useEffect } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Filter, FileText, Layers, Loader2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Filter,
+  FileText,
+  Layers,
+  Loader2,
+  Share2,
+  Download,
+  Search,
+  Flame,
+  ShieldAlert,
+  Users,
+  Truck,
+  FileSpreadsheet,
+  Calendar,
+  Sparkles,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +36,7 @@ import {
 import { listDailyReports, getLatestReportDate } from "@/lib/daily-reports.functions";
 import { getAnnualIncendios } from "@/lib/annual-reports.functions";
 import { SHIFTS, SHIFT_TAB, type ReportShift } from "@/lib/report-shift";
+import { exportTotaisToXlsx } from "@/lib/export-xlsx";
 
 export const Route = createFileRoute("/_authenticated/totais")({
   head: () => ({
@@ -122,13 +139,12 @@ function aggregateSnapshot(rows: AnyRow[], field: string, keys: string[]) {
 function TotaisPage() {
   const [from, setFrom] = useState<string>("2026-06-01");
   const [to, setTo] = useState<string>(todayISO());
+  const [searchMun, setSearchMun] = useState<string>("");
   const getLatest = useServerFn(getLatestReportDate);
 
   useEffect(() => {
     getLatest().then((dateStr) => {
       if (dateStr) {
-        // Se a data mais recente for anterior ao mês atual, ajustamos o filtro
-        // para exibir o mês que contém dados por padrão.
         const latestDate = new Date(`${dateStr}T12:00:00Z`);
         const now = new Date();
         if (
@@ -167,7 +183,6 @@ function TotaisPage() {
     staleTime: 60_000,
   });
 
-  // Deduplica relatórios do mesmo dia (dando preferência para 'noturno'/24h)
   const rows = useMemo(() => {
     const raw = (q.data ?? []) as AnyRow[];
     if (shift !== "ambos") return raw;
@@ -185,9 +200,8 @@ function TotaisPage() {
     return Array.from(byDate.values());
   }, [q.data, shift]);
 
-  // Efetivo e Recursos são bens/pessoal fixo -> usa snapshot mais recente do período por município.
-  const efetivo = useMemo(() => aggregateSnapshot(rows, "efetivo", ["ord", "seg", "brig"]), [rows]);
-  const recursos = useMemo(
+  const efetivoFull = useMemo(() => aggregateSnapshot(rows, "efetivo", ["ord", "seg", "brig"]), [rows]);
+  const recursosFull = useMemo(
     () =>
       aggregateSnapshot(rows, "recursos", [
         "abt",
@@ -219,23 +233,103 @@ function TotaisPage() {
     [rows],
   );
 
-  // Incêndios e Outras Ocorrências são eventos diários -> usa somatório (SUM) no período.
-  const incendios = useMemo(() => aggregateSum(rows, "incendios", ["urb", "flor", "focos"]), [rows]);
-  const outras = useMemo(
+  const incendiosFull = useMemo(() => aggregateSum(rows, "incendios", ["urb", "flor", "focos"]), [rows]);
+  const outrasFull = useMemo(
     () => aggregateSum(rows, "outras", ["salvamento", "acidentes", "aph", "prevencao", "servicos"]),
     [rows],
   );
+
+  // Filtro de município por busca
+  const filterBySearch = <T extends { mun: string }>(list: T[]): T[] => {
+    if (!searchMun.trim()) return list;
+    const term = searchMun.trim().toLowerCase();
+    return list.filter((item) => item.mun.toLowerCase().includes(term));
+  };
+
+  const incendios = useMemo(() => filterBySearch(incendiosFull), [incendiosFull, searchMun]);
+  const outras = useMemo(() => filterBySearch(outrasFull), [outrasFull, searchMun]);
+  const efetivo = useMemo(() => filterBySearch(efetivoFull), [efetivoFull, searchMun]);
+  const recursos = useMemo(() => filterBySearch(recursosFull), [recursosFull, searchMun]);
 
   const totals = useMemo(() => {
     const sum = (list: AnyRow[], keys: string[]) =>
       keys.reduce((acc, k) => acc + list.reduce((s, r) => s + (Number(r[k]) || 0), 0), 0);
     return {
       dias: rows.length,
-      incendios: sum(incendios, ["urb", "flor"]),
-      outras: sum(outras, ["salvamento", "acidentes", "aph", "prevencao", "servicos"]),
-      efetivo: sum(efetivo, ["ord", "seg", "brig"]),
+      incendios: sum(incendiosFull, ["urb", "flor"]),
+      focos: sum(incendiosFull, ["focos"]),
+      outras: sum(outrasFull, ["salvamento", "acidentes", "aph", "prevencao", "servicos"]),
+      efetivo: sum(efetivoFull, ["ord", "seg", "brig"]),
     };
-  }, [rows, incendios, outras, efetivo]);
+  }, [rows, incendiosFull, outrasFull, efetivoFull]);
+
+  // Atalhos Rápidos de Período
+  const applyPresetFilter = (type: "hoje" | "7d" | "mes" | "safra" | "ano") => {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+    setScope("periodo");
+    if (type === "hoje") {
+      setFrom(fmt(now));
+      setTo(fmt(now));
+    } else if (type === "7d") {
+      const past = new Date(now);
+      past.setDate(now.getDate() - 6);
+      setFrom(fmt(past));
+      setTo(fmt(now));
+    } else if (type === "mes") {
+      const first = new Date(now.getFullYear(), now.getMonth(), 1);
+      setFrom(fmt(first));
+      setTo(fmt(now));
+    } else if (type === "safra") {
+      setFrom(`${now.getFullYear()}-06-01`);
+      setTo(`${now.getFullYear()}-11-30`);
+    } else if (type === "ano") {
+      setFrom(`${now.getFullYear()}-01-01`);
+      setTo(fmt(now));
+    }
+  };
+
+  // Gerador de Resumo para WhatsApp / Boletim Informativo
+  const copyWhatsAppSummary = () => {
+    const periodoStr = scope === "periodo" ? `${from} a ${to}` : "Geral (Histórico Completo)";
+    const topIncendios = ([...incendiosFull] as Array<Record<string, any>>)
+      .sort((a, b) => (Number(b.urb || 0) + Number(b.flor || 0)) - (Number(a.urb || 0) + Number(a.flor || 0)))
+      .slice(0, 5)
+      .map((r) => `  • *${r.mun}*: ${Number(r.urb || 0) + Number(r.flor || 0)} inc. (${Number(r.focos || 0)} focos)`)
+      .join("\n");
+
+    const text = `🔥 *CBMAM · SARA / SALA DE SITUAÇÃO*
+📊 *BOLETIM OPERACIONAL CONSOLIDADO*
+📅 *Período:* ${periodoStr}
+
+───────────────
+📈 *INDICADORES CHAVE:*
+ • *Relatórios computados:* ${totals.dias}
+ • *Combate a Incêndios:* ${totals.incendios} ocorrências
+ • *Focos de Queimadas:* ${totals.focos} focos
+ • *Atendimentos Diversos:* ${totals.outras} chamados
+ • *Efetivo Mobilizado:* ${totals.efetivo} militares/brigadistas
+
+───────────────
+🏆 *MUNICÍPIOS COM MAIOR INCIDÊNCIA:*
+${topIncendios || "  Nenhum registro no período."}
+
+───────────────
+ℹ️ _Gerado automaticamente pelo Painel Amazonas + Verde CBMAM em ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}._`;
+
+    navigator.clipboard.writeText(text);
+    toast.success("Resumo do Boletim copiado!", {
+      description: "Pronto para colar no WhatsApp ou relatórios oficiais.",
+    });
+  };
+
+  const handleExportXlsx = () => {
+    const label = scope === "periodo" ? `${from}-ate-${to}` : "geral";
+    exportTotaisToXlsx(incendiosFull, outrasFull, efetivoFull, recursosFull, label);
+    toast.success("Planilha Excel (.xlsx) baixada com sucesso!");
+  };
 
   return (
     <div className="min-h-dvh bg-gradient-brand-soft">
@@ -254,18 +348,36 @@ function TotaisPage() {
           </Button>
           <div className="min-w-0">
             <div className="text-[10px] uppercase tracking-widest text-white/60">
-              Sala de Situação
+              Sala de Situação · CBMAM
             </div>
             <h1 className="font-display text-base sm:text-lg md:text-xl font-bold truncate">
-              Totais acumulados e Comparativo
+              Central de Relatórios & Totais Acumulados
             </h1>
           </div>
-          <div className="col-span-2 flex gap-2 md:col-auto md:ml-auto">
+          <div className="col-span-2 flex flex-wrap items-center gap-2 md:col-auto md:ml-auto">
+            <Button
+              onClick={copyWhatsAppSummary}
+              variant="secondary"
+              size="sm"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold gap-1.5 shadow-sm"
+            >
+              <Share2 className="w-4 h-4" />
+              Copiar Resumo WhatsApp
+            </Button>
+            <Button
+              onClick={handleExportXlsx}
+              variant="secondary"
+              size="sm"
+              className="bg-white/95 text-foreground font-semibold gap-1.5"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+              Excel (.xlsx)
+            </Button>
             <Button
               asChild
               variant="secondary"
               size="sm"
-              className="w-full md:w-auto bg-white/95 text-foreground"
+              className="bg-white/95 text-foreground"
             >
               <Link to="/registro">Registro do dia</Link>
             </Button>
@@ -275,15 +387,105 @@ function TotaisPage() {
 
       <main className="w-full max-w-[98%] mx-auto px-3 sm:px-6 py-6 space-y-5">
         {/* KPIs gerais */}
-        <section className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-4 gap-3">
+        <section className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-5 gap-3">
           <Kpi label="Relatórios no filtro" value={totals.dias} />
           <Kpi label="Incêndios (total)" value={totals.incendios} />
+          <Kpi label="Focos de Queimada" value={totals.focos} />
           <Kpi label="Ocorrências" value={totals.outras} />
           <Kpi label="Efetivo empenhado" value={totals.efetivo} />
         </section>
 
-        {/* Filtro */}
-        <section className="rounded-xl bg-card shadow-elevated p-4 sm:p-5">
+        {/* Modelos e Categorias de Relatório */}
+        <section className="rounded-xl bg-card shadow-elevated p-4 sm:p-5 border border-border/80">
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="w-5 h-5 text-primary" />
+            <h2 className="font-bold text-base">Modelos de Relatórios & Operações</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab("incendios");
+                applyPresetFilter("safra");
+              }}
+              className="p-3.5 rounded-lg border border-border bg-gradient-to-br from-amber-500/10 to-transparent hover:border-amber-500/50 text-left transition-all group"
+            >
+              <div className="flex items-center justify-between">
+                <Flame className="w-5 h-5 text-amber-600 group-hover:scale-110 transition-transform" />
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-800 dark:text-amber-300 px-2 py-0.5 rounded">
+                  Safra do Fogo
+                </span>
+              </div>
+              <h3 className="font-semibold text-sm mt-2">Operação Amazonas + Verde</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Foco total em combate a incêndios florestais e de vegetação (Jun-Nov).
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab("incendios");
+                applyPresetFilter("mes");
+              }}
+              className="p-3.5 rounded-lg border border-border bg-gradient-to-br from-red-500/10 to-transparent hover:border-red-500/50 text-left transition-all group"
+            >
+              <div className="flex items-center justify-between">
+                <Flame className="w-5 h-5 text-red-600 group-hover:scale-110 transition-transform" />
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-red-500/20 text-red-800 dark:text-red-300 px-2 py-0.5 rounded">
+                  INPE / Queimadas
+                </span>
+              </div>
+              <h3 className="font-semibold text-sm mt-2">Focos de Calor & Incêndios</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Acompanhamento mensal de focos de queimada urbanos e florestais.
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab("outras");
+                applyPresetFilter("mes");
+              }}
+              className="p-3.5 rounded-lg border border-border bg-gradient-to-br from-blue-500/10 to-transparent hover:border-blue-500/50 text-left transition-all group"
+            >
+              <div className="flex items-center justify-between">
+                <ShieldAlert className="w-5 h-5 text-blue-600 group-hover:scale-110 transition-transform" />
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-500/20 text-blue-800 dark:text-blue-300 px-2 py-0.5 rounded">
+                  Atendimentos
+                </span>
+              </div>
+              <h3 className="font-semibold text-sm mt-2">Ocorrências & Resgates</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Salvamentos, APH, acidentes de trânsito e ações preventivas.
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab("efetivo");
+                applyPresetFilter("hoje");
+              }}
+              className="p-3.5 rounded-lg border border-border bg-gradient-to-br from-emerald-500/10 to-transparent hover:border-emerald-500/50 text-left transition-all group"
+            >
+              <div className="flex items-center justify-between">
+                <Users className="w-5 h-5 text-emerald-600 group-hover:scale-110 transition-transform" />
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 rounded">
+                  Logística
+                </span>
+              </div>
+              <h3 className="font-semibold text-sm mt-2">Efetivo & Recursos Mobilizados</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Mapeamento de viaturas, aeronaves, embarcações e militares empenhados.
+              </p>
+            </button>
+          </div>
+        </section>
+
+        {/* Filtro principal */}
+        <section className="rounded-xl bg-card shadow-elevated p-4 sm:p-5 space-y-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
             <div className="grid grid-cols-2 gap-2 sm:flex">
               <Button
@@ -298,7 +500,7 @@ function TotaisPage() {
                 size="sm"
                 onClick={() => setScope("geral")}
               >
-                Geral (tudo)
+                Geral (Histórico Completo)
               </Button>
             </div>
             {scope === "periodo" && (
@@ -327,7 +529,7 @@ function TotaisPage() {
             )}
 
             <div className="w-full lg:w-auto lg:ml-auto">
-              <Label>Relatório</Label>
+              <Label>Turno / Fechamento</Label>
               <div className="mt-1 grid grid-cols-3 gap-1 rounded-lg border border-border bg-muted/40 p-1 sm:inline-flex">
                 {(["ambos", ...SHIFTS] as const).map((s) => (
                   <button
@@ -347,114 +549,163 @@ function TotaisPage() {
               </div>
             </div>
           </div>
+
+          {/* Atalhos Rápidos de Período */}
+          {scope === "periodo" && (
+            <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-border/60">
+              <span className="text-xs font-semibold text-muted-foreground mr-1 flex items-center gap-1">
+                <Calendar className="w-3.5 h-3.5" /> Filtros Rápidos:
+              </span>
+              <Button size="sm" variant="ghost" className="h-7 text-xs px-2.5" onClick={() => applyPresetFilter("hoje")}>
+                Hoje
+              </Button>
+              <Button size="sm" variant="ghost" className="h-7 text-xs px-2.5" onClick={() => applyPresetFilter("7d")}>
+                Últimos 7 Dias
+              </Button>
+              <Button size="sm" variant="ghost" className="h-7 text-xs px-2.5" onClick={() => applyPresetFilter("mes")}>
+                Este Mês
+              </Button>
+              <Button size="sm" variant="ghost" className="h-7 text-xs px-2.5 text-amber-700 font-semibold" onClick={() => applyPresetFilter("safra")}>
+                🔥 Safra do Fogo
+              </Button>
+              <Button size="sm" variant="ghost" className="h-7 text-xs px-2.5" onClick={() => applyPresetFilter("ano")}>
+                Ano Atual
+              </Button>
+            </div>
+          )}
         </section>
 
         <AnnualReportsCard activeTab={activeTab} />
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
-          <TabsList className="flex-wrap">
-            <TabsTrigger value="incendios">Incêndios</TabsTrigger>
-            <TabsTrigger value="outras">Ocorrências</TabsTrigger>
-            <TabsTrigger value="efetivo">Efetivo</TabsTrigger>
-            <TabsTrigger value="recursos">Recursos</TabsTrigger>
-          </TabsList>
+        {/* Busca por Município e Abas */}
+        <section className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full sm:w-auto">
+              <TabsList className="flex-wrap w-full sm:w-auto">
+                <TabsTrigger value="incendios" className="gap-1.5">
+                  <Flame className="w-4 h-4 text-amber-600" /> Incêndios
+                </TabsTrigger>
+                <TabsTrigger value="outras" className="gap-1.5">
+                  <ShieldAlert className="w-4 h-4 text-blue-600" /> Ocorrências
+                </TabsTrigger>
+                <TabsTrigger value="efetivo" className="gap-1.5">
+                  <Users className="w-4 h-4 text-emerald-600" /> Efetivo
+                </TabsTrigger>
+                <TabsTrigger value="recursos" className="gap-1.5">
+                  <Truck className="w-4 h-4 text-purple-600" /> Recursos
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
 
-          <TabsContent value="incendios">
-            <AggTable
-              title="Incêndios por município"
-              headers={["Município", "Urbano", "Florestal", "Focos", "Total"]}
-              rows={incendios}
-              keys={["urb", "flor", "focos"]}
-              sumKeys={["urb", "flor"]}
-            />
-          </TabsContent>
-          <TabsContent value="outras">
-            <AggTable
-              title="Ocorrências por município"
-              headers={[
-                "Município",
-                "Salvamento",
-                "Acidentes",
-                "APH",
-                "Prevenção",
-                "Serviços",
-                "Total",
-              ]}
-              rows={outras}
-              keys={["salvamento", "acidentes", "aph", "prevencao", "servicos"]}
-            />
-          </TabsContent>
-          <TabsContent value="efetivo">
-            <AggTable
-              title="Efetivo por município"
-              headers={["Município", "Ordinário", "SEG", "Brigada", "Total"]}
-              rows={efetivo}
-              keys={["ord", "seg", "brig"]}
-            />
-          </TabsContent>
-          <TabsContent value="recursos">
-            <AggTable
-              title="Recursos por município"
-              headers={[
-                "Município",
-                "ABT",
-                "AT",
-                "AEM",
-                "ATP",
-                "ATA",
-                "ABF",
-                "ATF",
-                "ABS",
-                "Pipa",
-                "DOSA",
-                "CRS",
-                "AR",
-                "UR",
-                "GSE",
-                "MT",
-                "TA",
-                "Quadriciclo",
-                "Embarcação",
-                "Picape FN",
-                "Picape MUNI",
-                "Autoarp",
-                "Picape ESFRON",
-                "Helicóptero",
-                "Avião",
-                "Jet Ski",
-                "Total",
-              ]}
-              rows={recursos}
-              keys={[
-                "abt",
-                "at",
-                "aem",
-                "atp",
-                "ata",
-                "abf",
-                "atf",
-                "abs",
-                "pipa",
-                "dosa",
-                "crs",
-                "ar",
-                "ur",
-                "gse",
-                "mt",
-                "ta",
-                "quadriciclo",
-                "embarcacao",
-                "picape_fn",
-                "picape_muni",
-                "autoarp",
-                "picape_esfron",
-                "helicoptero",
-                "aviao",
-                "jetski",
-              ]}
-            />
-          </TabsContent>
-        </Tabs>
+            <div className="relative w-full sm:w-72">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Filtrar município..."
+                value={searchMun}
+                onChange={(e) => setSearchMun(e.target.value)}
+                className="pl-9 text-sm"
+              />
+            </div>
+          </div>
+
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+            <TabsContent value="incendios">
+              <AggTable
+                title="Incêndios por município"
+                headers={["Município", "Urbano", "Florestal", "Focos", "Total"]}
+                rows={incendios}
+                keys={["urb", "flor", "focos"]}
+                sumKeys={["urb", "flor"]}
+              />
+            </TabsContent>
+            <TabsContent value="outras">
+              <AggTable
+                title="Ocorrências por município"
+                headers={[
+                  "Município",
+                  "Salvamento",
+                  "Acidentes",
+                  "APH",
+                  "Prevenção",
+                  "Serviços",
+                  "Total",
+                ]}
+                rows={outras}
+                keys={["salvamento", "acidentes", "aph", "prevencao", "servicos"]}
+              />
+            </TabsContent>
+            <TabsContent value="efetivo">
+              <AggTable
+                title="Efetivo por município"
+                headers={["Município", "Ordinário", "SEG", "Brigada", "Total"]}
+                rows={efetivo}
+                keys={["ord", "seg", "brig"]}
+              />
+            </TabsContent>
+            <TabsContent value="recursos">
+              <AggTable
+                title="Recursos por município"
+                headers={[
+                  "Município",
+                  "ABT",
+                  "AT",
+                  "AEM",
+                  "ATP",
+                  "ATA",
+                  "ABF",
+                  "ATF",
+                  "ABS",
+                  "Pipa",
+                  "DOSA",
+                  "CRS",
+                  "AR",
+                  "UR",
+                  "GSE",
+                  "MT",
+                  "TA",
+                  "Quadriciclo",
+                  "Embarcação",
+                  "Picape FN",
+                  "Picape MUNI",
+                  "Autoarp",
+                  "Picape ESFRON",
+                  "Helicóptero",
+                  "Avião",
+                  "Jet Ski",
+                  "Total",
+                ]}
+                rows={recursos}
+                keys={[
+                  "abt",
+                  "at",
+                  "aem",
+                  "atp",
+                  "ata",
+                  "abf",
+                  "atf",
+                  "abs",
+                  "pipa",
+                  "dosa",
+                  "crs",
+                  "ar",
+                  "ur",
+                  "gse",
+                  "mt",
+                  "ta",
+                  "quadriciclo",
+                  "embarcacao",
+                  "picape_fn",
+                  "picape_muni",
+                  "autoarp",
+                  "picape_esfron",
+                  "helicoptero",
+                  "aviao",
+                  "jetski",
+                ]}
+              />
+            </TabsContent>
+          </Tabs>
+        </section>
       </main>
     </div>
   );
