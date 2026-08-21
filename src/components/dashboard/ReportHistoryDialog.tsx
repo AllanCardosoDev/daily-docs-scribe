@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { listReportHistory } from "@/lib/sheets.functions";
+import { listReportHistory, restoreReportVersion } from "@/lib/sheets.functions";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,6 +12,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { History, Loader2, User } from "lucide-react";
+import { toast } from "sonner";
 
 const dateFmt = new Intl.DateTimeFormat("pt-BR", {
   dateStyle: "short",
@@ -22,7 +23,7 @@ const dateFmt = new Intl.DateTimeFormat("pt-BR", {
 export function ReportHistoryDialog({ reportDate }: { reportDate?: Date | null }) {
   const [open, setOpen] = useState(false);
   const listFn = useServerFn(listReportHistory);
-  const restoreFn = useServerFn(import("@/lib/sheets.functions").then(m => m.restoreReportVersion));
+  const restoreFn = useServerFn(restoreReportVersion);
 
   const dateIso = reportDate?.toISOString().split("T")[0];
 
@@ -104,9 +105,13 @@ export function ReportHistoryDialog({ reportDate }: { reportDate?: Date | null }
                         className="h-7 text-[10px] font-bold uppercase hover:bg-primary/10 hover:text-primary"
                         onClick={async () => {
                           try {
-                            await restoreFn({ data: { historyId: entry.id } });
-                            window.location.reload();
+                            const res = await restoreFn({ data: { historyId: entry.id } });
+                            if (res.ok) {
+                              toast.success("Versão restaurada com sucesso!");
+                              window.location.reload();
+                            }
                           } catch (err) {
+                            toast.error("Erro ao restaurar versão.");
                             console.error(err);
                           }
                         }}
