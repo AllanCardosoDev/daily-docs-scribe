@@ -214,7 +214,6 @@ export const saveDailyReport = createServerFn({ method: "POST" })
       recursos: data.recursos as any,
       incendios: data.incendios as any,
       outras: data.outras as any,
-      dados_complementares: (data.dados_complementares ?? {}) as any,
       notes: data.notes ?? null,
       updated_by: context.userId,
     };
