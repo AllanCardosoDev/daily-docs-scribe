@@ -409,5 +409,8 @@ export async function loadReportRange(
     incendios_acumulado: await fetchIncendiosAcumulado(supabase, endIso),
     outras_diarias: aggregatedOutras as any,
     occurrences: [],
+    isRange: true,
+    startDate: startIso,
+    endDate: endIso,
   };
 }
