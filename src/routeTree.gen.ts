@@ -14,6 +14,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedTotaisRouteImport } from './routes/_authenticated/totais'
+import { Route as AuthenticatedStatusRouteImport } from './routes/_authenticated/status'
 import { Route as AuthenticatedRegistroRouteImport } from './routes/_authenticated/registro'
 import { Route as AuthenticatedPainelRouteImport } from './routes/_authenticated/painel'
 import { Route as AuthenticatedEscalaRouteImport } from './routes/_authenticated/escala'
@@ -42,6 +43,11 @@ const IndexRoute = IndexRouteImport.update({
 const AuthenticatedTotaisRoute = AuthenticatedTotaisRouteImport.update({
   id: '/totais',
   path: '/totais',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedStatusRoute = AuthenticatedStatusRouteImport.update({
+  id: '/status',
+  path: '/status',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedRegistroRoute = AuthenticatedRegistroRouteImport.update({
@@ -78,6 +84,7 @@ export interface FileRoutesByFullPath {
   '/escala': typeof AuthenticatedEscalaRoute
   '/painel': typeof AuthenticatedPainelRoute
   '/registro': typeof AuthenticatedRegistroRoute
+  '/status': typeof AuthenticatedStatusRoute
   '/totais': typeof AuthenticatedTotaisRoute
   '/api/public/drive-sync': typeof ApiPublicDriveSyncRoute
   '/api/public/grupo-adicional-incendio': typeof ApiPublicGrupoAdicionalIncendioRoute
@@ -89,6 +96,7 @@ export interface FileRoutesByTo {
   '/escala': typeof AuthenticatedEscalaRoute
   '/painel': typeof AuthenticatedPainelRoute
   '/registro': typeof AuthenticatedRegistroRoute
+  '/status': typeof AuthenticatedStatusRoute
   '/totais': typeof AuthenticatedTotaisRoute
   '/api/public/drive-sync': typeof ApiPublicDriveSyncRoute
   '/api/public/grupo-adicional-incendio': typeof ApiPublicGrupoAdicionalIncendioRoute
@@ -102,6 +110,7 @@ export interface FileRoutesById {
   '/_authenticated/escala': typeof AuthenticatedEscalaRoute
   '/_authenticated/painel': typeof AuthenticatedPainelRoute
   '/_authenticated/registro': typeof AuthenticatedRegistroRoute
+  '/_authenticated/status': typeof AuthenticatedStatusRoute
   '/_authenticated/totais': typeof AuthenticatedTotaisRoute
   '/api/public/drive-sync': typeof ApiPublicDriveSyncRoute
   '/api/public/grupo-adicional-incendio': typeof ApiPublicGrupoAdicionalIncendioRoute
@@ -115,6 +124,7 @@ export interface FileRouteTypes {
     | '/escala'
     | '/painel'
     | '/registro'
+    | '/status'
     | '/totais'
     | '/api/public/drive-sync'
     | '/api/public/grupo-adicional-incendio'
@@ -126,6 +136,7 @@ export interface FileRouteTypes {
     | '/escala'
     | '/painel'
     | '/registro'
+    | '/status'
     | '/totais'
     | '/api/public/drive-sync'
     | '/api/public/grupo-adicional-incendio'
@@ -138,6 +149,7 @@ export interface FileRouteTypes {
     | '/_authenticated/escala'
     | '/_authenticated/painel'
     | '/_authenticated/registro'
+    | '/_authenticated/status'
     | '/_authenticated/totais'
     | '/api/public/drive-sync'
     | '/api/public/grupo-adicional-incendio'
@@ -189,6 +201,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTotaisRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/status': {
+      id: '/_authenticated/status'
+      path: '/status'
+      fullPath: '/status'
+      preLoaderRoute: typeof AuthenticatedStatusRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/registro': {
       id: '/_authenticated/registro'
       path: '/registro'
@@ -231,6 +250,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedEscalaRoute: typeof AuthenticatedEscalaRoute
   AuthenticatedPainelRoute: typeof AuthenticatedPainelRoute
   AuthenticatedRegistroRoute: typeof AuthenticatedRegistroRoute
+  AuthenticatedStatusRoute: typeof AuthenticatedStatusRoute
   AuthenticatedTotaisRoute: typeof AuthenticatedTotaisRoute
 }
 
@@ -238,6 +258,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedEscalaRoute: AuthenticatedEscalaRoute,
   AuthenticatedPainelRoute: AuthenticatedPainelRoute,
   AuthenticatedRegistroRoute: AuthenticatedRegistroRoute,
+  AuthenticatedStatusRoute: AuthenticatedStatusRoute,
   AuthenticatedTotaisRoute: AuthenticatedTotaisRoute,
 }
 
