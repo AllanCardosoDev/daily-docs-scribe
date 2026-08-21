@@ -18,9 +18,9 @@ interface MapDetailsPanelProps {
 }
 
 export function MapDetailsPanel({ isOpen, onClose, municipioName, onMunicipioSelect, data }: MapDetailsPanelProps) {
-  const [searchTerm, setSearchTerm] = React.useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   
-  const allMunicipios = React.useMemo(() => {
+  const allMunicipios = useMemo(() => {
     const names = new Set<string>();
     data.incendios_diario?.forEach(r => r.mun && names.add(r.mun));
     data.efetivo?.forEach(r => r.mun && names.add(r.mun));
@@ -29,13 +29,13 @@ export function MapDetailsPanel({ isOpen, onClose, municipioName, onMunicipioSel
     return Array.from(names).sort((a, b) => a.localeCompare(b));
   }, [data]);
 
-  const filteredMunicipios = React.useMemo(() => {
+  const filteredMunicipios = useMemo(() => {
     if (!searchTerm) return [];
     const term = searchTerm.toLowerCase();
     return allMunicipios.filter(m => m.toLowerCase().includes(term));
   }, [allMunicipios, searchTerm]);
 
-  const details = React.useMemo(() => {
+  const details = useMemo(() => {
     if (!municipioName) return null;
 
     const normalize = (s: string) =>
