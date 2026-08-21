@@ -34,6 +34,8 @@ interface Props {
   isRefreshing: boolean;
   reportDate: Date | null;
   onReportDateChange: (d: Date | null) => void;
+  endDate: Date | null;
+  onEndDateChange: (d: Date | null) => void;
   pdfQuality: PdfQuality;
   onPdfQualityChange: (q: PdfQuality) => void;
   onRefresh: () => void;
@@ -55,6 +57,8 @@ export const PainelToolbar = memo(function PainelToolbar({
   isRefreshing,
   reportDate,
   onReportDateChange,
+  endDate,
+  onEndDateChange,
   pdfQuality,
   onPdfQualityChange,
   onRefresh,
@@ -82,6 +86,11 @@ export const PainelToolbar = memo(function PainelToolbar({
             </span>
             <span aria-hidden="true">·</span>
             <span>Documento oficial · Comando Integrado</span>
+            {reportDate && endDate && reportDate.getTime() !== endDate.getTime() && (
+              <span className="ml-2 bg-primary/20 text-primary px-2 py-0.5 rounded-full lowercase tracking-normal">
+                Modo Período Ativo
+              </span>
+            )}
           </div>
           <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-foreground">
             Panorama operacional
@@ -129,43 +138,71 @@ export const PainelToolbar = memo(function PainelToolbar({
           )}
 
           {/* Report date selector */}
-          <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/50 pl-1 pr-1 py-1 min-w-0">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className={cn(
-                    "h-9 min-w-0 flex-1 justify-start gap-2 font-medium text-sm px-2.5",
-                    !reportDate && "text-muted-foreground",
-                  )}
-                  aria-label="Escolher data do relatório"
-                >
-                  <CalendarIcon className="w-4 h-4 shrink-0 text-primary" />
-                  <span className="hidden truncate sm:inline">
-                    {reportDate ? fmtDateLong(reportDate) : "Data do relatório"}
-                  </span>
-                  <span className="truncate sm:hidden">
-                    {reportDate ? reportDate.toLocaleDateString("pt-BR") : "Data do relatório"}
-                  </span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-auto p-0 pointer-events-auto">
-                <LazyCalendar
-                  mode="single"
-                  selected={reportDate ?? undefined}
-                  onSelect={(d) => onReportDateChange(d ?? null)}
-                  initialFocus
-                  className={cn("p-3 pointer-events-auto")}
-                />
-              </PopoverContent>
-            </Popover>
-            {reportDate && (
+          <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/50 px-1 py-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      "h-9 min-w-[120px] justify-start gap-2 font-medium text-xs px-2",
+                      !reportDate && "text-muted-foreground",
+                    )}
+                  >
+                    <CalendarIcon className="w-3.5 h-3.5 shrink-0 text-primary" />
+                    <span className="truncate">
+                      {reportDate ? reportDate.toLocaleDateString("pt-BR") : "Início"}
+                    </span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-auto p-0">
+                  <LazyCalendar
+                    mode="single"
+                    selected={reportDate ?? undefined}
+                    onSelect={(d) => onReportDateChange(d ?? null)}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+
+              <span className="text-muted-foreground text-[10px] font-bold">ATÉ</span>
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      "h-9 min-w-[120px] justify-start gap-2 font-medium text-xs px-2",
+                      !endDate && "text-muted-foreground",
+                    )}
+                  >
+                    <CalendarIcon className="w-3.5 h-3.5 shrink-0 text-primary" />
+                    <span className="truncate">
+                      {endDate ? endDate.toLocaleDateString("pt-BR") : "Fim"}
+                    </span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-auto p-0">
+                  <LazyCalendar
+                    mode="single"
+                    selected={endDate ?? undefined}
+                    onSelect={(d) => onEndDateChange(d ?? null)}
+                    disabled={(date) => (reportDate ? date < reportDate : false)}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {(reportDate || endDate) && (
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                onClick={() => onReportDateChange(null)}
-                aria-label="Limpar data do relatório"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground ml-1"
+                onClick={() => {
+                  onReportDateChange(null);
+                  onEndDateChange(null);
+                }}
               >
                 <X className="w-4 h-4" />
               </Button>
@@ -216,7 +253,7 @@ export const PainelToolbar = memo(function PainelToolbar({
                 disabled={!canEdit}
               />
             )}
-            <ReportHistoryDialog />
+            <ReportHistoryDialog reportDate={reportDate} />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

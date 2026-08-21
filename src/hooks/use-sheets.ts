@@ -30,7 +30,7 @@ export type SectionSavers = Record<SavableListKey, SectionSaver> & {
   header: (h: SheetsHeader) => Promise<void>;
 };
 
-export function useSheetsDashboard(reportDate?: Date | null) {
+export function useSheetsDashboard(reportDate?: Date | null, endDate?: Date | null) {
   const qc = useQueryClient();
   const getCfg = useServerFn(getAppConfig);
   const getData = useServerFn(getSheetsData);
@@ -47,10 +47,17 @@ export function useSheetsDashboard(reportDate?: Date | null) {
   });
 
   const dateIso = reportDate?.toISOString().split("T")[0];
+  const endDateIso = endDate?.toISOString().split("T")[0];
+
   const dataQuery = useQuery({
-    queryKey: [...queryKeys.sheetsData, dateIso],
+    queryKey: [...queryKeys.sheetsData, dateIso, endDateIso],
     queryFn: async () => {
-      const res = await getData({ data: { reportDate: dateIso } });
+      const res = await getData({
+        data: {
+          reportDate: dateIso,
+          endDate: endDateIso,
+        },
+      });
       versionRef.current = res.version ?? 0;
       return res;
     },

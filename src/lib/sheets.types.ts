@@ -66,6 +66,7 @@ export interface SheetsData {
   incendios_acumulado: IncendiosAcumuladoRow[];
   outras_diarias: OutrasDiariasRow[];
   occurrences: OccurrenceRow[];
+  isRange?: boolean;
 }
 
 export const EMPTY_SHEETS_DATA: SheetsData = {

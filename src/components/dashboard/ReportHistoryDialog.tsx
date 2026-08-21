@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { listReportHistory } from "@/lib/sheets.functions";
+import { listReportHistory, restoreReportVersion } from "@/lib/sheets.functions";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,6 +12,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { History, Loader2, User } from "lucide-react";
+import { toast } from "sonner";
 
 const dateFmt = new Intl.DateTimeFormat("pt-BR", {
   dateStyle: "short",
@@ -19,13 +20,16 @@ const dateFmt = new Intl.DateTimeFormat("pt-BR", {
 });
 
 /** History drawer/dialog — shows the last 50 saves of the report. */
-export function ReportHistoryDialog() {
+export function ReportHistoryDialog({ reportDate }: { reportDate?: Date | null }) {
   const [open, setOpen] = useState(false);
   const listFn = useServerFn(listReportHistory);
+  const restoreFn = useServerFn(restoreReportVersion);
+
+  const dateIso = reportDate?.toISOString().split("T")[0];
 
   const query = useQuery({
-    queryKey: ["report-history"],
-    queryFn: () => listFn(),
+    queryKey: ["report-history", dateIso],
+    queryFn: () => listFn({ data: { reportDate: dateIso } }),
     enabled: open,
     staleTime: 15_000,
   });
@@ -84,19 +88,37 @@ export function ReportHistoryDialog() {
                         {dateFmt.format(new Date(entry.updatedAt))}
                       </span>
                     </div>
-                    <div className="mt-2 flex items-center gap-1.5 text-sm text-foreground">
-                      <User className="w-3.5 h-3.5 text-muted-foreground/70" aria-hidden="true" />
-                      <span className="truncate">
-                        {entry.updatedByEmail || (
-                          <span className="text-muted-foreground/70 italic">
-                            usuário desconhecido
-                          </span>
-                        )}
-                      </span>
+                    <div className="mt-2 flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-1.5 text-sm text-foreground truncate">
+                        <User className="w-3.5 h-3.5 text-muted-foreground/70" aria-hidden="true" />
+                        <span className="truncate">
+                          {entry.updatedByEmail || (
+                            <span className="text-muted-foreground/70 italic">
+                              usuário desconhecido
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 text-[10px] font-bold uppercase hover:bg-primary/10 hover:text-primary"
+                        onClick={async () => {
+                          try {
+                            const res = await restoreFn({ data: { historyId: entry.id } });
+                            if (res.ok) {
+                              toast.success("Versão restaurada com sucesso!");
+                              window.location.reload();
+                            }
+                          } catch (err) {
+                            toast.error("Erro ao restaurar versão.");
+                            console.error(err);
+                          }
+                        }}
+                      >
+                        Restaurar
+                      </Button>
                     </div>
-                    {entry.changeSummary && (
-                      <p className="mt-1 text-xs text-muted-foreground">{entry.changeSummary}</p>
-                    )}
                   </div>
                 </li>
               ))}

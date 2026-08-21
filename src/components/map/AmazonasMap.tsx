@@ -100,12 +100,22 @@ export function AmazonasMap({ data }: AmazonasMapProps) {
         {MUNICIPIOS_GEO.map((mun) => {
           const isSelected = selectedMun === mun.id;
           
-          // Calcular a cor baseada em ocorrências se existirem
+          // Calcular a cor baseada em ocorrências
           const munName = mun.name;
-          const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+          const normalize = (s: string) =>
+            s
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, "")
+              .toLowerCase();
           const target = normalize(munName);
-          const incendios = data.incendios_diario?.find(r => normalize(r.mun || "") === target);
-          const hasIncendios = incendios && (Number(incendios.urb || 0) + Number(incendios.flor || 0)) > 0;
+
+          // Buscar dados no range atual
+          const incendios = data.incendios_diario?.find((r) => normalize(r.mun || "") === target);
+          const hasIncendios =
+            incendios && (Number(incendios.urb || 0) + Number(incendios.flor || 0)) > 0;
+          const totalIncendios = incendios
+            ? Number(incendios.urb || 0) + Number(incendios.flor || 0)
+            : 0;
 
           return (
             <g
@@ -120,8 +130,8 @@ export function AmazonasMap({ data }: AmazonasMapProps) {
                 initial={{ scale: 0 }}
                 animate={{ 
                   scale: 1,
-                  fill: isSelected ? "#2f9755" : (hasIncendios ? "#ef4444" : "#8dd2a2"),
-                  fillOpacity: isSelected ? 0.9 : (hasIncendios ? 0.7 : 0.4)
+                  fill: isSelected ? "#2f9755" : hasIncendios ? "#ef4444" : "#8dd2a2",
+                  fillOpacity: isSelected ? 0.9 : hasIncendios ? Math.min(0.4 + totalIncendios * 0.1, 0.9) : 0.4,
                 }}
                 whileHover={{ scale: 1.1, fillOpacity: 0.8 }}
                 className={cn(
