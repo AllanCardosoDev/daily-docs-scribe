@@ -46,6 +46,7 @@ function PainelPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [reportDate, setReportDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
   const [shift, setShift] = useState<ReportShift>("noturno");
   const getLatest = useServerFn(getLatestReportDate);
 
@@ -55,14 +56,19 @@ function PainelPage() {
         // Use local time for the date string from DB to avoid timezone shifts
         const [y, m, d] = dateStr.split("-").map(Number);
         setReportDate(new Date(y, m - 1, d));
+        setEndDate(new Date(y, m - 1, d));
       } else {
         setReportDate(new Date());
+        setEndDate(new Date());
       }
     });
   }, [getLatest]);
 
   const [pdfQuality, setPdfQuality] = useState<"standard" | "high">("standard");
-  const { configQuery, dataQuery, savers, canEdit, refresh } = useSheetsDashboard(reportDate);
+  const { configQuery, dataQuery, savers, canEdit, refresh } = useSheetsDashboard(
+    reportDate,
+    endDate,
+  );
 
   const cfg = configQuery.data;
   const payload = dataQuery.data;
@@ -162,7 +168,12 @@ function PainelPage() {
               canEdit={canEdit}
               isRefreshing={dataQuery.isFetching}
               reportDate={reportDate}
-              onReportDateChange={setReportDate}
+              endDate={endDate}
+              onReportDateChange={(d) => {
+                setReportDate(d);
+                if (d && endDate && d > endDate) setEndDate(d);
+              }}
+              onEndDateChange={setEndDate}
               pdfQuality={pdfQuality}
               onPdfQualityChange={setPdfQuality}
               onRefresh={refresh}
