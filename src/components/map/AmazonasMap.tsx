@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MapPin, Flame, Users, Info, X } from "lucide-react";
+import { MapPin, Flame, Users, Info, X, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { MapDetailsPanel } from "./MapDetailsPanel";
 import type { SheetsData } from "@/lib/sheets.types";
 
 /**
@@ -37,6 +38,7 @@ interface AmazonasMapProps {
 
 export function AmazonasMap({ data }: AmazonasMapProps) {
   const [selectedMun, setSelectedMun] = useState<string | null>(null);
+  const [panelOpen, setPanelOpen] = useState(false);
 
   const munData = useMemo(() => {
     if (!selectedMun) return null;
@@ -204,33 +206,26 @@ export function AmazonasMap({ data }: AmazonasMapProps) {
                     </div>
                   </div>
                 </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs py-1.5 border-b border-border/50">
-                    <span className="text-muted-foreground font-medium">Focos combatidos</span>
-                    <Badge variant="outline" className="font-bold text-orange-600 border-orange-200">
-                      {munData.focos}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between text-xs py-1.5">
-                    <span className="text-muted-foreground font-medium">Outras ocorrências</span>
-                    <Badge variant="outline" className="font-bold text-blue-600 border-blue-200">
-                      {munData.outras}
-                    </Badge>
-                  </div>
-                </div>
                 
                 <Button 
-                  className="w-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-slate-100 font-bold text-xs h-9 rounded-lg transition-all"
-                  onClick={() => setSelectedMun(null)}
+                  className="w-full bg-gradient-brand hover:brightness-110 text-white font-bold text-xs h-9 rounded-lg transition-all gap-2"
+                  onClick={() => setPanelOpen(true)}
                 >
-                  Fechar Detalhes
+                  Ver Detalhes Completos
+                  <ChevronRight className="w-3 h-3" />
                 </Button>
               </CardContent>
             </Card>
           </motion.div>
         )}
       </AnimatePresence>
+
+      <MapDetailsPanel 
+        isOpen={panelOpen}
+        onClose={() => setPanelOpen(false)}
+        municipioName={selectedMun ? (MUNICIPIOS_GEO.find(m => m.id === selectedMun)?.name || null) : null}
+        data={data}
+      />
     </div>
   );
 }
