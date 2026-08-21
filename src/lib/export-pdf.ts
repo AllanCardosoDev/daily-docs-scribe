@@ -70,7 +70,7 @@ export function buildSheetsPdfDoc(
     doc.setFontSize(11);
     doc.text("CORPO DE BOMBEIROS MILITAR DO AMAZONAS", pageW / 2, 20, { align: "center" });
     doc.setFontSize(12);
-    doc.text("RELATÓRIO DE OCORRÊNCIAS 2026", pageW / 2, 36, { align: "center" });
+    doc.text("RELATÓRIO DE OCORRÊNCIAS DO AMAZONAS 2026", pageW / 2, 36, { align: "center" });
 
     // Oficiais Responsáveis (Esquerda)
     doc.setFontSize(6.5);

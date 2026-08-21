@@ -77,7 +77,7 @@ export function AmazonasMap({ data, onExportPdf, onExportCsv }: AmazonasMapProps
       <div className="absolute top-6 left-6 z-10 space-y-2">
         <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300">
           <Info className="w-5 h-5" />
-          <h3 className="font-display font-bold text-lg">Mapa Operacional</h3>
+          <h3 className="font-display font-bold text-lg">Mapa Operacional do Amazonas</h3>
         </div>
         <p className="text-sm text-emerald-600/80 dark:text-emerald-400/60 max-w-[240px]">
           Selecione um município para visualizar as ocorrências em tempo real.
