@@ -8,6 +8,9 @@ import { PainelToolbar } from "@/components/dashboard/PainelToolbar";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { DashboardFooter } from "@/components/dashboard/DashboardFooter";
 import { ScrollToTop } from "@/components/dashboard/ScrollToTop";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Map, LayoutGrid } from "lucide-react";
+import { AmazonasMap } from "@/components/map/AmazonasMap";
 import { useSheetsDashboard } from "@/hooks/use-sheets";
 import { EMPTY_SHEETS_DATA } from "@/lib/sheets.types";
 import { useExporters } from "@/hooks/use-exporters";
@@ -173,7 +176,35 @@ function PainelPage() {
             />
             <EditableHeader header={data.header ?? {}} editable={canEdit} onSave={savers.header} />
             <KpiCards data={data} />
-            <DashboardSections data={data} canEdit={canEdit} savers={savers} />
+            
+            <Tabs defaultValue="grid" className="w-full space-y-6">
+              <div className="flex justify-center">
+                <TabsList className="bg-card border border-border shadow-sm p-1 h-12 rounded-xl">
+                  <TabsTrigger 
+                    value="grid" 
+                    className="gap-2 px-6 rounded-lg font-bold data-[state=active]:bg-gradient-brand data-[state=active]:text-white transition-all"
+                  >
+                    <LayoutGrid className="w-4 h-4" />
+                    Tabelas e Indicadores
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="map" 
+                    className="gap-2 px-6 rounded-lg font-bold data-[state=active]:bg-gradient-brand data-[state=active]:text-white transition-all"
+                  >
+                    <Map className="w-4 h-4" />
+                    Mapa Georreferenciado
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              <TabsContent value="grid" className="space-y-6 animate-fade-in-soft focus-visible:outline-none">
+                <DashboardSections data={data} canEdit={canEdit} savers={savers} />
+              </TabsContent>
+
+              <TabsContent value="map" className="animate-fade-in-soft focus-visible:outline-none">
+                <AmazonasMap data={data} />
+              </TabsContent>
+            </Tabs>
           </div>
         )}
       </main>
