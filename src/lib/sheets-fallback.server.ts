@@ -348,6 +348,7 @@ export async function loadReportByDate(
   };
 
   return { data, found: true };
+}
 
 /**
  * Carrega e agrega dados de um período de tempo.
