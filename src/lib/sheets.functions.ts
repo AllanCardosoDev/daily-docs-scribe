@@ -231,18 +231,26 @@ export const saveSheetsData = createServerFn({ method: "POST" })
 
 export const listReportHistory = createServerFn({ method: "GET" })
   .middleware([requireBackendAuth])
-  .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
-      .from("report_data_history")
-      .select("id, version, updated_by, updated_at, change_summary")
-      .eq("report_id", 1)
+  .inputValidator((data: unknown) =>
+    z.object({ reportDate: z.string().optional() }).parse(data ?? {}),
+  )
+  .handler(async ({ data: input, context }) => {
+    let q = context.supabase
+      .from("daily_reports_history")
+      .select("id, version, changed_by, changed_at, operation, report_date, shift")
       .order("version", { ascending: false })
       .limit(50);
+
+    if (input.reportDate) {
+      q = q.eq("report_date", input.reportDate);
+    }
+
+    const { data, error } = await q;
     if (error) dbFail(error, "sheets");
 
     // Enrich with user emails
     const userIds = Array.from(
-      new Set((data ?? []).map((r) => r.updated_by).filter(Boolean) as string[]),
+      new Set((data ?? []).map((r) => r.changed_by).filter(Boolean) as string[]),
     );
     let emails: Record<string, string> = {};
     if (userIds.length) {
@@ -257,10 +265,46 @@ export const listReportHistory = createServerFn({ method: "GET" })
     return (data ?? []).map((r) => ({
       id: Number(r.id),
       version: Number(r.version),
-      updatedAt: r.updated_at as string,
-      updatedByEmail: r.updated_by ? (emails[r.updated_by as string] ?? "") : "",
-      changeSummary: r.change_summary ?? null,
+      updatedAt: r.changed_at as string,
+      updatedByEmail: r.changed_by ? (emails[r.changed_by as string] ?? "") : "",
+      operation: r.operation,
+      reportDate: r.report_date,
+      shift: r.shift,
     }));
+  });
+
+export const restoreReportVersion = createServerFn({ method: "POST" })
+  .middleware([requireBackendAuth])
+  .inputValidator((data: unknown) => z.object({ historyId: z.number() }).parse(data))
+  .handler(async ({ data: input, context }) => {
+    const roles = await readUserRoles(context.supabase, context.userId);
+    if (!roles.includes("admin")) throw new Error("Apenas administradores podem restaurar versões.");
+
+    // Busca a versão no histórico
+    const { data: history, error: hErr } = await context.supabase
+      .from("daily_reports_history")
+      .select("*")
+      .eq("id", input.historyId)
+      .single();
+
+    if (hErr || !history) throw new Error("Versão não encontrada no histórico.");
+
+    // Atualiza o relatório original
+    const { error: uErr } = await context.supabase
+      .from("daily_reports")
+      .update({
+        efetivo: history.data.efetivo,
+        recursos: history.data.recursos,
+        incendios: history.data.incendios,
+        outras: history.data.outras,
+        notes: history.data.notes,
+        updated_by: context.userId,
+      })
+      .eq("report_date", history.report_date)
+      .eq("shift", history.shift);
+
+    if (uErr) dbFail(uErr, "daily-reports");
+    return { ok: true };
   });
 
 // ------------------------------------------------------------------
