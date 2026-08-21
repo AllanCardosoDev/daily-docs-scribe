@@ -289,15 +289,17 @@ export const restoreReportVersion = createServerFn({ method: "POST" })
 
     if (hErr || !history) throw new Error("Versão não encontrada no histórico.");
 
+    const historyData = history.data as any;
+
     // Atualiza o relatório original
     const { error: uErr } = await context.supabase
       .from("daily_reports")
       .update({
-        efetivo: history.data.efetivo,
-        recursos: history.data.recursos,
-        incendios: history.data.incendios,
-        outras: history.data.outras,
-        notes: history.data.notes,
+        efetivo: historyData?.efetivo ?? [],
+        recursos: historyData?.recursos ?? [],
+        incendios: historyData?.incendios ?? [],
+        outras: historyData?.outras ?? [],
+        notes: historyData?.notes ?? null,
         updated_by: context.userId,
       })
       .eq("report_date", history.report_date)

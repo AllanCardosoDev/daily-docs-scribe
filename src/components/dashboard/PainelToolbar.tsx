@@ -253,7 +253,7 @@ export const PainelToolbar = memo(function PainelToolbar({
                 disabled={!canEdit}
               />
             )}
-            <ReportHistoryDialog />
+            <ReportHistoryDialog reportDate={reportDate} />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
