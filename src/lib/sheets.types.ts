@@ -67,6 +67,8 @@ export interface SheetsData {
   outras_diarias: OutrasDiariasRow[];
   occurrences: OccurrenceRow[];
   isRange?: boolean;
+  startDate?: string;
+  endDate?: string;
 }
 
 export const EMPTY_SHEETS_DATA: SheetsData = {
