@@ -87,7 +87,7 @@ function PainelPage() {
     setPreviewMounted(true);
     setPreviewOpen(true);
   }, []);
-  const { exportXlsx, exportPdf } = useExporters(data, reportDate, pdfQuality);
+  const { exportXlsx, exportPdf, exportMunicipioPdf, exportMunicipioCsv } = useExporters(data, reportDate, pdfQuality);
 
   const existingMunicipios = useMemo(() => {
     const list = data.incendios_diario ?? [];
@@ -213,7 +213,7 @@ function PainelPage() {
               </TabsContent>
 
               <TabsContent value="map" className="animate-fade-in-soft focus-visible:outline-none">
-                <AmazonasMap data={data} />
+                <AmazonasMap data={data} onExportPdf={exportMunicipioPdf} onExportCsv={exportMunicipioCsv} />
               </TabsContent>
             </Tabs>
           </div>

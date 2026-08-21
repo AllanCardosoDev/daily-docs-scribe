@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, MapPin, Flame, Users, Info, ArrowRight, Calendar, Clock, AlertTriangle, Search } from "lucide-react";
+import { X, MapPin, Flame, Users, Info, ArrowRight, Calendar, Clock, AlertTriangle, Search, FileDown, FileText } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,9 +15,11 @@ interface MapDetailsPanelProps {
   municipioName: string | null;
   onMunicipioSelect: (name: string | null) => void;
   data: SheetsData;
+  onExportPdf?: (name: string) => void;
+  onExportCsv?: (name: string) => void;
 }
 
-export function MapDetailsPanel({ isOpen, onClose, municipioName, onMunicipioSelect, data }: MapDetailsPanelProps) {
+export function MapDetailsPanel({ isOpen, onClose, municipioName, onMunicipioSelect, data, onExportPdf, onExportCsv }: MapDetailsPanelProps) {
   const [searchTerm, setSearchTerm] = useState("");
   
   const allMunicipios = useMemo(() => {
@@ -129,6 +131,30 @@ export function MapDetailsPanel({ isOpen, onClose, municipioName, onMunicipioSel
                 <X className="w-6 h-6" />
               </Button>
             </div>
+
+            {/* Ações Rápidas de Exportação */}
+            {details && (
+              <div className="px-6 py-3 border-b border-border bg-slate-50 dark:bg-slate-900/50 flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 text-[11px] font-bold h-9 rounded-xl gap-2 border-red-200 text-red-700 hover:bg-red-50 dark:border-red-900/30 dark:text-red-400"
+                  onClick={() => onExportPdf?.(details.name)}
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  PDF Local
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 text-[11px] font-bold h-9 rounded-xl gap-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-900/30 dark:text-emerald-400"
+                  onClick={() => onExportCsv?.(details.name)}
+                >
+                  <FileDown className="w-3.5 h-3.5" />
+                  CSV Local
+                </Button>
+              </div>
+            )}
 
             <div className="px-6 py-4 border-b border-border bg-muted/30">
               <div className="relative">

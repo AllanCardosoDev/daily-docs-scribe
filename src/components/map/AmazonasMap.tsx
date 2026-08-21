@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MapPin, Flame, Users, Info, X, ChevronRight } from "lucide-react";
+import { MapPin, Flame, Users, Info, X, ChevronRight, FileDown, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -34,9 +34,11 @@ const MUNICIPIOS_GEO = [
 
 interface AmazonasMapProps {
   data: SheetsData;
+  onExportPdf?: (name: string) => void;
+  onExportCsv?: (name: string) => void;
 }
 
-export function AmazonasMap({ data }: AmazonasMapProps) {
+export function AmazonasMap({ data, onExportPdf, onExportCsv }: AmazonasMapProps) {
   const [selectedMun, setSelectedMun] = useState<string | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
 
@@ -207,13 +209,35 @@ export function AmazonasMap({ data }: AmazonasMapProps) {
                   </div>
                 </div>
                 
-                <Button 
-                  className="w-full bg-gradient-brand hover:brightness-110 text-white font-bold text-xs h-9 rounded-lg transition-all gap-2"
-                  onClick={() => setPanelOpen(true)}
-                >
-                  Ver Detalhes Completos
-                  <ChevronRight className="w-3 h-3" />
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    className="flex-1 bg-gradient-brand hover:brightness-110 text-white font-bold text-xs h-9 rounded-lg transition-all gap-2"
+                    onClick={() => setPanelOpen(true)}
+                  >
+                    Detalhes
+                    <ChevronRight className="w-3 h-3" />
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-9 w-9 border-red-200 text-red-600 hover:bg-red-50 rounded-lg"
+                    title="Exportar PDF do município"
+                    onClick={() => onExportPdf?.(munData.name)}
+                  >
+                    <FileText className="w-4 h-4" />
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-9 w-9 border-emerald-200 text-emerald-600 hover:bg-emerald-50 rounded-lg"
+                    title="Exportar CSV do município"
+                    onClick={() => onExportCsv?.(munData.name)}
+                  >
+                    <FileDown className="w-4 h-4" />
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </motion.div>
@@ -230,9 +254,11 @@ export function AmazonasMap({ data }: AmazonasMapProps) {
             return;
           }
           const geo = MUNICIPIOS_GEO.find(m => m.name.toLowerCase() === name.toLowerCase());
-          setSelectedMun(geo ? geo.id : name);
+        setSelectedMun(geo ? geo.id : name);
         }}
         data={data}
+        onExportPdf={onExportPdf}
+        onExportCsv={onExportCsv}
       />
     </div>
   );

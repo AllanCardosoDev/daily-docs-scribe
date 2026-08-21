@@ -53,5 +53,27 @@ export function useExporters(
     }
   }, [data, reportDate, quality]);
 
-  return { exportXlsx, exportPdf };
+  const exportMunicipioPdf = useCallback(async (municipioName: string) => {
+    if (!data) return;
+    try {
+      const { exportMunicipioToPdf } = await import("@/lib/export-municipio");
+      exportMunicipioToPdf(data, municipioName, reportDate);
+      toast.success(`PDF de ${municipioName} gerado.`);
+    } catch (e) {
+      toast.error("Falha ao gerar PDF do município");
+    }
+  }, [data, reportDate]);
+
+  const exportMunicipioCsv = useCallback(async (municipioName: string) => {
+    if (!data) return;
+    try {
+      const { exportMunicipioToCsv } = await import("@/lib/export-municipio");
+      exportMunicipioToCsv(data, municipioName, reportDate);
+      toast.success(`CSV de ${municipioName} gerado.`);
+    } catch (e) {
+      toast.error("Falha ao gerar CSV do município");
+    }
+  }, [data, reportDate]);
+
+  return { exportXlsx, exportPdf, exportMunicipioPdf, exportMunicipioCsv };
 }
