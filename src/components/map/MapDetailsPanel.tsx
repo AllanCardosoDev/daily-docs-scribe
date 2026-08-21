@@ -1,22 +1,41 @@
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, MapPin, Flame, Users, Info, ArrowRight, Calendar, Clock, AlertTriangle } from "lucide-react";
+import { X, MapPin, Flame, Users, Info, ArrowRight, Calendar, Clock, AlertTriangle, Search } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
 import type { SheetsData } from "@/lib/sheets.types";
 
 interface MapDetailsPanelProps {
   isOpen: boolean;
   onClose: () => void;
   municipioName: string | null;
+  onMunicipioSelect: (name: string | null) => void;
   data: SheetsData;
 }
 
-export function MapDetailsPanel({ isOpen, onClose, municipioName, data }: MapDetailsPanelProps) {
-  const details = React.useMemo(() => {
+export function MapDetailsPanel({ isOpen, onClose, municipioName, onMunicipioSelect, data }: MapDetailsPanelProps) {
+  const [searchTerm, setSearchTerm] = useState("");
+  
+  const allMunicipios = useMemo(() => {
+    const names = new Set<string>();
+    data.incendios_diario?.forEach(r => r.mun && names.add(r.mun));
+    data.efetivo?.forEach(r => r.mun && names.add(r.mun));
+    data.outras_diarias?.forEach(r => r.mun && names.add(r.mun));
+    data.recursos?.forEach(r => r.mun && names.add(r.mun));
+    return Array.from(names).sort((a, b) => a.localeCompare(b));
+  }, [data]);
+
+  const filteredMunicipios = useMemo(() => {
+    if (!searchTerm) return [];
+    const term = searchTerm.toLowerCase();
+    return allMunicipios.filter(m => m.toLowerCase().includes(term));
+  }, [allMunicipios, searchTerm]);
+
+  const details = useMemo(() => {
     if (!municipioName) return null;
 
     const normalize = (s: string) =>
@@ -109,6 +128,36 @@ export function MapDetailsPanel({ isOpen, onClose, municipioName, data }: MapDet
               >
                 <X className="w-6 h-6" />
               </Button>
+            </div>
+
+            <div className="px-6 py-4 border-b border-border bg-muted/30">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar município..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 h-10 rounded-xl bg-background border-border"
+                />
+              </div>
+              
+              {searchTerm && filteredMunicipios.length > 0 && (
+                <div className="mt-2 p-2 rounded-xl border border-border bg-background shadow-lg max-h-40 overflow-y-auto">
+                  {filteredMunicipios.map(mun => (
+                    <button
+                      key={mun}
+                      onClick={() => {
+                        onMunicipioSelect(mun);
+                        setSearchTerm("");
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-muted rounded-lg transition-colors font-medium flex items-center justify-between"
+                    >
+                      {mun}
+                      {municipioName === mun && <Badge variant="secondary" className="text-[10px]">Selecionado</Badge>}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <ScrollArea className="flex-1">

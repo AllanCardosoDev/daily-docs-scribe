@@ -223,7 +223,15 @@ export function AmazonasMap({ data }: AmazonasMapProps) {
       <MapDetailsPanel 
         isOpen={panelOpen}
         onClose={() => setPanelOpen(false)}
-        municipioName={selectedMun ? (MUNICIPIOS_GEO.find(m => m.id === selectedMun)?.name || null) : null}
+        municipioName={selectedMun ? (MUNICIPIOS_GEO.find(m => m.id === selectedMun)?.name || selectedMun) : null}
+        onMunicipioSelect={(name) => {
+          if (!name) {
+            setSelectedMun(null);
+            return;
+          }
+          const geo = MUNICIPIOS_GEO.find(m => m.name.toLowerCase() === name.toLowerCase());
+          setSelectedMun(geo ? geo.id : name);
+        }}
         data={data}
       />
     </div>
