@@ -394,7 +394,7 @@ export async function loadReportRange(
     "ord",
     "seg",
     "brig",
-  ]);
+  ]) as any;
   const lastRecursos = normaliseRecursos(asRows(lastRow.recursos));
 
   return {
@@ -405,9 +405,9 @@ export async function loadReportRange(
     },
     efetivo: lastEfetivo,
     recursos: lastRecursos,
-    incendios_diario: aggregatedInc,
+    incendios_diario: aggregatedInc as any,
     incendios_acumulado: await fetchIncendiosAcumulado(supabase, endIso),
-    outras_diarias: aggregatedOutras,
+    outras_diarias: aggregatedOutras as any,
     occurrences: [],
   };
 }
