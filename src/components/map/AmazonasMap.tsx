@@ -88,7 +88,7 @@ export function AmazonasMap({ data }: AmazonasMapProps) {
       >
         {/* Contorno simplificado do Amazonas */}
         <path
-          d="M200,100 L400,50 L700,100 L900,300 L950,500 L850,800 L700,900 L400,950 L100,850 L50,600 L100,300 Z"
+          d="M150,150 L450,50 L750,120 L920,350 L960,550 L850,850 L650,920 L350,940 L120,850 L60,600 L120,350 Z"
           fill="none"
           stroke="currentColor"
           strokeWidth="4"
@@ -99,6 +99,14 @@ export function AmazonasMap({ data }: AmazonasMapProps) {
         {/* Municípios Interativos */}
         {MUNICIPIOS_GEO.map((mun) => {
           const isSelected = selectedMun === mun.id;
+          
+          // Calcular a cor baseada em ocorrências se existirem
+          const munName = mun.name;
+          const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+          const target = normalize(munName);
+          const incendios = data.incendios_diario?.find(r => normalize(r.mun || "") === target);
+          const hasIncendios = incendios && (Number(incendios.urb || 0) + Number(incendios.flor || 0)) > 0;
+
           return (
             <g
               key={mun.id}
@@ -112,17 +120,14 @@ export function AmazonasMap({ data }: AmazonasMapProps) {
                 initial={{ scale: 0 }}
                 animate={{ 
                   scale: 1,
-                  fill: isSelected ? "var(--color-primary)" : "var(--color-emerald-500)",
-                  fillOpacity: isSelected ? 0.9 : 0.4
+                  fill: isSelected ? "#2f9755" : (hasIncendios ? "#ef4444" : "#8dd2a2"),
+                  fillOpacity: isSelected ? 0.9 : (hasIncendios ? 0.7 : 0.4)
                 }}
-                whileHover={{ scale: 1.1, fillOpacity: 0.7 }}
+                whileHover={{ scale: 1.1, fillOpacity: 0.8 }}
                 className={cn(
                   "transition-all duration-300",
                   isSelected ? "stroke-white stroke-[3px]" : "stroke-emerald-400 stroke-1 dark:stroke-emerald-600/50"
                 )}
-                style={{
-                  fill: isSelected ? "#2f9755" : "#8dd2a2",
-                }}
               />
               
               <text
