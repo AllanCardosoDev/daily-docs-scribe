@@ -40,27 +40,36 @@ import { syncFromSheets } from "@/lib/sheets.functions";
 export const getSyncLogs = createServerFn({ method: "GET" })
   .middleware([requireBackendAuth])
   .handler(async ({ context }) => {
-    // Note: This assumes a sync_logs table exists or we use report_data_history as a proxy
-    // For now, let's look at the daily_reports update history or return mock if table missing
-    const { data, error } = await context.supabase
+    // Note: We use report_data_history and daily_reports as proxies for sync logs
+    const { data: reports, error: rErr } = await context.supabase
       .from("daily_reports")
-      .select("id, report_date, shift, updated_at, updated_by, profiles(email, display_name)")
+      .select("id, report_date, shift, updated_at, updated_by")
       .order("updated_at", { ascending: false })
-      .limit(20);
+      .limit(10);
 
-    if (error) {
-      console.warn("Sync logs table might not exist yet, returning empty list.");
-      return [];
+    if (rErr) dbFail(rErr, "status");
+
+    // Enrich with profile info manually to avoid join errors if relation is missing in types
+    const userIds = Array.from(new Set((reports ?? []).map(r => r.updated_by).filter(Boolean) as string[]));
+    let profiles: Record<string, { email: string; display_name: string }> = {};
+    
+    if (userIds.length > 0) {
+      const { data: pData } = await context.supabase
+        .from("profiles")
+        .select("id, email, display_name")
+        .in("id", userIds);
+      
+      profiles = Object.fromEntries((pData ?? []).map(p => [p.id, { email: p.email || "", display_name: p.display_name || "" }]));
     }
 
-    return (data ?? []).map(log => ({
+    return (reports ?? []).map(log => ({
       id: log.id,
       date: log.report_date,
       shift: log.shift,
       timestamp: log.updated_at,
       status: "success",
-      user: log.profiles?.display_name || log.profiles?.email || "Sistema",
-      details: `Relatório ${log.shift} de ${log.report_date} atualizado.`
+      user: log.updated_by ? (profiles[log.updated_by]?.display_name || profiles[log.updated_by]?.email || "Sistema") : "Sistema",
+      details: `Relatório ${log.shift === "noturno" ? "24h" : "Parcial"} de ${log.report_date} atualizado.`
     }));
   });
 
