@@ -45,7 +45,12 @@ function normaliseSheetsPayload(json: any): SheetsData {
 export const getSheetsData = createServerFn({ method: "GET" })
   .middleware([requireBackendAuth])
   .inputValidator((data: unknown) =>
-    z.object({ reportDate: z.string().optional() }).parse(data ?? {}),
+    z
+      .object({
+        reportDate: z.string().optional(),
+        endDate: z.string().optional(),
+      })
+      .parse(data ?? {}),
   )
   .handler(
     async ({
@@ -57,7 +62,19 @@ export const getSheetsData = createServerFn({ method: "GET" })
       configured: boolean;
       error?: string;
     }> => {
-      const { loadLatestDriveReport, loadReportByDate } = await import("./sheets-fallback.server");
+      const { loadLatestDriveReport, loadReportByDate, loadReportRange } = await import(
+        "./sheets-fallback.server"
+      );
+
+      if (input.reportDate && input.endDate && input.reportDate !== input.endDate) {
+        const rangeData = await loadReportRange(context.supabase, input.reportDate, input.endDate);
+        return {
+          data: { ...rangeData, isRange: true },
+          version: 1,
+          configured: true,
+        };
+      }
+
       const fallback = input.reportDate
         ? await loadReportByDate(context.supabase, input.reportDate)
         : await loadLatestDriveReport(context.supabase);

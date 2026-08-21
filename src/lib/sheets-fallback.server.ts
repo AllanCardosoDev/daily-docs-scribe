@@ -348,4 +348,65 @@ export async function loadReportByDate(
   };
 
   return { data, found: true };
+
+/**
+ * Carrega e agrega dados de um período de tempo.
+ */
+export async function loadReportRange(
+  supabase: SupabaseClient<any>,
+  startIso: string,
+  endIso: string,
+): Promise<SheetsData> {
+  const { data: rows, error } = await supabase
+    .from("daily_reports")
+    .select("report_date, shift, efetivo, recursos, incendios, outras")
+    .gte("report_date", startIso)
+    .lte("report_date", endIso)
+    .order("report_date", { ascending: true });
+
+  if (error || !rows || !rows.length) return EMPTY_SHEETS_DATA;
+
+  // Deduplica: se houver 24h e Parcial no mesmo dia, pega o 24h
+  const byDate = new Map<string, any>();
+  for (const r of rows) {
+    const cur = byDate.get(r.report_date);
+    if (!cur || (r.shift === "noturno" && cur.shift !== "noturno")) {
+      byDate.set(r.report_date, r);
+    }
+  }
+
+  const validRows = Array.from(byDate.values());
+
+  const aggregatedInc = consolidateAndCanonicalizeRows(
+    validRows.flatMap((r) => asRows(r.incendios)),
+    ["urb", "flor", "focos", "total_periodo"],
+  );
+
+  const aggregatedOutras = consolidateAndCanonicalizeRows(
+    validRows.flatMap((r) => asRows(r.outras)),
+    ["salvamento", "acidentes", "aph", "prevencao", "servicos", "total_periodo"],
+  );
+
+  // Efetivo e Recursos pegamos o snapshot do último dia do range
+  const lastRow = validRows[validRows.length - 1];
+  const lastEfetivo = consolidateAndCanonicalizeRows(asRows(lastRow.efetivo), [
+    "ord",
+    "seg",
+    "brig",
+  ]);
+  const lastRecursos = normaliseRecursos(asRows(lastRow.recursos));
+
+  return {
+    header: {
+      titulo: "Relatório Consolidado de Período",
+      periodo: `${formatDateBR(startIso)} a ${formatDateBR(endIso)}`,
+      comandante: "CEL QOBM BORGES",
+    },
+    efetivo: lastEfetivo,
+    recursos: lastRecursos,
+    incendios_diario: aggregatedInc,
+    incendios_acumulado: await fetchIncendiosAcumulado(supabase, endIso),
+    outras_diarias: aggregatedOutras,
+    occurrences: [],
+  };
 }
