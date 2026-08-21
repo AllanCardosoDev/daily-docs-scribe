@@ -87,16 +87,6 @@ export function ReportHistoryDialog({ reportDate }: { reportDate?: Date | null }
                         {dateFmt.format(new Date(entry.updatedAt))}
                       </span>
                     </div>
-                    <div className="mt-2 flex items-center gap-1.5 text-sm text-foreground">
-                      <User className="w-3.5 h-3.5 text-muted-foreground/70" aria-hidden="true" />
-                      <span className="truncate">
-                        {entry.updatedByEmail || (
-                          <span className="text-muted-foreground/70 italic">
-                            usuário desconhecido
-                          </span>
-                        )}
-                      </span>
-                    </div>
                     <div className="mt-2 flex items-center justify-between gap-4">
                       <div className="flex items-center gap-1.5 text-sm text-foreground truncate">
                         <User className="w-3.5 h-3.5 text-muted-foreground/70" aria-hidden="true" />
@@ -124,6 +114,8 @@ export function ReportHistoryDialog({ reportDate }: { reportDate?: Date | null }
                         Restaurar
                       </Button>
                     </div>
+                  </div>
+                </li>
               ))}
             </ol>
           )}
