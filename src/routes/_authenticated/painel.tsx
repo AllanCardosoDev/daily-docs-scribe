@@ -9,7 +9,8 @@ import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { DashboardFooter } from "@/components/dashboard/DashboardFooter";
 import { ScrollToTop } from "@/components/dashboard/ScrollToTop";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Map, LayoutGrid } from "lucide-react";
+import { Map, LayoutGrid, BarChart3 } from "lucide-react";
+import { DashboardAnalytics } from "@/components/dashboard/DashboardAnalytics";
 import { AmazonasMap } from "@/components/map/AmazonasMap";
 import { useSheetsDashboard } from "@/hooks/use-sheets";
 import { EMPTY_SHEETS_DATA } from "@/lib/sheets.types";
@@ -196,20 +197,31 @@ function PainelPage() {
                     className="gap-2 px-6 rounded-lg font-bold data-[state=active]:bg-gradient-brand data-[state=active]:text-white transition-all"
                   >
                     <LayoutGrid className="w-4 h-4" />
-                    Tabelas e Indicadores
+                    Tabelas
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="analytics" 
+                    className="gap-2 px-6 rounded-lg font-bold data-[state=active]:bg-gradient-brand data-[state=active]:text-white transition-all"
+                  >
+                    <BarChart3 className="w-4 h-4" />
+                    Dashboard
                   </TabsTrigger>
                   <TabsTrigger 
                     value="map" 
                     className="gap-2 px-6 rounded-lg font-bold data-[state=active]:bg-gradient-brand data-[state=active]:text-white transition-all"
                   >
                     <Map className="w-4 h-4" />
-                    Mapa Georreferenciado
+                    Mapa
                   </TabsTrigger>
                 </TabsList>
               </div>
 
               <TabsContent value="grid" className="space-y-6 animate-fade-in-soft focus-visible:outline-none">
                 <DashboardSections data={data} canEdit={canEdit} savers={savers} />
+              </TabsContent>
+
+              <TabsContent value="analytics" className="animate-fade-in-soft focus-visible:outline-none">
+                <DashboardAnalytics data={data} />
               </TabsContent>
 
               <TabsContent value="map" className="animate-fade-in-soft focus-visible:outline-none">
