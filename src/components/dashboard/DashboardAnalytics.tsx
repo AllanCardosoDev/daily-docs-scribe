@@ -13,8 +13,7 @@ import {
   Legend,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Flame, ShieldAlert, Users, Truck, Activity } from "lucide-react";
+import { Flame, ShieldAlert, Users, Activity } from "lucide-react";
 import type { SheetsData } from "@/lib/sheets.types";
 import { NF } from "@/lib/formatters";
 
@@ -119,117 +118,118 @@ export const DashboardAnalytics = memo(function DashboardAnalytics({ data }: Pro
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <Card className="shadow-elevated border-border/50 overflow-hidden">
-        <CardHeader className="pb-2 border-b bg-muted/30">
-          <div className="flex items-center gap-2">
-            <Flame className="w-5 h-5 text-red-500" />
-            <CardTitle className="text-lg">Distribuição de Incêndios</CardTitle>
-          </div>
-          <CardDescription>Top municípios com maior incidência (Urbano vs Florestal)</CardDescription>
-        </CardHeader>
-        <CardContent className="pt-6">
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={incendiosData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
-                <XAxis 
-                  dataKey="name" 
-                  fontSize={10} 
-                  tickLine={false} 
-                  axisLine={false}
-                  interval={0}
-                  tick={{ fill: 'currentColor', opacity: 0.7 }}
-                />
-                <YAxis fontSize={10} tickLine={false} axisLine={false} tick={{ fill: 'currentColor', opacity: 0.7 }} />
-                <Tooltip 
-                  cursor={{ fill: 'rgba(0,0,0,0.02)' }}
-                  contentStyle={{ 
-                    borderRadius: '8px', 
-                    border: '1px solid #e2e8f0',
-                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
-                  }}
-                />
-                <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
-                <Bar dataKey="urbano" name="Urbano" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={20} />
-                <Bar dataKey="florestal" name="Florestal" fill="#f97316" radius={[4, 4, 0, 0]} barSize={20} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
+        <Card className="shadow-elevated border-border/50 overflow-hidden">
+          <CardHeader className="pb-2 border-b bg-muted/30">
+            <div className="flex items-center gap-2">
+              <Flame className="w-5 h-5 text-red-500" />
+              <CardTitle className="text-lg">Distribuição de Incêndios</CardTitle>
+            </div>
+            <CardDescription>Top municípios com maior incidência (Urbano vs Florestal)</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="h-[300px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={incendiosData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
+                  <XAxis 
+                    dataKey="name" 
+                    fontSize={10} 
+                    tickLine={false} 
+                    axisLine={false}
+                    interval={0}
+                    tick={{ fill: 'currentColor', opacity: 0.7 }}
+                  />
+                  <YAxis fontSize={10} tickLine={false} axisLine={false} tick={{ fill: 'currentColor', opacity: 0.7 }} />
+                  <Tooltip 
+                    cursor={{ fill: 'rgba(0,0,0,0.02)' }}
+                    contentStyle={{ 
+                      borderRadius: '8px', 
+                      border: '1px solid #e2e8f0',
+                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                    }}
+                  />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
+                  <Bar dataKey="urbano" name="Urbano" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={20} />
+                  <Bar dataKey="florestal" name="Florestal" fill="#f97316" radius={[4, 4, 0, 0]} barSize={20} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
 
-      <Card className="shadow-elevated border-border/50 overflow-hidden">
-        <CardHeader className="pb-2 border-b bg-muted/30">
-          <div className="flex items-center gap-2">
-            <ShieldAlert className="w-5 h-5 text-blue-500" />
-            <CardTitle className="text-lg">Tipologia de Ocorrências</CardTitle>
-          </div>
-          <CardDescription>Percentual por categoria de atendimento</CardDescription>
-        </CardHeader>
-        <CardContent className="pt-6">
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={ocorrenciasDist}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  labelLine={false}
-                >
-                  {ocorrenciasDist.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ 
-                    borderRadius: '8px', 
-                    border: '1px solid #e2e8f0'
-                  }}
-                />
-                <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '10px' }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
+        <Card className="shadow-elevated border-border/50 overflow-hidden">
+          <CardHeader className="pb-2 border-b bg-muted/30">
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="w-5 h-5 text-blue-500" />
+              <CardTitle className="text-lg">Tipologia de Ocorrências</CardTitle>
+            </div>
+            <CardDescription>Percentual por categoria de atendimento</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="h-[300px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={ocorrenciasDist}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    labelLine={false}
+                  >
+                    {ocorrenciasDist.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ 
+                      borderRadius: '8px', 
+                      border: '1px solid #e2e8f0'
+                    }}
+                  />
+                  <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '10px' }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
 
-      <Card className="shadow-elevated border-border/50 overflow-hidden lg:col-span-2">
-        <CardHeader className="pb-2 border-b bg-muted/30">
-          <div className="flex items-center gap-2">
-            <Users className="w-5 h-5 text-emerald-600" />
-            <CardTitle className="text-lg">Mobilização de Efetivo</CardTitle>
-          </div>
-          <CardDescription>Comparativo de força de trabalho empenhada</CardDescription>
-        </CardHeader>
-        <CardContent className="pt-6">
-          <div className="h-[250px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart layout="vertical" data={efetivoTotal} margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(0,0,0,0.05)" />
-                <XAxis type="number" hide />
-                <YAxis 
-                  dataKey="name" 
-                  type="category" 
-                  fontSize={11} 
-                  tickLine={false} 
-                  axisLine={false}
-                  width={90}
-                />
-                <Tooltip 
-                  cursor={{ fill: 'rgba(0,0,0,0.02)' }}
-                  contentStyle={{ borderRadius: '8px' }}
-                />
-                <Bar dataKey="value" name="Militares/Brigadistas" fill="#10b981" radius={[0, 4, 4, 0]} barSize={30} label={{ position: 'right', fontSize: 11, fontWeight: 'bold' }} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
+        <Card className="shadow-elevated border-border/50 overflow-hidden lg:col-span-2">
+          <CardHeader className="pb-2 border-b bg-muted/30">
+            <div className="flex items-center gap-2">
+              <Users className="w-5 h-5 text-emerald-600" />
+              <CardTitle className="text-lg">Mobilização de Efetivo</CardTitle>
+            </div>
+            <CardDescription>Comparativo de força de trabalho empenhada</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="h-[250px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart layout="vertical" data={efetivoTotal} margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(0,0,0,0.05)" />
+                  <XAxis type="number" hide />
+                  <YAxis 
+                    dataKey="name" 
+                    type="category" 
+                    fontSize={11} 
+                    tickLine={false} 
+                    axisLine={false}
+                    width={90}
+                  />
+                  <Tooltip 
+                    cursor={{ fill: 'rgba(0,0,0,0.02)' }}
+                    contentStyle={{ borderRadius: '8px' }}
+                  />
+                  <Bar dataKey="value" name="Militares/Brigadistas" fill="#10b981" radius={[0, 4, 4, 0]} barSize={30} label={{ position: 'right', fontSize: 11, fontWeight: 'bold' }} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 });
