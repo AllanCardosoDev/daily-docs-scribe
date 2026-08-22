@@ -39,7 +39,8 @@ function IndexRedirect() {
       <div className="flex flex-col items-center gap-4 max-w-sm text-center">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
         <p className="text-sm text-muted-foreground whitespace-pre-line">
-          vamos realizar um projeto completo de ciência de daddos... será possível selecionar qualquer mês dia, para gerar relatórios e deverá inserir uma ooutra opção na aba para que conste as informações principais como queimadas totais, o total de cada , e das ocorrências porém não como numeração e sim como uma apresentação profissional no estilo dashboard
+          Sincronizando com o Comando Integrado…{"\n"}
+          Processando comparativos e totais acumulados.
         </p>
       </div>
     </div>
