@@ -1,4 +1,4 @@
-import { memo, useMemo } from "react";
+import { memo, useMemo, type ReactNode } from "react";
 import {
   BarChart,
   Bar,
@@ -85,7 +85,40 @@ export const DashboardAnalytics = memo(function DashboardAnalytics({ data }: Pro
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard 
+          label="Incêndios Totais" 
+          value={incendiosData.reduce((acc, r) => acc + r.total, 0)} 
+          subValue="Registrados no período"
+          icon={<Flame className="w-5 h-5" />}
+          color="bg-red-500"
+        />
+        <KpiCard 
+          label="Ocorrências Diversas" 
+          value={ocorrenciasDist.reduce((acc, r) => acc + r.value, 0)} 
+          subValue="Salvamento, APH, etc."
+          icon={<ShieldAlert className="w-5 h-5" />}
+          color="bg-blue-500"
+        />
+        <KpiCard 
+          label="Efetivo Total" 
+          value={efetivoTotal.reduce((acc, r) => acc + r.value, 0)} 
+          subValue="Militares e brigadistas"
+          icon={<Users className="w-5 h-5" />}
+          color="bg-emerald-500"
+        />
+        <KpiCard 
+          label="Área Afetada" 
+          value={data.incendios_acumulado?.reduce((acc, r) => acc + (Number(r.area) || 0), 0) ?? 0} 
+          subValue="Metros quadrados estimados"
+          icon={<Activity className="w-5 h-5" />}
+          color="bg-amber-500"
+          isArea
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <Card className="shadow-elevated border-border/50 overflow-hidden">
         <CardHeader className="pb-2 border-b bg-muted/30">
           <div className="flex items-center gap-2">
@@ -200,3 +233,39 @@ export const DashboardAnalytics = memo(function DashboardAnalytics({ data }: Pro
     </div>
   );
 });
+
+function KpiCard({ 
+  label, 
+  value, 
+  subValue, 
+  icon, 
+  color, 
+  isArea 
+}: { 
+  label: string; 
+  value: number; 
+  subValue: string; 
+  icon: ReactNode; 
+  color: string;
+  isArea?: boolean;
+}) {
+  return (
+    <Card className="shadow-sm border-border/50 relative overflow-hidden group">
+      <div className={`absolute top-0 right-0 w-24 h-24 -mr-8 -mt-8 rounded-full ${color} opacity-5 group-hover:opacity-10 transition-opacity`} />
+      <CardContent className="p-5">
+        <div className="flex items-center gap-3 mb-3">
+          <div className={`p-2 rounded-lg ${color.replace('bg-', 'bg-')}/10 ${color.replace('bg-', 'text-')}`}>
+            {icon}
+          </div>
+          <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
+        </div>
+        <div className="space-y-1">
+          <div className="text-2xl font-bold tracking-tight">
+            {isArea ? NF.format(value) + ' m²' : NF.format(value)}
+          </div>
+          <div className="text-[10px] text-muted-foreground font-medium">{subValue}</div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
