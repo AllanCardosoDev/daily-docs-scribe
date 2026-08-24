@@ -15,6 +15,7 @@ import { DashboardAnalytics } from "@/components/dashboard/DashboardAnalytics";
 import { AmazonasMap } from "@/components/map/AmazonasMap";
 import { useSheetsDashboard } from "@/hooks/use-sheets";
 import { EMPTY_SHEETS_DATA } from "@/lib/sheets.types";
+import { getComparisonData } from "@/lib/sheets.functions";
 import { useExporters } from "@/hooks/use-exporters";
 import { useServerFn } from "@tanstack/react-start";
 import { getLatestReportDate } from "@/lib/daily-reports.functions";
