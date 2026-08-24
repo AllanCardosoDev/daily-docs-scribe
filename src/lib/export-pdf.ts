@@ -38,7 +38,9 @@ export function buildSheetsPdfDoc(
   rawData: SheetsData,
   reportDate: Date | null = null,
   _quality: PdfQuality = "standard",
+  comparisonData?: ComparisonResult,
 ): jsPDF {
+
   const data = manausFirstSheets(rawData);
   const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth(); // ~841.89 pt
