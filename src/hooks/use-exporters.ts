@@ -16,13 +16,16 @@ export function useExporters(
   data: SheetsData | undefined,
   reportDate: Date | null = null,
   quality: PdfQuality = "standard",
+  comparisonData?: ComparisonResult,
 ) {
+
   const exportXlsx = useCallback(async () => {
     if (!data) return;
     try {
       const { exportSheetsToXlsx } = await import("@/lib/export-xlsx");
-      exportSheetsToXlsx(data, reportDate);
+      exportSheetsToXlsx(data, reportDate, undefined, comparisonData);
       toast.success("Excel gerado. Verifique seus downloads.");
+
     } catch (e) {
       toast.error("Falha ao gerar Excel", { description: (e as Error)?.message });
     }
@@ -42,8 +45,9 @@ export function useExporters(
 
     try {
       const { exportSheetsToPdf } = await import("@/lib/export-pdf");
-      exportSheetsToPdf(data, reportDate, quality);
+      exportSheetsToPdf(data, reportDate, quality, comparisonData);
       toast.success(
+
         quality === "high"
           ? "PDF em alta legibilidade gerado."
           : "PDF gerado. Verifique seus downloads.",

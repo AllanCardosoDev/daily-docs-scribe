@@ -25,10 +25,12 @@ export function exportSheetsToPdf(
   data: SheetsData,
   reportDate: Date | null = null,
   quality: PdfQuality = "standard",
+  comparisonData?: ComparisonResult,
 ) {
-  const doc = buildSheetsPdfDoc(data, reportDate, quality);
+  const doc = buildSheetsPdfDoc(data, reportDate, quality, comparisonData);
   doc.save(reportFilename(reportDate));
 }
+
 
 export function buildSheetsPdfDoc(
   rawData: SheetsData,

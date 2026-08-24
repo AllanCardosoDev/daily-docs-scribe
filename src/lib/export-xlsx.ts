@@ -8,9 +8,10 @@ import { manausFirstSheets } from "./municipio-order";
 export function exportSheetsToXlsx(
   rawData: SheetsData,
   reportDate: Date | null = null,
-  /** Nome do arquivo final (opcional) — usado pelos relatórios diários. */
   filename?: string,
+  comparisonData?: ComparisonResult,
 ) {
+
   // Manaus (capital) sempre na primeira linha de todas as planilhas.
   const data = manausFirstSheets(rawData);
   const wb = XLSX.utils.book_new();

@@ -153,9 +153,11 @@ export const DashboardAnalytics = memo(function DashboardAnalytics({
           icon={<Activity className="w-5 h-5" />}
           color="bg-amber-500"
           isArea
+          delta={comparisonData?.deltas.area.total}
           isLoading={isComparisonLoading}
         />
       </div>
+
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="shadow-elevated border-border/50 overflow-hidden">
