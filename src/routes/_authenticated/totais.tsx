@@ -231,6 +231,8 @@ function TotaisPage() {
 
 
   const efetivoFull = useMemo(() => aggregateSnapshot(rows, "efetivo", ["ord", "seg", "brig"]), [rows]);
+  const efetivoFullPrev = useMemo(() => aggregateSnapshot(rowsPrev, "efetivo", ["ord", "seg", "brig"]), [rowsPrev]);
+  
   const recursosFull = useMemo(
     () =>
       aggregateSnapshot(rows, "recursos", [
@@ -264,10 +266,17 @@ function TotaisPage() {
   );
 
   const incendiosFull = useMemo(() => aggregateSum(rows, "incendios", ["urb", "flor", "focos"]), [rows]);
+  const incendiosFullPrev = useMemo(() => aggregateSum(rowsPrev, "incendios", ["urb", "flor", "focos"]), [rowsPrev]);
+  
   const outrasFull = useMemo(
     () => aggregateSum(rows, "outras", ["salvamento", "acidentes", "aph", "prevencao", "servicos"]),
     [rows],
   );
+  const outrasFullPrev = useMemo(
+    () => aggregateSum(rowsPrev, "outras", ["salvamento", "acidentes", "aph", "prevencao", "servicos"]),
+    [rowsPrev],
+  );
+
 
   // Filtro de município por busca
   const filterBySearch = <T extends { mun: string }>(list: T[]): T[] => {
