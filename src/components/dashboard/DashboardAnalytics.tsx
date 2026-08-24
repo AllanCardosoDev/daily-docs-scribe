@@ -272,8 +272,21 @@ function KpiCard({
           <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
         </div>
         <div className="space-y-1">
-          <div className="text-2xl font-bold tracking-tight">
-            {isArea ? NF.format(value) + ' m²' : NF.format(value)}
+          <div className="flex items-end gap-2">
+            <div className="text-2xl font-bold tracking-tight">
+              {isArea ? NF.format(value) + ' m²' : NF.format(value)}
+            </div>
+            {isLoading ? (
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent mb-1" />
+            ) : delta && delta.trend !== 'neutral' ? (
+              <div className={cn(
+                "flex items-center text-[10px] font-bold mb-1 px-1.5 py-0.5 rounded-full",
+                delta.trend === 'up' ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"
+              )}>
+                {delta.trend === 'up' ? <TrendingUp className="w-3 h-3 mr-0.5" /> : <TrendingDown className="w-3 h-3 mr-0.5" />}
+                {Math.abs(delta.percentage).toFixed(1)}%
+              </div>
+            ) : null}
           </div>
           <div className="text-[10px] text-muted-foreground font-medium">{subValue}</div>
         </div>
