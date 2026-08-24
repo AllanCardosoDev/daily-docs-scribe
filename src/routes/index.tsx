@@ -41,7 +41,7 @@ function IndexRedirect() {
         <p className="text-sm text-muted-foreground whitespace-pre-line">
           Sincronizando com o Comando Integrado…{"\n"}
           Processando comparativos e totais acumulados.{"\n"}
-          Implementar um calendário para eu selecionar a data e abrir rapidamente os relatórios e documentos daquele dia.
+          Implemente estados de carregamento, erro e vazio com textos configuráveis na interface do meu documento diário.
         </p>
       </div>
     </div>
