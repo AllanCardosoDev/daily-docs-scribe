@@ -19,7 +19,11 @@ import {
   FileSpreadsheet,
   Calendar,
   Sparkles,
+  ArrowRightLeft,
+  TrendingUp,
+  TrendingDown,
 } from "lucide-react";
+
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -264,7 +268,10 @@ function TotaisPage() {
   }, [rows, incendiosFull, outrasFull, efetivoFull]);
 
   // Atalhos Rápidos de Período
+  const [isAnnualComparison, setIsAnnualComparison] = useState(false);
+
   const applyPresetFilter = (type: "hoje" | "7d" | "mes" | "safra" | "ano") => {
+
     const now = new Date();
     const pad = (n: number) => String(n).padStart(2, "0");
     const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -386,6 +393,29 @@ ${topIncendios || "  Nenhum registro no período."}
       </header>
 
       <main className="w-full max-w-[98%] mx-auto px-3 sm:px-6 py-6 space-y-5">
+        {/* Filtros e Controles Superiores */}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Button
+              variant={!isAnnualComparison ? "default" : "outline"}
+              size="sm"
+              onClick={() => setIsAnnualComparison(false)}
+              className="rounded-full"
+            >
+              Visão por Período
+            </Button>
+            <Button
+              variant={isAnnualComparison ? "default" : "outline"}
+              size="sm"
+              onClick={() => setIsAnnualComparison(true)}
+              className="rounded-full gap-2"
+            >
+              <ArrowRightLeft className="w-4 h-4" />
+              Comparativo Anual
+            </Button>
+          </div>
+        </div>
+
         {/* KPIs gerais */}
         <section className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-5 gap-3">
           <Kpi label="Relatórios no filtro" value={totals.dias} />
@@ -394,6 +424,7 @@ ${topIncendios || "  Nenhum registro no período."}
           <Kpi label="Ocorrências" value={totals.outras} />
           <Kpi label="Efetivo empenhado" value={totals.efetivo} />
         </section>
+
 
         {/* Modelos e Categorias de Relatório */}
         <section className="rounded-xl bg-card shadow-elevated p-4 sm:p-5 border border-border/80">
