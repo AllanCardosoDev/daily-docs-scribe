@@ -27,7 +27,11 @@ interface Props {
 
 const COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4"];
 
-export const DashboardAnalytics = memo(function DashboardAnalytics({ data }: Props) {
+export const DashboardAnalytics = memo(function DashboardAnalytics({ 
+  data, 
+  comparisonData,
+  isComparisonLoading 
+}: Props) {
   const incendiosData = useMemo(() => {
     return (data.incendios_diario ?? [])
       .map((r) => ({
