@@ -207,14 +207,28 @@ function TotaisPage() {
       const d = String(r.report_date || "");
       if (!d) continue;
       const cur = byDate.get(d);
-      if (!cur) {
-        byDate.set(d, r);
-      } else if (r.shift === "noturno" && cur.shift !== "noturno") {
+      if (!cur || (r.shift === "noturno" && cur.shift !== "noturno")) {
         byDate.set(d, r);
       }
     }
     return Array.from(byDate.values());
   }, [q.data, shift]);
+
+  const rowsPrev = useMemo(() => {
+    const raw = (qPrev.data ?? []) as AnyRow[];
+    if (shift !== "ambos") return raw;
+    const byDate = new Map<string, AnyRow>();
+    for (const r of raw) {
+      const d = String(r.report_date || "");
+      if (!d) continue;
+      const cur = byDate.get(d);
+      if (!cur || (r.shift === "noturno" && cur.shift !== "noturno")) {
+        byDate.set(d, r);
+      }
+    }
+    return Array.from(byDate.values());
+  }, [qPrev.data, shift]);
+
 
   const efetivoFull = useMemo(() => aggregateSnapshot(rows, "efetivo", ["ord", "seg", "brig"]), [rows]);
   const recursosFull = useMemo(
