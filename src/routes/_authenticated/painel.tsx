@@ -50,6 +50,9 @@ function PainelPage() {
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [shift, setShift] = useState<ReportShift>("noturno");
   const getLatest = useServerFn(getLatestReportDate);
+  const [comparisonMode, setComparisonMode] = useState(false);
+  const [compReportDate, setCompReportDate] = useState<Date | null>(null);
+  const [compEndDate, setCompEndDate] = useState<Date | null>(null);
 
   useEffect(() => {
     getLatest().then((dateStr) => {
