@@ -113,7 +113,9 @@ export function exportSheetsToXlsx(
       { key: "brig", label: "Brigadistas" },
     ],
     data.efetivo,
+    "efetivo"
   );
+
 
   // Deriva as colunas da mesma fonte usada no painel/PDF — evita perder
   // colunas (AEM, ATF, ABS, DOSA, CRS, AR, UR, GSE, MT, TA, etc.) no Excel.
