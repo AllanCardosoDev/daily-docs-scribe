@@ -39,7 +39,7 @@ function IndexRedirect() {
       <div className="flex flex-col items-center gap-4 max-w-sm text-center">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
         <p className="text-sm text-muted-foreground whitespace-pre-line">
-          faça o commit para o git hub
+          o projeto foi todo atualizado para o github?
         </p>
       </div>
     </div>
