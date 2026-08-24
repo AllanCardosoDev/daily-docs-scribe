@@ -912,7 +912,7 @@ function AggTable({
               rows.map((r) => {
                 const total = activeSumKeys.reduce((s, k) => s + (Number(r[k]) || 0), 0);
                 return (
-                  <TableRow key={r.mun} className="hover:bg-primary/5">
+                  <TableRow key={r.mun} className="hover:bg-primary/5 transition-colors group">
                     <TableCell className="p-1 align-middle min-w-[160px]">
                       <div className="h-9 w-full flex items-center px-3 font-bold text-foreground justify-start">
                         {r.mun}
@@ -920,13 +920,13 @@ function AggTable({
                     </TableCell>
                     {keys.map((k) => (
                       <TableCell key={k} className="p-1 align-middle min-w-[92px]">
-                        <div className="h-9 w-full flex items-center justify-center px-3 text-center tabular-nums font-normal text-foreground">
+                        <div className="h-9 w-full flex items-center justify-center px-3 text-center tabular-nums font-normal text-slate-600 dark:text-slate-400">
                           {(Number(r[k]) || 0).toLocaleString("pt-BR")}
                         </div>
                       </TableCell>
                     ))}
                     <TableCell className="p-1 align-middle min-w-[92px]">
-                      <div className="h-9 w-full flex items-center justify-center px-3 text-center tabular-nums font-bold text-foreground">
+                      <div className="h-9 w-full flex items-center justify-center px-3 text-center tabular-nums font-black text-foreground bg-muted/20 rounded-md">
                         {total.toLocaleString("pt-BR")}
                       </div>
                     </TableCell>
@@ -938,7 +938,7 @@ function AggTable({
               <TableRow className="bg-muted/70 font-bold border-t-2 border-border/80">
                 <TableCell className="p-1 align-middle min-w-[160px]">
                   <div className="h-9 w-full flex items-center px-3 font-bold text-foreground justify-start">
-                    Total
+                    TOTAL GERAL
                   </div>
                 </TableCell>
                 {keys.map((k) => (
@@ -949,7 +949,7 @@ function AggTable({
                   </TableCell>
                 ))}
                 <TableCell className="p-1 align-middle min-w-[92px]">
-                  <div className="h-9 w-full flex items-center justify-center px-3 text-center tabular-nums font-bold text-foreground">
+                  <div className="h-9 w-full flex items-center justify-center px-3 text-center tabular-nums font-black text-primary">
                     {grand.toLocaleString("pt-BR")}
                   </div>
                 </TableCell>
@@ -961,3 +961,4 @@ function AggTable({
     </div>
   );
 }
+
