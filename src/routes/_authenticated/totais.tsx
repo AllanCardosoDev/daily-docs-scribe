@@ -166,6 +166,8 @@ function TotaisPage() {
   const [scope, setScope] = useState<"periodo" | "geral">("periodo");
   const [shift, setShift] = useState<ReportShift | "ambos">("ambos");
   const [activeTab, setActiveTab] = useState<"incendios" | "outras" | "efetivo" | "recursos">("incendios");
+  const [isAnnualComparison, setIsAnnualComparison] = useState(false);
+
 
   const listFn = useServerFn(listDailyReports);
   
