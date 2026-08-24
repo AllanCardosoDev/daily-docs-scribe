@@ -921,7 +921,7 @@ function AggTable({
         <Table className="min-w-[34rem]">
           <TableHeader>
             <TableRow>
-              {headers.map((h, i) => {
+              {finalHeaders.map((h, i) => {
                 const isFirst = i === 0;
                 const widthCls = isFirst ? "min-w-[160px]" : "min-w-[92px]";
                 return (
@@ -945,7 +945,7 @@ function AggTable({
             {rows.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={headers.length}
+                  colSpan={finalHeaders.length}
                   className="text-center text-muted-foreground py-6"
                 >
                   Nenhum registro no período selecionado.
@@ -954,6 +954,24 @@ function AggTable({
             ) : (
               rows.map((r) => {
                 const total = activeSumKeys.reduce((s, k) => s + (Number(r[k]) || 0), 0);
+                
+                let deltaAbs = 0;
+                let deltaPerc = 0;
+                let trend: "up" | "down" | "neutral" = "neutral";
+
+                if (comparisonData) {
+                  const normalize = (s: string) => s?.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() || "";
+                  const target = normalize(r.mun);
+                  const prev = comparisonData.find(p => normalize(p.mun) === target);
+                  const prevTotal = activeSumKeys.reduce((s, k) => s + (Number(prev?.[k]) || 0), 0);
+                  
+                  deltaAbs = total - prevTotal;
+                  deltaPerc = prevTotal === 0 ? (total > 0 ? 100 : 0) : (deltaAbs / prevTotal) * 100;
+                  
+                  if (deltaAbs > 0) trend = "up";
+                  else if (deltaAbs < 0) trend = "down";
+                }
+
                 return (
                   <TableRow key={r.mun} className="hover:bg-primary/5 transition-colors group">
                     <TableCell className="p-1 align-middle min-w-[160px]">
@@ -973,10 +991,34 @@ function AggTable({
                         {total.toLocaleString("pt-BR")}
                       </div>
                     </TableCell>
+                    {comparisonData && (
+                      <>
+                        <TableCell className="p-1 align-middle min-w-[92px]">
+                          <div className={cn(
+                            "h-9 w-full flex items-center justify-center px-3 text-center tabular-nums font-bold",
+                            trend === "up" ? "text-red-600" : trend === "down" ? "text-emerald-600" : "text-slate-400"
+                          )}>
+                            {deltaAbs > 0 ? "+" : ""}{deltaAbs.toLocaleString("pt-BR")}
+                          </div>
+                        </TableCell>
+                        <TableCell className="p-1 align-middle min-w-[92px]">
+                          <div className="h-9 w-full flex items-center justify-center px-3">
+                            <div className={cn(
+                              "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest",
+                              trend === "up" ? "bg-red-100 text-red-700" : trend === "down" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
+                            )}>
+                              {trend === "up" ? <TrendingUp className="w-3 h-3" /> : trend === "down" ? <TrendingDown className="w-3 h-3" /> : null}
+                              {Math.abs(deltaPerc).toFixed(1)}%
+                            </div>
+                          </div>
+                        </TableCell>
+                      </>
+                    )}
                   </TableRow>
                 );
               })
             )}
+
             {rows.length > 0 && (
               <TableRow className="bg-muted/70 font-bold border-t-2 border-border/80">
                 <TableCell className="p-1 align-middle min-w-[160px]">
