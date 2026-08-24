@@ -9,10 +9,9 @@ import { PainelToolbar } from "@/components/dashboard/PainelToolbar";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { DashboardFooter } from "@/components/dashboard/DashboardFooter";
 import { ScrollToTop } from "@/components/dashboard/ScrollToTop";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Map, LayoutGrid, BarChart3 } from "lucide-react";
-import { DashboardAnalytics } from "@/components/dashboard/DashboardAnalytics";
-import { AmazonasMap } from "@/components/map/AmazonasMap";
+import { LayoutGrid } from "lucide-react";
+import { DashboardSections } from "@/components/dashboard/DashboardSections";
+import { useSheetsDashboard } from "@/hooks/use-sheets";
 import { useSheetsDashboard } from "@/hooks/use-sheets";
 import { EMPTY_SHEETS_DATA } from "@/lib/sheets.types";
 import { getComparisonData } from "@/lib/sheets.functions";
@@ -41,7 +40,7 @@ const SettingsDialog = lazy(() =>
 
 export const Route = createFileRoute("/_authenticated/painel")({
   head: () => ({
-    meta: [{ title: "Painel · CBMAM Amazonas + Verde" }, { name: "robots", content: "noindex" }],
+    meta: [{ title: "Inserção de Dados · CBMAM Amazonas + Verde" }, { name: "robots", content: "noindex" }],
   }),
   component: PainelPage,
 });
