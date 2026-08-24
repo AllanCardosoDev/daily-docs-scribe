@@ -40,7 +40,8 @@ function IndexRedirect() {
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
         <p className="text-sm text-muted-foreground whitespace-pre-line">
           Sincronizando com o Comando Integrado…{"\n"}
-          Processando comparativos e totais acumulados.
+          Processando comparativos e totais acumulados.{"\n"}
+          Modo de comparação de períodos disponível.
         </p>
       </div>
     </div>

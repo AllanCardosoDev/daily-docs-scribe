@@ -5,7 +5,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { EMPTY_SHEETS_DATA, type SheetsData } from "./sheets.types";
 
-const num = (v: unknown) => {
+export const num = (v: unknown) => {
   const n = Number(v ?? 0);
   return Number.isFinite(n) ? n : 0;
 };

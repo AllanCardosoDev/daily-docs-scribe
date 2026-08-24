@@ -13,17 +13,26 @@ import {
   Legend,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Flame, ShieldAlert, Users, Activity } from "lucide-react";
+import { Flame, ShieldAlert, Users, Activity, ArrowRightLeft } from "lucide-react";
 import type { SheetsData } from "@/lib/sheets.types";
 import { NF } from "@/lib/formatters";
+import { cn } from "@/lib/utils";
+import type { ComparisonResult } from "@/lib/comparison";
+import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 interface Props {
   data: SheetsData;
+  comparisonData?: ComparisonResult;
+  isComparisonLoading?: boolean;
 }
 
 const COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4"];
 
-export const DashboardAnalytics = memo(function DashboardAnalytics({ data }: Props) {
+export const DashboardAnalytics = memo(function DashboardAnalytics({ 
+  data, 
+  comparisonData,
+  isComparisonLoading 
+}: Props) {
   const incendiosData = useMemo(() => {
     return (data.incendios_diario ?? [])
       .map((r) => ({
@@ -85,6 +94,28 @@ export const DashboardAnalytics = memo(function DashboardAnalytics({ data }: Pro
 
   return (
     <div className="space-y-6">
+      {comparisonData && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center justify-between animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-amber-100 rounded-lg text-amber-700">
+              <ArrowRightLeft className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-amber-900">Modo Comparação Ativo</p>
+              <p className="text-[10px] text-amber-700">
+                Comparando <strong>Período A</strong> ({comparisonData.dataA.header?.periodo}) vs <strong>Período B</strong> ({comparisonData.dataB.header?.periodo})
+              </p>
+            </div>
+          </div>
+          {isComparisonLoading && (
+            <div className="flex items-center gap-2 text-[10px] font-bold text-amber-600">
+              <div className="h-3 w-3 animate-spin rounded-full border-2 border-amber-600 border-t-transparent" />
+              Recalculando...
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard 
           label="Incêndios Totais" 
@@ -92,6 +123,8 @@ export const DashboardAnalytics = memo(function DashboardAnalytics({ data }: Pro
           subValue="Registrados no período"
           icon={<Flame className="w-5 h-5" />}
           color="bg-red-500"
+          delta={comparisonData?.deltas.incendios.total}
+          isLoading={isComparisonLoading}
         />
         <KpiCard 
           label="Ocorrências Diversas" 
@@ -99,6 +132,8 @@ export const DashboardAnalytics = memo(function DashboardAnalytics({ data }: Pro
           subValue="Salvamento, APH, etc."
           icon={<ShieldAlert className="w-5 h-5" />}
           color="bg-blue-500"
+          delta={comparisonData?.deltas.outras.total}
+          isLoading={isComparisonLoading}
         />
         <KpiCard 
           label="Efetivo Total" 
@@ -106,6 +141,8 @@ export const DashboardAnalytics = memo(function DashboardAnalytics({ data }: Pro
           subValue="Militares e brigadistas"
           icon={<Users className="w-5 h-5" />}
           color="bg-emerald-500"
+          delta={comparisonData?.deltas.efetivo.total}
+          isLoading={isComparisonLoading}
         />
         <KpiCard 
           label="Área Afetada" 
@@ -114,6 +151,7 @@ export const DashboardAnalytics = memo(function DashboardAnalytics({ data }: Pro
           icon={<Activity className="w-5 h-5" />}
           color="bg-amber-500"
           isArea
+          isLoading={isComparisonLoading}
         />
       </div>
 
@@ -240,7 +278,9 @@ function KpiCard({
   subValue, 
   icon, 
   color, 
-  isArea 
+  isArea,
+  delta,
+  isLoading
 }: { 
   label: string; 
   value: number; 
@@ -248,6 +288,8 @@ function KpiCard({
   icon: ReactNode; 
   color: string;
   isArea?: boolean;
+  delta?: { absolute: number; percentage: number; trend: "up" | "down" | "neutral" };
+  isLoading?: boolean;
 }) {
   return (
     <Card className="shadow-sm border-border/50 relative overflow-hidden group">
@@ -260,8 +302,21 @@ function KpiCard({
           <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
         </div>
         <div className="space-y-1">
-          <div className="text-2xl font-bold tracking-tight">
-            {isArea ? NF.format(value) + ' m²' : NF.format(value)}
+          <div className="flex items-end gap-2">
+            <div className="text-2xl font-bold tracking-tight">
+              {isArea ? NF.format(value) + ' m²' : NF.format(value)}
+            </div>
+            {isLoading ? (
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent mb-1" />
+            ) : delta && delta.trend !== 'neutral' ? (
+              <div className={cn(
+                "flex items-center text-[10px] font-bold mb-1 px-1.5 py-0.5 rounded-full",
+                delta.trend === 'up' ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"
+              )}>
+                {delta.trend === 'up' ? <TrendingUp className="w-3 h-3 mr-0.5" /> : <TrendingDown className="w-3 h-3 mr-0.5" />}
+                {Math.abs(delta.percentage).toFixed(1)}%
+              </div>
+            ) : null}
           </div>
           <div className="text-[10px] text-muted-foreground font-medium">{subValue}</div>
         </div>

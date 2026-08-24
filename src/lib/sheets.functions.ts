@@ -94,6 +94,42 @@ export const getSheetsData = createServerFn({ method: "GET" })
     },
   );
 
+export const getComparisonData = createServerFn({ method: "GET" })
+  .middleware([requireBackendAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        rangeA: z.object({
+          reportDate: z.string(),
+          endDate: z.string().optional(),
+        }),
+        rangeB: z.object({
+          reportDate: z.string(),
+          endDate: z.string().optional(),
+        }),
+      })
+      .parse(data ?? {}),
+  )
+  .handler(async ({ data: input, context }) => {
+    const { loadReportByDate, loadReportRange } = await import("./sheets-fallback.server");
+    const { calculateComparison } = await import("./comparison");
+
+    const fetchRange = async (range: { reportDate: string; endDate?: string }) => {
+      if (range.endDate && range.reportDate !== range.endDate) {
+        return loadReportRange(context.supabase, range.reportDate, range.endDate);
+      }
+      const res = await loadReportByDate(context.supabase, range.reportDate);
+      return res.data;
+    };
+
+    const [dataA, dataB] = await Promise.all([
+      fetchRange(input.rangeA),
+      fetchRange(input.rangeB),
+    ]);
+
+    return calculateComparison(dataA, dataB);
+  });
+
 // ------------------------------------------------------------------
 // Write — with strict validation + optimistic locking
 // ------------------------------------------------------------------

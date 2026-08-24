@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { DashboardHeader } from "@/components/dashboard/Header";
 import { KpiCards } from "@/components/dashboard/KpiCards";
 import { DashboardSections } from "@/components/dashboard/DashboardSections";
@@ -14,6 +15,8 @@ import { DashboardAnalytics } from "@/components/dashboard/DashboardAnalytics";
 import { AmazonasMap } from "@/components/map/AmazonasMap";
 import { useSheetsDashboard } from "@/hooks/use-sheets";
 import { EMPTY_SHEETS_DATA } from "@/lib/sheets.types";
+import { getComparisonData } from "@/lib/sheets.functions";
+import type { ComparisonResult } from "@/lib/comparison";
 import { useExporters } from "@/hooks/use-exporters";
 import { useServerFn } from "@tanstack/react-start";
 import { getLatestReportDate } from "@/lib/daily-reports.functions";
@@ -50,6 +53,9 @@ function PainelPage() {
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [shift, setShift] = useState<ReportShift>("noturno");
   const getLatest = useServerFn(getLatestReportDate);
+  const [comparisonMode, setComparisonMode] = useState(false);
+  const [compReportDate, setCompReportDate] = useState<Date | null>(null);
+  const [compEndDate, setCompEndDate] = useState<Date | null>(null);
 
   useEffect(() => {
     getLatest().then((dateStr) => {
@@ -70,6 +76,31 @@ function PainelPage() {
     reportDate,
     endDate,
   );
+
+  const getComparison = useServerFn(getComparisonData);
+  const comparisonQuery = useQuery({
+    queryKey: [
+      "comparison-data",
+      reportDate?.toISOString().split("T")[0],
+      endDate?.toISOString().split("T")[0],
+      compReportDate?.toISOString().split("T")[0],
+      compEndDate?.toISOString().split("T")[0],
+    ],
+    queryFn: () =>
+      getComparison({
+        data: {
+          rangeA: {
+            reportDate: reportDate!.toISOString().split("T")[0],
+            endDate: endDate?.toISOString().split("T")[0],
+          },
+          rangeB: {
+            reportDate: compReportDate!.toISOString().split("T")[0],
+            endDate: compEndDate?.toISOString().split("T")[0],
+          },
+        },
+      }),
+    enabled: comparisonMode && !!reportDate && !!compReportDate,
+  });
 
   const cfg = configQuery.data;
   const payload = dataQuery.data;
@@ -185,6 +216,12 @@ function PainelPage() {
               onAddMunicipio={handleAddMunicipio}
               shift={shift}
               onShiftChange={setShift}
+              comparisonMode={comparisonMode}
+              onComparisonModeChange={setComparisonMode}
+              compReportDate={compReportDate}
+              onCompReportDateChange={setCompReportDate}
+              compEndDate={compEndDate}
+              onCompEndDateChange={setCompEndDate}
             />
             <EditableHeader header={data.header ?? {}} editable={canEdit} onSave={savers.header} />
             <KpiCards data={data} />
@@ -221,7 +258,11 @@ function PainelPage() {
               </TabsContent>
 
               <TabsContent value="analytics" className="animate-fade-in-soft focus-visible:outline-none">
-                <DashboardAnalytics data={data} />
+                <DashboardAnalytics 
+                  data={data} 
+                  comparisonData={comparisonQuery.data || undefined} 
+                  isComparisonLoading={comparisonQuery.isFetching}
+                />
               </TabsContent>
 
               <TabsContent value="map" className="animate-fade-in-soft focus-visible:outline-none">
