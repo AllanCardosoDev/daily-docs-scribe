@@ -36,6 +36,12 @@ interface Props {
   onReportDateChange: (d: Date | null) => void;
   endDate: Date | null;
   onEndDateChange: (d: Date | null) => void;
+  comparisonMode?: boolean;
+  onComparisonModeChange?: (active: boolean) => void;
+  compReportDate?: Date | null;
+  onCompReportDateChange?: (d: Date | null) => void;
+  compEndDate?: Date | null;
+  onCompEndDateChange?: (d: Date | null) => void;
   pdfQuality: PdfQuality;
   onPdfQualityChange: (q: PdfQuality) => void;
   onRefresh: () => void;
