@@ -10,8 +10,6 @@ import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { DashboardFooter } from "@/components/dashboard/DashboardFooter";
 import { ScrollToTop } from "@/components/dashboard/ScrollToTop";
 import { LayoutGrid } from "lucide-react";
-import { DashboardSections } from "@/components/dashboard/DashboardSections";
-import { useSheetsDashboard } from "@/hooks/use-sheets";
 import { useSheetsDashboard } from "@/hooks/use-sheets";
 import { EMPTY_SHEETS_DATA } from "@/lib/sheets.types";
 import { getComparisonData } from "@/lib/sheets.functions";

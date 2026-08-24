@@ -27,7 +27,7 @@ function IndexRedirect() {
       const { supabase } = await import("@/integrations/backend/client");
       const { data } = await supabase.auth.getSession();
       if (cancelled) return;
-      navigate({ to: data.session?.user ? "/dashboard" : "/auth", replace: true });
+      navigate({ to: data.session?.user ? "/painel" : "/auth", replace: true });
     })();
     return () => {
       cancelled = true;
