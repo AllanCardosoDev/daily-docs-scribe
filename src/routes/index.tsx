@@ -41,8 +41,8 @@ function IndexRedirect() {
         <p className="text-sm text-muted-foreground whitespace-pre-line">
           Sincronizando com o Comando Integrado…{"\n"}
           Processando comparativos e totais acumulados.{"\n"}
-          Adicione uma tela para editar o documento do dia atual e salvar automaticamente as mudanças.{"\n\n"}
-          Quero implementar a geração automática dos relatórios todo dia a partir do meu documento editável.
+          pegue a API do mapa do Amazonas...{"\n"}
+          e insira para que reproduza perfeitamente
         </p>
       </div>
     </div>
