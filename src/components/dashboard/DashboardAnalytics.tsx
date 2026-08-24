@@ -16,9 +16,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Flame, ShieldAlert, Users, Activity } from "lucide-react";
 import type { SheetsData } from "@/lib/sheets.types";
 import { NF } from "@/lib/formatters";
+import type { ComparisonResult } from "@/lib/comparison";
+import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 interface Props {
   data: SheetsData;
+  comparisonData?: ComparisonResult;
+  isComparisonLoading?: boolean;
 }
 
 const COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4"];
