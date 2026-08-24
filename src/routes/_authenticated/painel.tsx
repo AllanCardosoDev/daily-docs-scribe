@@ -232,43 +232,42 @@ function PainelPage() {
             <EditableHeader header={data.header ?? {}} editable={canEdit} onSave={savers.header} />
             <KpiCards data={data} />
             
-            <Tabs defaultValue="grid" className="w-full space-y-6">
+            <Tabs defaultValue="dashboard" className="w-full space-y-6">
               <div className="flex justify-center">
                 <TabsList className="bg-card border border-border shadow-sm p-1 h-12 rounded-xl">
                   <TabsTrigger 
-                    value="grid" 
+                    value="dashboard" 
                     className="gap-2 px-6 rounded-lg font-bold data-[state=active]:bg-gradient-brand data-[state=active]:text-white transition-all"
                   >
                     <LayoutGrid className="w-4 h-4" />
-                    Tabelas
-                  </TabsTrigger>
-                  <TabsTrigger 
-                    value="analytics" 
-                    className="gap-2 px-6 rounded-lg font-bold data-[state=active]:bg-gradient-brand data-[state=active]:text-white transition-all"
-                  >
-                    <BarChart3 className="w-4 h-4" />
-                    Dashboard
+                    Dados e Dashboard
                   </TabsTrigger>
                   <TabsTrigger 
                     value="map" 
                     className="gap-2 px-6 rounded-lg font-bold data-[state=active]:bg-gradient-brand data-[state=active]:text-white transition-all"
                   >
                     <Map className="w-4 h-4" />
-                    Mapa
+                    Mapa Amazonas
                   </TabsTrigger>
                 </TabsList>
               </div>
 
-              <TabsContent value="grid" className="space-y-6 animate-fade-in-soft focus-visible:outline-none">
-                <DashboardSections data={data} canEdit={canEdit} savers={savers} />
-              </TabsContent>
-
-              <TabsContent value="analytics" className="animate-fade-in-soft focus-visible:outline-none">
+              <TabsContent value="dashboard" className="space-y-8 animate-fade-in-soft focus-visible:outline-none">
                 <DashboardAnalytics 
                   data={data} 
                   comparisonData={comparisonQuery.data || undefined} 
                   isComparisonLoading={comparisonQuery.isFetching}
                 />
+                
+                <div className="pt-4 border-t border-border/50">
+                  <div className="flex items-center gap-2 mb-6">
+                    <LayoutGrid className="w-5 h-5 text-primary" />
+                    <h2 className="text-xl font-bold font-display tracking-tight text-foreground">
+                      Tabelas de Registro Diário
+                    </h2>
+                  </div>
+                  <DashboardSections data={data} canEdit={canEdit} savers={savers} />
+                </div>
               </TabsContent>
 
               <TabsContent value="map" className="animate-fade-in-soft focus-visible:outline-none">
