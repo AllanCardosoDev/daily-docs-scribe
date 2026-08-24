@@ -1,30 +1,25 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { DashboardHeader } from "@/components/dashboard/Header";
 import { KpiCards } from "@/components/dashboard/KpiCards";
-import { DashboardSections } from "@/components/dashboard/DashboardSections";
-import { EditableHeader } from "@/components/dashboard/EditableHeader";
 import { PainelToolbar } from "@/components/dashboard/PainelToolbar";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { DashboardFooter } from "@/components/dashboard/DashboardFooter";
 import { ScrollToTop } from "@/components/dashboard/ScrollToTop";
-import { LayoutGrid } from "lucide-react";
+import { EditableHeader } from "@/components/dashboard/EditableHeader";
+import { DashboardAnalytics } from "@/components/dashboard/DashboardAnalytics";
+import { AmazonasMap } from "@/components/map/AmazonasMap";
 import { useSheetsDashboard } from "@/hooks/use-sheets";
 import { EMPTY_SHEETS_DATA } from "@/lib/sheets.types";
 import { getComparisonData } from "@/lib/sheets.functions";
-import type { ComparisonResult } from "@/lib/comparison";
 import { useExporters } from "@/hooks/use-exporters";
 import { useServerFn } from "@tanstack/react-start";
 import { getLatestReportDate } from "@/lib/daily-reports.functions";
-import { canonicalMunicipio } from "@/lib/municipio-order";
-import { toast } from "sonner";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { ReportShift } from "@/lib/report-shift";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LayoutGrid, Map } from "lucide-react";
 
-/**
- * Diálogos pesados (visualizador de PDF e configurações) são carregados
- * apenas quando abertos pela primeira vez, mantendo o painel leve.
- */
 const ReportPreviewDialog = lazy(() =>
   import("@/components/dashboard/ReportPreviewDialog").then((m) => ({
     default: m.ReportPreviewDialog,
@@ -36,14 +31,17 @@ const SettingsDialog = lazy(() =>
   })),
 );
 
-export const Route = createFileRoute("/_authenticated/painel")({
+export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
-    meta: [{ title: "Inserção de Dados · CBMAM Amazonas + Verde" }, { name: "robots", content: "noindex" }],
+    meta: [
+      { title: "Dashboard Analítico · CBMAM Amazonas + Verde" },
+      { name: "robots", content: "noindex" },
+    ],
   }),
-  component: PainelPage,
+  component: DashboardPage,
 });
 
-function PainelPage() {
+function DashboardPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [reportDate, setReportDate] = useState<Date | null>(null);
@@ -57,7 +55,6 @@ function PainelPage() {
   useEffect(() => {
     getLatest().then((dateStr) => {
       if (dateStr) {
-        // Use local time for the date string from DB to avoid timezone shifts
         const [y, m, d] = dateStr.split("-").map(Number);
         setReportDate(new Date(y, m - 1, d));
         setEndDate(new Date(y, m - 1, d));
@@ -69,7 +66,7 @@ function PainelPage() {
   }, [getLatest]);
 
   const [pdfQuality, setPdfQuality] = useState<"standard" | "high">("standard");
-  const { configQuery, dataQuery, savers, canEdit, refresh } = useSheetsDashboard(
+  const { configQuery, dataQuery, refresh } = useSheetsDashboard(
     reportDate,
     endDate,
   );
@@ -103,8 +100,6 @@ function PainelPage() {
   const payload = dataQuery.data;
   const data = payload?.data ?? EMPTY_SHEETS_DATA;
 
-  // Uma vez montado, o diálogo permanece no DOM para preservar a animação
-  // de fechamento sem recarregar o pacote.
   const [settingsMounted, setSettingsMounted] = useState(false);
   const [previewMounted, setPreviewMounted] = useState(false);
 
@@ -116,6 +111,7 @@ function PainelPage() {
     setPreviewMounted(true);
     setPreviewOpen(true);
   }, []);
+
   const { exportXlsx, exportPdf, exportMunicipioPdf, exportMunicipioCsv } = useExporters(
     data, 
     reportDate, 
@@ -123,66 +119,7 @@ function PainelPage() {
     comparisonQuery.data || undefined
   );
 
-
-  const existingMunicipios = useMemo(() => {
-    const list = data.incendios_diario ?? [];
-    return list.map((r) => r.mun);
-  }, [data.incendios_diario]);
-
-  const handleAddMunicipio = useCallback(
-    async (name: string) => {
-      const canonicalName = canonicalMunicipio(name);
-      const appendRow = <T extends { mun?: string; municipio?: string }>(
-        list: T[],
-        newRow: T,
-      ) => {
-        if (
-          list.some(
-            (r) =>
-              canonicalMunicipio(r.mun ?? r.municipio).toLowerCase() ===
-              canonicalName.toLowerCase(),
-          )
-        ) {
-          return list;
-        }
-        return [...list, { ...newRow, mun: canonicalName }];
-      };
-
-      const updatedEfetivo = appendRow(data.efetivo ?? [], {
-        mun: canonicalName,
-        ord: 0,
-        seg: 0,
-        brig: 0,
-      });
-      const updatedRecursos = appendRow(data.recursos ?? [], { mun: canonicalName });
-      const updatedIncendios = appendRow(data.incendios_diario ?? [], {
-        mun: canonicalName,
-        urb: 0,
-        flor: 0,
-        focos: 0,
-        total_periodo: 0,
-      });
-      const updatedOutras = appendRow(data.outras_diarias ?? [], {
-        mun: canonicalName,
-        salvamento: 0,
-        acidentes: 0,
-        aph: 0,
-        prevencao: 0,
-        servicos: 0,
-        total_periodo: 0,
-      });
-
-      await savers.efetivo(updatedEfetivo);
-      await savers.recursos(updatedRecursos);
-      await savers.incendios_diario(updatedIncendios);
-      await savers.outras_diarias(updatedOutras);
-      toast.success(`Município ${canonicalName} inserido no relatório!`);
-    },
-    [data, savers],
-  );
-
   const isBooting = configQuery.isLoading || (dataQuery.isLoading && !dataQuery.isPlaceholderData);
-  // A fonte oficial é sempre a pasta do Google Drive — não há configuração manual.
 
   return (
     <div className="min-h-dvh bg-gradient-brand-soft">
@@ -200,7 +137,7 @@ function PainelPage() {
         ) : (
           <div className="space-y-5 sm:space-y-7 animate-fade-in-soft">
             <PainelToolbar
-              canEdit={canEdit}
+              canEdit={false}
               isRefreshing={dataQuery.isFetching}
               reportDate={reportDate}
               endDate={endDate}
@@ -215,8 +152,8 @@ function PainelPage() {
               onExportXlsx={exportXlsx}
               onExportPdf={exportPdf}
               onPreviewPdf={openPreview}
-              existingMunicipios={existingMunicipios}
-              onAddMunicipio={handleAddMunicipio}
+              existingMunicipios={[]}
+              onAddMunicipio={() => {}}
               shift={shift}
               onShiftChange={setShift}
               comparisonMode={comparisonMode}
@@ -226,18 +163,47 @@ function PainelPage() {
               compEndDate={compEndDate}
               onCompEndDateChange={setCompEndDate}
             />
-            <EditableHeader header={data.header ?? {}} editable={canEdit} onSave={savers.header} />
+            
+            <EditableHeader 
+              header={data.header ?? {}} 
+              editable={false} 
+              onSave={async () => {}} 
+            />
+
             <KpiCards data={data} />
             
-            <div className="pt-4 border-t border-border/50">
-              <div className="flex items-center gap-2 mb-6">
-                <LayoutGrid className="w-5 h-5 text-primary" />
-                <h2 className="text-xl font-bold font-display tracking-tight text-foreground">
-                  Registro e Inserção de Dados
-                </h2>
+            <Tabs defaultValue="dashboard" className="w-full space-y-6">
+              <div className="flex justify-center">
+                <TabsList className="bg-card border border-border shadow-sm p-1 h-12 rounded-xl">
+                  <TabsTrigger 
+                    value="dashboard" 
+                    className="gap-2 px-6 rounded-lg font-bold data-[state=active]:bg-gradient-brand data-[state=active]:text-white transition-all"
+                  >
+                    <LayoutGrid className="w-4 h-4" />
+                    Gráficos e Análise
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="map" 
+                    className="gap-2 px-6 rounded-lg font-bold data-[state=active]:bg-gradient-brand data-[state=active]:text-white transition-all"
+                  >
+                    <Map className="w-4 h-4" />
+                    Mapa Amazonas
+                  </TabsTrigger>
+                </TabsList>
               </div>
-              <DashboardSections data={data} canEdit={canEdit} savers={savers} />
-            </div>
+
+              <TabsContent value="dashboard" className="animate-fade-in-soft focus-visible:outline-none">
+                <DashboardAnalytics 
+                  data={data} 
+                  comparisonData={comparisonQuery.data || undefined} 
+                  isComparisonLoading={comparisonQuery.isFetching}
+                />
+              </TabsContent>
+
+              <TabsContent value="map" className="animate-fade-in-soft focus-visible:outline-none">
+                <AmazonasMap data={data} onExportPdf={exportMunicipioPdf} onExportCsv={exportMunicipioCsv} />
+              </TabsContent>
+            </Tabs>
           </div>
         )}
       </main>
