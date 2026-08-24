@@ -1,5 +1,4 @@
 import type { SheetsData } from "./sheets.types";
-import { num } from "./sheets-fallback.server"; // I'll need to export num or redefine it
 
 export interface ComparisonDelta {
   absolute: number;
@@ -28,6 +27,9 @@ export interface ComparisonResult {
     efetivo: {
       total: ComparisonDelta;
     };
+    area: {
+      total: ComparisonDelta;
+    };
   };
 }
 
@@ -44,6 +46,7 @@ function calcDelta(valA: number, valB: number): ComparisonDelta {
 export function calculateComparison(dataA: SheetsData, dataB: SheetsData): ComparisonResult {
   const sum = (list: any[], keys: string[]) => 
     list.reduce((acc, item) => acc + keys.reduce((s, k) => s + (Number(item[k]) || 0), 0), 0);
+
 
   const incA = {
     urb: sum(dataA.incendios_diario, ["urb"]),
