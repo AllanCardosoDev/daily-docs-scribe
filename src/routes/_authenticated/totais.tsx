@@ -280,7 +280,6 @@ function TotaisPage() {
   }, [rows, incendiosFull, outrasFull, efetivoFull]);
 
   // Atalhos Rápidos de Período
-  const [isAnnualComparison, setIsAnnualComparison] = useState(false);
 
   const applyPresetFilter = (type: "hoje" | "7d" | "mes" | "safra" | "ano") => {
 
