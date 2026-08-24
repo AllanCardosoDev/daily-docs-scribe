@@ -83,6 +83,9 @@ export function calculateComparison(dataA: SheetsData, dataB: SheetsData): Compa
   const efetivoA = sum(dataA.efetivo, ["ord", "seg", "brig"]);
   const efetivoB = sum(dataB.efetivo, ["ord", "seg", "brig"]);
 
+  const areaA = sum(dataA.incendios_acumulado ?? [], ["area"]);
+  const areaB = sum(dataB.incendios_acumulado ?? [], ["area"]);
+
   return {
     dataA,
     dataB,
@@ -103,7 +106,12 @@ export function calculateComparison(dataA: SheetsData, dataB: SheetsData): Compa
       },
       efetivo: {
         total: calcDelta(efetivoA, efetivoB)
+      },
+      area: {
+        total: calcDelta(areaA, areaB)
       }
+    }
+
     }
   };
 }
