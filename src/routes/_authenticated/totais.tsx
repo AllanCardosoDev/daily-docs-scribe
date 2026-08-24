@@ -895,19 +895,24 @@ function AggTable({
   rows,
   keys,
   sumKeys,
+  comparisonData,
 }: {
   title: string;
   headers: string[];
   rows: Array<Record<string, any>>;
   keys: string[];
   sumKeys?: string[];
+  comparisonData?: Array<Record<string, any>> | null;
 }) {
   const activeSumKeys = sumKeys ?? keys;
+  const finalHeaders = comparisonData ? [...headers, "Var. Abs.", "Var. %"] : headers;
+
   const totals = keys.reduce<Record<string, number>>((acc, k) => {
     acc[k] = rows.reduce((s, r) => s + (Number(r[k]) || 0), 0);
     return acc;
   }, {});
   const grand = activeSumKeys.reduce((a, k) => a + (totals[k] || 0), 0);
+
 
   return (
     <div className="rounded-xl bg-card shadow-elevated p-4 sm:p-5">
