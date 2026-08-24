@@ -1,39 +1,31 @@
-# Plano de Implementação: Modo de Comparação de Relatórios
+# Plano de Implementação: Modo Comparação no Dashboard
 
-Adicionar uma funcionalidade de comparação na página de Totais para visualizar diferenças entre dois períodos ou datas.
+Adicionar a capacidade de comparar dois intervalos de datas distintos diretamente no dashboard para visualizar diferenças nas ocorrências.
 
-## User Review Required
+## Alterações Propostas
 
-> [!IMPORTANT]
-> A comparação será baseada na agregação de dados. Se o usuário escolher o turno "Ambos", o sistema priorizará o relatório de 24h (noturno) de cada dia, conforme a lógica atual da página de Totais.
+### 1. Backend e Tipagem (`src/lib/sheets.functions.ts` e `src/lib/sheets-fallback.server.ts`)
+- Criar `getComparisonData` server function que aceita dois intervalos (A e B).
+- Implementar lógica de agregação para ambos os intervalos.
+- Retornar um objeto contendo os dados de A, dados de B e o cálculo de diferença (delta).
 
-## Proposed Changes
+### 2. Interface de Seleção (`src/components/dashboard/ComparisonToolbar.tsx`)
+- Criar um novo componente de toolbar específico para o modo comparação.
+- Adicionar seletores para o Período A e Período B.
+- Incluir um toggle para ativar/desativar o modo comparação no dashboard principal.
 
-### 1. Refatoração de Dados (`src/routes/_authenticated/totais.tsx`)
-- Implementar estado para `isComparisonMode` (booleano).
-- Adicionar estados de data para o Período B (`fromB`, `toB`).
-- Criar uma nova consulta (`useQuery`) para os dados do Período B.
-- Implementar lógica de "Diff" para calcular a variação absoluta e percentual entre Período A e Período B.
+### 3. Dashboard Analytics e Tabelas (`src/components/dashboard/DashboardAnalytics.tsx` e `src/components/dashboard/DataTable.tsx`)
+- Adaptar o `DashboardAnalytics` para mostrar cartões KPI com indicadores de variação (setas verde/vermelho).
+- Atualizar as tabelas de dados para suportar uma coluna opcional de "Variação" ou visualização lado a lado.
 
-### 2. Interface de Usuário (`src/routes/_authenticated/totais.tsx`)
-- Adicionar um switch/toggle "Modo Comparação" na barra de filtros.
-- Quando ativo, exibir dois seletores de intervalo (A e B).
-- Criar um novo componente de tabela ou estender o `AggTable` para exibir colunas duplas (A | B | Diferença).
+### 4. Integração no Painel (`src/routes/_authenticated/painel.tsx`)
+- Gerenciar o estado `isComparisonMode`.
+- Passar os dados comparativos para os componentes filhos quando ativo.
 
-### 3. Visualização e Feedback
-- Utilizar cores semânticas (verde para redução de ocorrências, vermelho para aumento) nas variações.
-- Adicionar tooltips explicativos sobre o cálculo da diferença.
+## Detalhes Técnicos
+- **Lógica de Diferença**: `(Valor_B - Valor_A)` para totais absolutos e porcentagem de crescimento.
+- **Persistência**: O estado do modo comparação será mantido localmente na sessão.
+- **Performance**: Usar `useMemo` para evitar cálculos pesados de diff no render.
 
-### 4. Exportação
-- Atualizar a lógica de exportação (XLSX) para incluir as colunas de comparação quando o modo estiver ativo.
-
-## Technical Details
-
-- **Zustand/State**: Utilizaremos o estado local do componente `TotaisPage` para controlar os períodos, já que a página já segue esse padrão.
-- **Data Fetching**: Duas chamadas paralelas à `listDailyReports` via TanStack Query.
-- **Cálculo de Diferença**:
-  ```typescript
-  const diff = valueB - valueA;
-  const percent = valueA === 0 ? 100 : (diff / valueA) * 100;
-  ```
-- **Municípios**: Garantir que o alinhamento das linhas na tabela de comparação trate municípios presentes em apenas um dos períodos (vazio = 0).
+## Citando o Pedido
+- "Adicionar um modo de comparação para eu visualizar diferenças de ocorrências entre duas datas/intervalos no mesmo dashboard." (instrucoes.md)
