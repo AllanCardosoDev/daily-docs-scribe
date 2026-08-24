@@ -41,7 +41,8 @@ function IndexRedirect() {
         <p className="text-sm text-muted-foreground whitespace-pre-line">
           Sincronizando com o Comando Integrado…{"\n"}
           Processando comparativos e totais acumulados.{"\n"}
-          Implemente estados de carregamento, erro e vazio com textos configuráveis na interface do meu documento diário.
+          Adicione uma tela para editar o documento do dia atual e salvar automaticamente as mudanças.{"\n\n"}
+          Quero implementar a geração automática dos relatórios todo dia a partir do meu documento editável.
         </p>
       </div>
     </div>
