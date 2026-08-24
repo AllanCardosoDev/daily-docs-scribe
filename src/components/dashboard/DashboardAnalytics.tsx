@@ -248,7 +248,9 @@ function KpiCard({
   subValue, 
   icon, 
   color, 
-  isArea 
+  isArea,
+  delta,
+  isLoading
 }: { 
   label: string; 
   value: number; 
@@ -256,6 +258,8 @@ function KpiCard({
   icon: ReactNode; 
   color: string;
   isArea?: boolean;
+  delta?: { absolute: number; percentage: number; trend: "up" | "down" | "neutral" };
+  isLoading?: boolean;
 }) {
   return (
     <Card className="shadow-sm border-border/50 relative overflow-hidden group">
