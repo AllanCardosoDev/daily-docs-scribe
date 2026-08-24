@@ -1,6 +1,8 @@
 import * as XLSX from "xlsx";
 import type { SheetsData } from "./sheets.types";
+import type { ComparisonResult } from "./comparison";
 import { fmtDateStamp as fmtDateStampGeneric } from "./formatters";
+
 import { fmtDateBR, fmtDateStamp, filterOccurrencesByDate } from "./report-date";
 import { DASHBOARD_COLUMNS } from "./dashboard-columns";
 import { manausFirstSheets } from "./municipio-order";
