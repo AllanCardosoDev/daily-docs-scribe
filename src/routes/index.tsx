@@ -41,7 +41,13 @@ function IndexRedirect() {
         <p className="text-sm text-muted-foreground whitespace-pre-line">
           Sincronizando com o Comando Integrado…{"\n"}
           Processando comparativos e totais acumulados.{"\n"}
-          quais opções podemos inserir para melhorar a visualização do mapa?
+          Adicione esse código no final do código do index.css:
+          
+          #lovable-badge {"{"}
+            display: none !important;
+          {"}"}
+          
+          Isso vai remover a marca d'água do Lovable. Aplique essa alteração agora.
         </p>
       </div>
     </div>
