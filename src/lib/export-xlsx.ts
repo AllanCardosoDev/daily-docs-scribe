@@ -43,15 +43,66 @@ export function exportSheetsToXlsx(
   wsHeader["!cols"] = [{ wch: 34 }, { wch: 60 }];
   XLSX.utils.book_append_sheet(wb, wsHeader, "Cabeçalho");
 
-  const addSheet = (name: string, columns: { key: string; label: string }[], rows: any[]) => {
+  const addSheet = (
+    name: string,
+    columns: { key: string; label: string }[],
+    rows: any[],
+    type?: "incendios" | "outras" | "efetivo" | "area"
+  ) => {
+    let finalCols = [...columns];
+    let finalRows = rows.map(r => ({ ...r }));
+
+    if (comparisonData && type) {
+      finalCols.push(
+        { key: "_delta_abs", label: "Var. Absoluta" },
+        { key: "_delta_perc", label: "Var. %" }
+      );
+
+      const normalize = (s: string) => s?.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() || "";
+
+      finalRows = finalRows.map(r => {
+        const target = normalize(r.mun);
+        let prevVal = 0;
+        let curVal = 0;
+
+        if (type === "incendios") {
+          const prev = comparisonData.dataA.incendios_diario.find(p => normalize(p.mun) === target);
+          prevVal = (Number(prev?.urb) || 0) + (Number(prev?.flor) || 0);
+          curVal = (Number(r.urb) || 0) + (Number(r.flor) || 0);
+        } else if (type === "outras") {
+          const prev = comparisonData.dataA.outras_diarias.find(p => normalize(p.mun) === target);
+          prevVal = (Number(prev?.salvamento) || 0) + (Number(prev?.acidentes) || 0) + (Number(prev?.aph) || 0) + (Number(prev?.prevencao) || 0) + (Number(prev?.servicos) || 0);
+          curVal = (Number(r.salvamento) || 0) + (Number(r.acidentes) || 0) + (Number(r.aph) || 0) + (Number(r.prevencao) || 0) + (Number(r.servicos) || 0);
+        } else if (type === "efetivo") {
+          const prev = comparisonData.dataA.efetivo.find(p => normalize(p.mun) === target);
+          prevVal = (Number(prev?.ord) || 0) + (Number(prev?.seg) || 0) + (Number(prev?.brig) || 0);
+          curVal = (Number(r.ord) || 0) + (Number(r.seg) || 0) + (Number(r.brig) || 0);
+        } else if (type === "area") {
+          const prev = (comparisonData.dataA.incendios_acumulado || []).find(p => normalize(p.mun) === target);
+          prevVal = Number(prev?.area) || 0;
+          curVal = Number(r.area) || 0;
+        }
+
+        const abs = curVal - prevVal;
+        const perc = prevVal === 0 ? (curVal > 0 ? 100 : 0) : (abs / prevVal) * 100;
+
+        return {
+          ...r,
+          _delta_abs: abs,
+          _delta_perc: perc.toFixed(1) + "%"
+        };
+      });
+    }
+
     const aoa = [
-      columns.map((c) => c.label),
-      ...rows.map((r) => columns.map((c) => r[c.key] ?? "")),
+      finalCols.map((c) => c.label),
+      ...finalRows.map((r) => finalCols.map((c) => r[c.key] ?? "")),
     ];
     const ws = XLSX.utils.aoa_to_sheet(aoa);
-    ws["!cols"] = columns.map((c) => ({ wch: Math.max(c.label.length + 2, 14) }));
+    ws["!cols"] = finalCols.map((c) => ({ wch: Math.max(c.label.length + 2, 14) }));
     XLSX.utils.book_append_sheet(wb, ws, name);
   };
+
 
   addSheet(
     "Efetivo",
@@ -81,7 +132,9 @@ export function exportSheetsToXlsx(
       { key: "focos", label: "Focos" },
     ],
     data.incendios_diario,
+    "incendios"
   );
+
 
   addSheet(
     "Incêndios (acumulado)",
@@ -94,7 +147,9 @@ export function exportSheetsToXlsx(
       { key: "area", label: "Área (m²)" },
     ],
     data.incendios_acumulado,
+    "area"
   );
+
 
   addSheet(
     "Ocorrências (dia)",
@@ -107,7 +162,9 @@ export function exportSheetsToXlsx(
       { key: "servicos", label: "Serviços" },
     ],
     data.outras_diarias,
+    "outras"
   );
+
 
   const { rows: occurrences } = filterOccurrencesByDate(data.occurrences, reportDate);
   addSheet(
