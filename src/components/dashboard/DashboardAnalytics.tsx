@@ -11,14 +11,16 @@ import {
   Pie,
   Cell,
   Legend,
+  AreaChart,
+  Area,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Flame, ShieldAlert, Users, Activity, ArrowRightLeft } from "lucide-react";
+import { Flame, ShieldAlert, Users, Activity, ArrowRightLeft, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import type { SheetsData } from "@/lib/sheets.types";
 import { NF } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import type { ComparisonResult } from "@/lib/comparison";
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+
 
 interface Props {
   data: SheetsData;
