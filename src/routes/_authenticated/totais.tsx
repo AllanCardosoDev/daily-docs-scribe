@@ -681,6 +681,7 @@ ${topIncendios || "  Nenhum registro no período."}
                 rows={incendios}
                 keys={["urb", "flor", "focos"]}
                 sumKeys={["urb", "flor"]}
+                comparisonData={isAnnualComparison ? incendiosFullPrev : null}
               />
             </TabsContent>
             <TabsContent value="outras">
@@ -697,6 +698,7 @@ ${topIncendios || "  Nenhum registro no período."}
                 ]}
                 rows={outras}
                 keys={["salvamento", "acidentes", "aph", "prevencao", "servicos"]}
+                comparisonData={isAnnualComparison ? outrasFullPrev : null}
               />
             </TabsContent>
             <TabsContent value="efetivo">
@@ -705,8 +707,10 @@ ${topIncendios || "  Nenhum registro no período."}
                 headers={["Município", "Ordinário", "SEG", "Brigada", "Total"]}
                 rows={efetivo}
                 keys={["ord", "seg", "brig"]}
+                comparisonData={isAnnualComparison ? efetivoFullPrev : null}
               />
             </TabsContent>
+
             <TabsContent value="recursos">
               <AggTable
                 title="Recursos por município"
