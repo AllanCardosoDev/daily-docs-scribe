@@ -11,14 +11,16 @@ import {
   Pie,
   Cell,
   Legend,
+  AreaChart,
+  Area,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Flame, ShieldAlert, Users, Activity, ArrowRightLeft } from "lucide-react";
+import { Flame, ShieldAlert, Users, Activity, ArrowRightLeft, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import type { SheetsData } from "@/lib/sheets.types";
 import { NF } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import type { ComparisonResult } from "@/lib/comparison";
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+
 
 interface Props {
   data: SheetsData;
@@ -151,12 +153,62 @@ export const DashboardAnalytics = memo(function DashboardAnalytics({
           icon={<Activity className="w-5 h-5" />}
           color="bg-amber-500"
           isArea
+          delta={comparisonData?.deltas.area.total}
           isLoading={isComparisonLoading}
         />
       </div>
 
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="shadow-elevated border-border/50 overflow-hidden">
+          <CardHeader className="pb-2 border-b bg-muted/30">
+            <div className="flex items-center gap-2">
+              <Activity className="w-5 h-5 text-red-500" />
+              <CardTitle className="text-lg">Linha do Tempo de Incêndios</CardTitle>
+            </div>
+            <CardDescription>Ocorrências agregadas por tipo no período selecionado</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="h-[300px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={incendiosData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorUrb" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#ef4444" stopOpacity={0.1}/>
+                    </linearGradient>
+                    <linearGradient id="colorFlor" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#f97316" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#f97316" stopOpacity={0.1}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
+                  <XAxis 
+                    dataKey="name" 
+                    fontSize={10} 
+                    tickLine={false} 
+                    axisLine={false}
+                    tick={{ fill: 'currentColor', opacity: 0.7 }}
+                  />
+                  <YAxis fontSize={10} tickLine={false} axisLine={false} tick={{ fill: 'currentColor', opacity: 0.7 }} />
+                  <Tooltip 
+                    contentStyle={{ 
+                      borderRadius: '8px', 
+                      border: '1px solid #e2e8f0',
+                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                    }}
+                  />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
+                  <Area type="monotone" dataKey="urb" name="Urbano" stroke="#ef4444" fillOpacity={1} fill="url(#colorUrb)" />
+                  <Area type="monotone" dataKey="flor" name="Florestal" stroke="#f97316" fillOpacity={1} fill="url(#colorFlor)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-elevated border-border/50 overflow-hidden">
+
           <CardHeader className="pb-2 border-b bg-muted/30">
             <div className="flex items-center gap-2">
               <Flame className="w-5 h-5 text-red-500" />

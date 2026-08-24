@@ -3,6 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState, useEffect } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
   Filter,
@@ -19,7 +20,13 @@ import {
   FileSpreadsheet,
   Calendar,
   Sparkles,
+  ArrowRightLeft,
+  TrendingUp,
+  TrendingDown,
 } from "lucide-react";
+
+
+
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -162,26 +169,38 @@ function TotaisPage() {
   const [scope, setScope] = useState<"periodo" | "geral">("periodo");
   const [shift, setShift] = useState<ReportShift | "ambos">("ambos");
   const [activeTab, setActiveTab] = useState<"incendios" | "outras" | "efetivo" | "recursos">("incendios");
+  const [isAnnualComparison, setIsAnnualComparison] = useState(false);
+
 
   const listFn = useServerFn(listDailyReports);
+  
+  const fromPrev = useMemo(() => {
+    const d = new Date(from + "T12:00:00Z");
+    d.setFullYear(d.getFullYear() - 1);
+    return d.toISOString().split("T")[0];
+  }, [from]);
+
+  const toPrev = useMemo(() => {
+    const d = new Date(to + "T12:00:00Z");
+    d.setFullYear(d.getFullYear() - 1);
+    return d.toISOString().split("T")[0];
+  }, [to]);
+
   const q = useQuery({
-    queryKey: [
-      "daily-reports",
-      scope,
-      scope === "periodo" ? from : "all",
-      scope === "periodo" ? to : "all",
-      shift,
-    ],
-    queryFn: () =>
-      listFn({
-        data: {
-          ...(scope === "periodo" ? { from, to } : {}),
-          ...(shift === "ambos" ? {} : { shift }),
-        },
-      }),
+    queryKey: ["daily-reports", scope, from, to, shift],
+    queryFn: () => listFn({ data: { ...(scope === "periodo" ? { from, to } : {}), ...(shift === "ambos" ? {} : { shift }) } }),
     placeholderData: keepPreviousData,
     staleTime: 60_000,
   });
+
+  const qPrev = useQuery({
+    queryKey: ["daily-reports-prev", scope, fromPrev, toPrev, shift],
+    queryFn: () => listFn({ data: { from: fromPrev, to: toPrev, ...(shift === "ambos" ? {} : { shift }) } }),
+    enabled: isAnnualComparison && scope === "periodo",
+    placeholderData: keepPreviousData,
+    staleTime: 60_000,
+  });
+
 
   const rows = useMemo(() => {
     const raw = (q.data ?? []) as AnyRow[];
@@ -191,16 +210,32 @@ function TotaisPage() {
       const d = String(r.report_date || "");
       if (!d) continue;
       const cur = byDate.get(d);
-      if (!cur) {
-        byDate.set(d, r);
-      } else if (r.shift === "noturno" && cur.shift !== "noturno") {
+      if (!cur || (r.shift === "noturno" && cur.shift !== "noturno")) {
         byDate.set(d, r);
       }
     }
     return Array.from(byDate.values());
   }, [q.data, shift]);
 
+  const rowsPrev = useMemo(() => {
+    const raw = (qPrev.data ?? []) as AnyRow[];
+    if (shift !== "ambos") return raw;
+    const byDate = new Map<string, AnyRow>();
+    for (const r of raw) {
+      const d = String(r.report_date || "");
+      if (!d) continue;
+      const cur = byDate.get(d);
+      if (!cur || (r.shift === "noturno" && cur.shift !== "noturno")) {
+        byDate.set(d, r);
+      }
+    }
+    return Array.from(byDate.values());
+  }, [qPrev.data, shift]);
+
+
   const efetivoFull = useMemo(() => aggregateSnapshot(rows, "efetivo", ["ord", "seg", "brig"]), [rows]);
+  const efetivoFullPrev = useMemo(() => aggregateSnapshot(rowsPrev, "efetivo", ["ord", "seg", "brig"]), [rowsPrev]);
+  
   const recursosFull = useMemo(
     () =>
       aggregateSnapshot(rows, "recursos", [
@@ -234,10 +269,17 @@ function TotaisPage() {
   );
 
   const incendiosFull = useMemo(() => aggregateSum(rows, "incendios", ["urb", "flor", "focos"]), [rows]);
+  const incendiosFullPrev = useMemo(() => aggregateSum(rowsPrev, "incendios", ["urb", "flor", "focos"]), [rowsPrev]);
+  
   const outrasFull = useMemo(
     () => aggregateSum(rows, "outras", ["salvamento", "acidentes", "aph", "prevencao", "servicos"]),
     [rows],
   );
+  const outrasFullPrev = useMemo(
+    () => aggregateSum(rowsPrev, "outras", ["salvamento", "acidentes", "aph", "prevencao", "servicos"]),
+    [rowsPrev],
+  );
+
 
   // Filtro de município por busca
   const filterBySearch = <T extends { mun: string }>(list: T[]): T[] => {
@@ -264,7 +306,9 @@ function TotaisPage() {
   }, [rows, incendiosFull, outrasFull, efetivoFull]);
 
   // Atalhos Rápidos de Período
+
   const applyPresetFilter = (type: "hoje" | "7d" | "mes" | "safra" | "ano") => {
+
     const now = new Date();
     const pad = (n: number) => String(n).padStart(2, "0");
     const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -386,6 +430,29 @@ ${topIncendios || "  Nenhum registro no período."}
       </header>
 
       <main className="w-full max-w-[98%] mx-auto px-3 sm:px-6 py-6 space-y-5">
+        {/* Filtros e Controles Superiores */}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Button
+              variant={!isAnnualComparison ? "default" : "outline"}
+              size="sm"
+              onClick={() => setIsAnnualComparison(false)}
+              className="rounded-full"
+            >
+              Visão por Período
+            </Button>
+            <Button
+              variant={isAnnualComparison ? "default" : "outline"}
+              size="sm"
+              onClick={() => setIsAnnualComparison(true)}
+              className="rounded-full gap-2"
+            >
+              <ArrowRightLeft className="w-4 h-4" />
+              Comparativo Anual
+            </Button>
+          </div>
+        </div>
+
         {/* KPIs gerais */}
         <section className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-5 gap-3">
           <Kpi label="Relatórios no filtro" value={totals.dias} />
@@ -394,6 +461,7 @@ ${topIncendios || "  Nenhum registro no período."}
           <Kpi label="Ocorrências" value={totals.outras} />
           <Kpi label="Efetivo empenhado" value={totals.efetivo} />
         </section>
+
 
         {/* Modelos e Categorias de Relatório */}
         <section className="rounded-xl bg-card shadow-elevated p-4 sm:p-5 border border-border/80">
@@ -616,6 +684,7 @@ ${topIncendios || "  Nenhum registro no período."}
                 rows={incendios}
                 keys={["urb", "flor", "focos"]}
                 sumKeys={["urb", "flor"]}
+                comparisonData={isAnnualComparison ? incendiosFullPrev : null}
               />
             </TabsContent>
             <TabsContent value="outras">
@@ -632,6 +701,7 @@ ${topIncendios || "  Nenhum registro no período."}
                 ]}
                 rows={outras}
                 keys={["salvamento", "acidentes", "aph", "prevencao", "servicos"]}
+                comparisonData={isAnnualComparison ? outrasFullPrev : null}
               />
             </TabsContent>
             <TabsContent value="efetivo">
@@ -640,8 +710,10 @@ ${topIncendios || "  Nenhum registro no período."}
                 headers={["Município", "Ordinário", "SEG", "Brigada", "Total"]}
                 rows={efetivo}
                 keys={["ord", "seg", "brig"]}
+                comparisonData={isAnnualComparison ? efetivoFullPrev : null}
               />
             </TabsContent>
+
             <TabsContent value="recursos">
               <AggTable
                 title="Recursos por município"
@@ -826,19 +898,24 @@ function AggTable({
   rows,
   keys,
   sumKeys,
+  comparisonData,
 }: {
   title: string;
   headers: string[];
   rows: Array<Record<string, any>>;
   keys: string[];
   sumKeys?: string[];
+  comparisonData?: Array<Record<string, any>> | null;
 }) {
   const activeSumKeys = sumKeys ?? keys;
+  const finalHeaders = comparisonData ? [...headers, "Var. Abs.", "Var. %"] : headers;
+
   const totals = keys.reduce<Record<string, number>>((acc, k) => {
     acc[k] = rows.reduce((s, r) => s + (Number(r[k]) || 0), 0);
     return acc;
   }, {});
   const grand = activeSumKeys.reduce((a, k) => a + (totals[k] || 0), 0);
+
 
   return (
     <div className="rounded-xl bg-card shadow-elevated p-4 sm:p-5">
@@ -847,7 +924,7 @@ function AggTable({
         <Table className="min-w-[34rem]">
           <TableHeader>
             <TableRow>
-              {headers.map((h, i) => {
+              {finalHeaders.map((h, i) => {
                 const isFirst = i === 0;
                 const widthCls = isFirst ? "min-w-[160px]" : "min-w-[92px]";
                 return (
@@ -871,7 +948,7 @@ function AggTable({
             {rows.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={headers.length}
+                  colSpan={finalHeaders.length}
                   className="text-center text-muted-foreground py-6"
                 >
                   Nenhum registro no período selecionado.
@@ -880,8 +957,26 @@ function AggTable({
             ) : (
               rows.map((r) => {
                 const total = activeSumKeys.reduce((s, k) => s + (Number(r[k]) || 0), 0);
+                
+                let deltaAbs = 0;
+                let deltaPerc = 0;
+                let trend: "up" | "down" | "neutral" = "neutral";
+
+                if (comparisonData) {
+                  const normalize = (s: string) => s?.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() || "";
+                  const target = normalize(r.mun);
+                  const prev = comparisonData.find(p => normalize(p.mun) === target);
+                  const prevTotal = activeSumKeys.reduce((s, k) => s + (Number(prev?.[k]) || 0), 0);
+                  
+                  deltaAbs = total - prevTotal;
+                  deltaPerc = prevTotal === 0 ? (total > 0 ? 100 : 0) : (deltaAbs / prevTotal) * 100;
+                  
+                  if (deltaAbs > 0) trend = "up";
+                  else if (deltaAbs < 0) trend = "down";
+                }
+
                 return (
-                  <TableRow key={r.mun} className="hover:bg-primary/5">
+                  <TableRow key={r.mun} className="hover:bg-primary/5 transition-colors group">
                     <TableCell className="p-1 align-middle min-w-[160px]">
                       <div className="h-9 w-full flex items-center px-3 font-bold text-foreground justify-start">
                         {r.mun}
@@ -889,25 +984,49 @@ function AggTable({
                     </TableCell>
                     {keys.map((k) => (
                       <TableCell key={k} className="p-1 align-middle min-w-[92px]">
-                        <div className="h-9 w-full flex items-center justify-center px-3 text-center tabular-nums font-normal text-foreground">
+                        <div className="h-9 w-full flex items-center justify-center px-3 text-center tabular-nums font-normal text-slate-600 dark:text-slate-400">
                           {(Number(r[k]) || 0).toLocaleString("pt-BR")}
                         </div>
                       </TableCell>
                     ))}
                     <TableCell className="p-1 align-middle min-w-[92px]">
-                      <div className="h-9 w-full flex items-center justify-center px-3 text-center tabular-nums font-bold text-foreground">
+                      <div className="h-9 w-full flex items-center justify-center px-3 text-center tabular-nums font-black text-foreground bg-muted/20 rounded-md">
                         {total.toLocaleString("pt-BR")}
                       </div>
                     </TableCell>
+                    {comparisonData && (
+                      <>
+                        <TableCell className="p-1 align-middle min-w-[92px]">
+                          <div className={cn(
+                            "h-9 w-full flex items-center justify-center px-3 text-center tabular-nums font-bold",
+                            trend === "up" ? "text-red-600" : trend === "down" ? "text-emerald-600" : "text-slate-400"
+                          )}>
+                            {deltaAbs > 0 ? "+" : ""}{deltaAbs.toLocaleString("pt-BR")}
+                          </div>
+                        </TableCell>
+                        <TableCell className="p-1 align-middle min-w-[92px]">
+                          <div className="h-9 w-full flex items-center justify-center px-3">
+                            <div className={cn(
+                              "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest",
+                              trend === "up" ? "bg-red-100 text-red-700" : trend === "down" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
+                            )}>
+                              {trend === "up" ? <TrendingUp className="w-3 h-3" /> : trend === "down" ? <TrendingDown className="w-3 h-3" /> : null}
+                              {Math.abs(deltaPerc).toFixed(1)}%
+                            </div>
+                          </div>
+                        </TableCell>
+                      </>
+                    )}
                   </TableRow>
                 );
               })
             )}
+
             {rows.length > 0 && (
               <TableRow className="bg-muted/70 font-bold border-t-2 border-border/80">
                 <TableCell className="p-1 align-middle min-w-[160px]">
                   <div className="h-9 w-full flex items-center px-3 font-bold text-foreground justify-start">
-                    Total
+                    TOTAL GERAL
                   </div>
                 </TableCell>
                 {keys.map((k) => (
@@ -918,7 +1037,7 @@ function AggTable({
                   </TableCell>
                 ))}
                 <TableCell className="p-1 align-middle min-w-[92px]">
-                  <div className="h-9 w-full flex items-center justify-center px-3 text-center tabular-nums font-bold text-foreground">
+                  <div className="h-9 w-full flex items-center justify-center px-3 text-center tabular-nums font-black text-primary">
                     {grand.toLocaleString("pt-BR")}
                   </div>
                 </TableCell>
@@ -930,3 +1049,4 @@ function AggTable({
     </div>
   );
 }
+

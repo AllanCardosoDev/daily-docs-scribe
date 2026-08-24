@@ -119,7 +119,13 @@ function PainelPage() {
     setPreviewMounted(true);
     setPreviewOpen(true);
   }, []);
-  const { exportXlsx, exportPdf, exportMunicipioPdf, exportMunicipioCsv } = useExporters(data, reportDate, pdfQuality);
+  const { exportXlsx, exportPdf, exportMunicipioPdf, exportMunicipioCsv } = useExporters(
+    data, 
+    reportDate, 
+    pdfQuality,
+    comparisonQuery.data || undefined
+  );
+
 
   const existingMunicipios = useMemo(() => {
     const list = data.incendios_diario ?? [];

@@ -2,9 +2,11 @@ import { manausFirstSheets, canonicalMunicipio } from "./municipio-order";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { SheetsData } from "./sheets.types";
+import type { ComparisonResult } from "./comparison";
 import { NF } from "./formatters";
 import { fmtDateBR, fmtDateStamp } from "./report-date";
 import { CBMAM_LOGO_BASE64 } from "./cbmam-logo";
+
 
 export function reportFilename(reportDate: Date | null, generatedAt: Date = new Date()) {
   const suffix = reportDate ? `-${fmtDateStamp(reportDate)}` : `-${fmtDateStamp(generatedAt)}`;
@@ -25,16 +27,20 @@ export function exportSheetsToPdf(
   data: SheetsData,
   reportDate: Date | null = null,
   quality: PdfQuality = "standard",
+  comparisonData?: ComparisonResult,
 ) {
-  const doc = buildSheetsPdfDoc(data, reportDate, quality);
+  const doc = buildSheetsPdfDoc(data, reportDate, quality, comparisonData);
   doc.save(reportFilename(reportDate));
 }
+
 
 export function buildSheetsPdfDoc(
   rawData: SheetsData,
   reportDate: Date | null = null,
   _quality: PdfQuality = "standard",
+  comparisonData?: ComparisonResult,
 ): jsPDF {
+
   const data = manausFirstSheets(rawData);
   const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth(); // ~841.89 pt
