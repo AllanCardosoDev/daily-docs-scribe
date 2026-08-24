@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Flame, ShieldAlert, Users, Activity } from "lucide-react";
 import type { SheetsData } from "@/lib/sheets.types";
 import { NF } from "@/lib/formatters";
+import { cn } from "@/lib/utils";
 import type { ComparisonResult } from "@/lib/comparison";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 
