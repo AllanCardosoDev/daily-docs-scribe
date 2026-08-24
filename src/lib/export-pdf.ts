@@ -2,9 +2,11 @@ import { manausFirstSheets, canonicalMunicipio } from "./municipio-order";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { SheetsData } from "./sheets.types";
+import type { ComparisonResult } from "./comparison";
 import { NF } from "./formatters";
 import { fmtDateBR, fmtDateStamp } from "./report-date";
 import { CBMAM_LOGO_BASE64 } from "./cbmam-logo";
+
 
 export function reportFilename(reportDate: Date | null, generatedAt: Date = new Date()) {
   const suffix = reportDate ? `-${fmtDateStamp(reportDate)}` : `-${fmtDateStamp(generatedAt)}`;
