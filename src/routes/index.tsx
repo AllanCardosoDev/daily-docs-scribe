@@ -41,7 +41,7 @@ function IndexRedirect() {
         <p className="text-sm text-muted-foreground whitespace-pre-line">
           Sincronizando com o Comando Integrado…{"\n"}
           Processando comparativos e totais acumulados.{"\n"}
-          Implementar a geração automática de relatórios diários a partir do conteúdo que eu editar.
+          Implemente a geração automática de relatórios diários com base no texto do documento que eu editar.
         </p>
       </div>
     </div>
