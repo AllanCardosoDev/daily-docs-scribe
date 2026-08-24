@@ -6,6 +6,7 @@ import { PainelToolbar } from "@/components/dashboard/PainelToolbar";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { DashboardFooter } from "@/components/dashboard/DashboardFooter";
 import { ScrollToTop } from "@/components/dashboard/ScrollToTop";
+import { EditableHeader } from "@/components/dashboard/EditableHeader";
 import { DashboardAnalytics } from "@/components/dashboard/DashboardAnalytics";
 import { AmazonasMap } from "@/components/map/AmazonasMap";
 import { useSheetsDashboard } from "@/hooks/use-sheets";
@@ -163,6 +164,12 @@ function DashboardPage() {
               onCompEndDateChange={setCompEndDate}
             />
             
+            <EditableHeader 
+              header={data.header ?? {}} 
+              editable={false} 
+              onSave={async () => {}} 
+            />
+
             <KpiCards data={data} />
             
             <Tabs defaultValue="dashboard" className="w-full space-y-6">

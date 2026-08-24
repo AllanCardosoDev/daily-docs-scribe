@@ -90,6 +90,30 @@ export const DashboardHeader = memo(function DashboardHeader({
             </p>
           </div>
         </div>
+        
+        <nav className="hidden lg:flex items-center gap-6 px-6 border-l border-white/20">
+          <Link 
+            to="/dashboard" 
+            className="text-sm font-bold text-white/90 hover:text-white flex items-center gap-2 transition-colors [&.active]:text-emerald-300"
+          >
+            <BarChart3 className="w-4 h-4" />
+            Dashboard
+          </Link>
+          <Link 
+            to="/painel" 
+            className="text-sm font-bold text-white/90 hover:text-white flex items-center gap-2 transition-colors [&.active]:text-emerald-300"
+          >
+            <ClipboardList className="w-4 h-4" />
+            Inserção
+          </Link>
+          <Link 
+            to="/totais" 
+            className="text-sm font-bold text-white/90 hover:text-white flex items-center gap-2 transition-colors [&.active]:text-emerald-300"
+          >
+            <Flame className="w-4 h-4" />
+            Totais
+          </Link>
+        </nav>
 
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <div
