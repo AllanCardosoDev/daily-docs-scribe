@@ -168,24 +168,34 @@ function TotaisPage() {
   const [activeTab, setActiveTab] = useState<"incendios" | "outras" | "efetivo" | "recursos">("incendios");
 
   const listFn = useServerFn(listDailyReports);
+  
+  const fromPrev = useMemo(() => {
+    const d = new Date(from + "T12:00:00Z");
+    d.setFullYear(d.getFullYear() - 1);
+    return d.toISOString().split("T")[0];
+  }, [from]);
+
+  const toPrev = useMemo(() => {
+    const d = new Date(to + "T12:00:00Z");
+    d.setFullYear(d.getFullYear() - 1);
+    return d.toISOString().split("T")[0];
+  }, [to]);
+
   const q = useQuery({
-    queryKey: [
-      "daily-reports",
-      scope,
-      scope === "periodo" ? from : "all",
-      scope === "periodo" ? to : "all",
-      shift,
-    ],
-    queryFn: () =>
-      listFn({
-        data: {
-          ...(scope === "periodo" ? { from, to } : {}),
-          ...(shift === "ambos" ? {} : { shift }),
-        },
-      }),
+    queryKey: ["daily-reports", scope, from, to, shift],
+    queryFn: () => listFn({ data: { ...(scope === "periodo" ? { from, to } : {}), ...(shift === "ambos" ? {} : { shift }) } }),
     placeholderData: keepPreviousData,
     staleTime: 60_000,
   });
+
+  const qPrev = useQuery({
+    queryKey: ["daily-reports-prev", scope, fromPrev, toPrev, shift],
+    queryFn: () => listFn({ data: { from: fromPrev, to: toPrev, ...(shift === "ambos" ? {} : { shift }) } }),
+    enabled: isAnnualComparison && scope === "periodo",
+    placeholderData: keepPreviousData,
+    staleTime: 60_000,
+  });
+
 
   const rows = useMemo(() => {
     const raw = (q.data ?? []) as AnyRow[];
