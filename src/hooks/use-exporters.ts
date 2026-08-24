@@ -1,8 +1,10 @@
 import { useCallback } from "react";
 import { toast } from "sonner";
 import type { SheetsData } from "@/lib/sheets.types";
+import type { ComparisonResult } from "@/lib/comparison";
 import { validateForExport, formatIssues } from "@/lib/report-validation";
 import type { PdfQuality } from "@/lib/export-pdf";
+
 
 /**
  * Wires the Excel + PDF export handlers with lazy loading (the export
