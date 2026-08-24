@@ -74,6 +74,31 @@ function PainelPage() {
     endDate,
   );
 
+  const getComparison = useServerFn(getComparisonData);
+  const comparisonQuery = useQuery({
+    queryKey: [
+      "comparison-data",
+      reportDate?.toISOString().split("T")[0],
+      endDate?.toISOString().split("T")[0],
+      compReportDate?.toISOString().split("T")[0],
+      compEndDate?.toISOString().split("T")[0],
+    ],
+    queryFn: () =>
+      getComparison({
+        data: {
+          rangeA: {
+            reportDate: reportDate!.toISOString().split("T")[0],
+            endDate: endDate?.toISOString().split("T")[0],
+          },
+          rangeB: {
+            reportDate: compReportDate!.toISOString().split("T")[0],
+            endDate: compEndDate?.toISOString().split("T")[0],
+          },
+        },
+      }),
+    enabled: comparisonMode && !!reportDate && !!compReportDate,
+  });
+
   const cfg = configQuery.data;
   const payload = dataQuery.data;
   const data = payload?.data ?? EMPTY_SHEETS_DATA;
@@ -188,6 +213,12 @@ function PainelPage() {
               onAddMunicipio={handleAddMunicipio}
               shift={shift}
               onShiftChange={setShift}
+              comparisonMode={comparisonMode}
+              onComparisonModeChange={setComparisonMode}
+              compReportDate={compReportDate}
+              onCompReportDateChange={setCompReportDate}
+              compEndDate={compEndDate}
+              onCompEndDateChange={setCompEndDate}
             />
             <EditableHeader header={data.header ?? {}} editable={canEdit} onSave={savers.header} />
             <KpiCards data={data} />
@@ -224,7 +255,11 @@ function PainelPage() {
               </TabsContent>
 
               <TabsContent value="analytics" className="animate-fade-in-soft focus-visible:outline-none">
-                <DashboardAnalytics data={data} />
+                <DashboardAnalytics 
+                  data={data} 
+                  comparisonData={comparisonQuery.data || undefined} 
+                  isComparisonLoading={comparisonQuery.isFetching}
+                />
               </TabsContent>
 
               <TabsContent value="map" className="animate-fade-in-soft focus-visible:outline-none">

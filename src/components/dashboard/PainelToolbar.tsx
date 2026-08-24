@@ -20,6 +20,7 @@ import {
   ChevronDown,
   FileSpreadsheet,
   BarChart3,
+  ArrowRightLeft,
 } from "lucide-react";
 import { ReportHistoryDialog } from "./ReportHistoryDialog";
 import { AddMunicipioDialog } from "./AddMunicipioDialog";
@@ -65,6 +66,12 @@ export const PainelToolbar = memo(function PainelToolbar({
   onReportDateChange,
   endDate,
   onEndDateChange,
+  comparisonMode,
+  onComparisonModeChange,
+  compReportDate,
+  onCompReportDateChange,
+  compEndDate,
+  onCompEndDateChange,
   pdfQuality,
   onPdfQualityChange,
   onRefresh,
@@ -109,6 +116,22 @@ export const PainelToolbar = memo(function PainelToolbar({
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap lg:items-center lg:justify-end">
+          {/* Comparison Toggle */}
+          {onComparisonModeChange && (
+            <Button
+              variant={comparisonMode ? "default" : "outline"}
+              size="sm"
+              onClick={() => onComparisonModeChange(!comparisonMode)}
+              className={cn(
+                "h-11 sm:h-10 gap-2 font-bold transition-all",
+                comparisonMode && "bg-amber-600 hover:bg-amber-700 text-white"
+              )}
+            >
+              <ArrowRightLeft className="w-4 h-4" />
+              <span className="hidden sm:inline">Comparar</span>
+            </Button>
+          )}
+
           {/* Shift selector: 24h vs Parcial */}
           {onShiftChange && (
             <div className="flex items-center rounded-lg border border-border bg-muted/50 p-1 h-11 sm:h-10">
@@ -214,6 +237,67 @@ export const PainelToolbar = memo(function PainelToolbar({
               </Button>
             )}
           </div>
+
+          {/* Comparison range selector */}
+          {comparisonMode && onCompReportDateChange && onCompEndDateChange && (
+            <div className="flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50/50 px-1 py-1 min-w-0 animate-in slide-in-from-top-2 duration-300">
+              <div className="flex items-center gap-2">
+                <div className="text-[9px] font-black text-amber-700 ml-1 uppercase">Ref. B</div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className={cn(
+                        "h-9 min-w-[120px] justify-start gap-2 font-medium text-xs px-2 hover:bg-amber-100/50",
+                        !compReportDate && "text-muted-foreground",
+                      )}
+                    >
+                      <CalendarIcon className="w-3.5 h-3.5 shrink-0 text-amber-600" />
+                      <span className="truncate">
+                        {compReportDate ? compReportDate.toLocaleDateString("pt-BR") : "Início B"}
+                      </span>
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-auto p-0">
+                    <LazyCalendar
+                      mode="single"
+                      selected={compReportDate ?? undefined}
+                      onSelect={(d) => onCompReportDateChange(d ?? null)}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+
+                <span className="text-amber-700 text-[10px] font-bold">ATÉ</span>
+
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className={cn(
+                        "h-9 min-w-[120px] justify-start gap-2 font-medium text-xs px-2 hover:bg-amber-100/50",
+                        !compEndDate && "text-muted-foreground",
+                      )}
+                    >
+                      <CalendarIcon className="w-3.5 h-3.5 shrink-0 text-amber-600" />
+                      <span className="truncate">
+                        {compEndDate ? compEndDate.toLocaleDateString("pt-BR") : "Fim B"}
+                      </span>
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-auto p-0">
+                    <LazyCalendar
+                      mode="single"
+                      selected={compEndDate ?? undefined}
+                      onSelect={(d) => onCompEndDateChange(d ?? null)}
+                      disabled={(date) => (compReportDate ? date < compReportDate : false)}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+          )}
 
           {/* Quality selector for PDF export/preview */}
           <div
