@@ -41,8 +41,7 @@ function IndexRedirect() {
         <p className="text-sm text-muted-foreground whitespace-pre-line">
           Sincronizando com o Comando Integrado…{"\n"}
           Processando comparativos e totais acumulados.{"\n"}
-          pegue a API do mapa do Amazonas...{"\n"}
-          e insira para que reproduza perfeitamente
+          Implementar a geração automática de relatórios diários a partir do conteúdo que eu editar.
         </p>
       </div>
     </div>
