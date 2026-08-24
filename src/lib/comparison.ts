@@ -47,7 +47,6 @@ export function calculateComparison(dataA: SheetsData, dataB: SheetsData): Compa
   const sum = (list: any[], keys: string[]) => 
     list.reduce((acc, item) => acc + keys.reduce((s, k) => s + (Number(item[k]) || 0), 0), 0);
 
-
   const incA = {
     urb: sum(dataA.incendios_diario, ["urb"]),
     flor: sum(dataA.incendios_diario, ["flor"]),
@@ -110,8 +109,6 @@ export function calculateComparison(dataA: SheetsData, dataB: SheetsData): Compa
       area: {
         total: calcDelta(areaA, areaB)
       }
-    }
-
     }
   };
 }
