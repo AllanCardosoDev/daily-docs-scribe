@@ -41,7 +41,7 @@ function IndexRedirect() {
         <p className="text-sm text-muted-foreground whitespace-pre-line">
           Sincronizando com o Comando Integrado…{"\n"}
           Processando comparativos e totais acumulados.{"\n"}
-          Implemente um editor de documento diário com salvamento automático e campos por seção para eu escrever meus relatórios do dia.
+          quais opções podemos inserir para melhorar a visualização do mapa?
         </p>
       </div>
     </div>
