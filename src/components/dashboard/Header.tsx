@@ -147,6 +147,11 @@ export const DashboardHeader = memo(function DashboardHeader({
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
+                <Link to="/painel">
+                  <BarChart3 className="w-4 h-4 mr-2" /> Dashboard
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
                 <Link to="/registro">
                   <ClipboardList className="w-4 h-4 mr-2" /> Registro diário
                 </Link>
