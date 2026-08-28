@@ -72,13 +72,13 @@ export function AuthCredentialsForm({
               value={password}
               onChange={onPasswordChange}
             />
-            <div className="flex justify-end -mt-1">
+            <div className="flex items-center justify-between pt-0.5">
               <button
                 type="button"
                 onClick={onForgotPassword}
-                className="text-xs text-primary hover:underline"
+                className="text-xs text-primary/90 hover:text-primary hover:underline font-medium flex items-center gap-1 transition-colors ml-auto py-1"
               >
-                Esqueci minha senha
+                Esqueci minha senha por e-mail
               </button>
             </div>
             <Button type="submit" className="w-full h-11 hover-lift" disabled={loading}>

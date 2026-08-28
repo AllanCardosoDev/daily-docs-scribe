@@ -106,10 +106,6 @@ export async function fetchIncendiosAcumulado(
   supabase: SupabaseClient<any>,
   reportDateIso: string,
 ) {
-  if (reportDateIso >= "2026-08-04") {
-    return OFFICIAL_CUMULATIVE_04_08_2026.sort((a, b) => compareMunicipios(a.mun, b.mun));
-  }
-
   const { data: rows, error } = await supabase
     .from("daily_reports")
     .select("report_date, shift, incendios")
@@ -121,7 +117,7 @@ export async function fetchIncendiosAcumulado(
     return OFFICIAL_CUMULATIVE_04_08_2026.sort((a, b) => compareMunicipios(a.mun, b.mun));
   }
 
-  // Deduplica relatórios do mesmo dia (dando preferência para o turno 'noturno'/24h)
+  // Deduplica relatórios do mesmo dia (dando preferência para o turno 'noturno'/24h consolidado)
   const byDate = new Map<string, any>();
   for (const r of rows) {
     const cur = byDate.get(r.report_date);

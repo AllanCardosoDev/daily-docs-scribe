@@ -16,6 +16,9 @@ dist-ssr
 .nitro
 .vercel
 *.local
+.env
+.env.*
+!.env.example
 
 # Lovable metadata (platform-specific, must not be committed)
 .lovable/

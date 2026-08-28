@@ -219,21 +219,45 @@ export function parseDailyReportSheet(rows: any[][]): ParsedDailyReport {
   const out: ParsedDailyReport = { efetivo: [], recursos: [], incendios: [], outras: [] };
 
   // --- EFETIVO ---
-  const efIdx = findSection(rows, "EFETIVO");
-  if (efIdx >= 0) {
-    const header = rows[efIdx + 1] ?? [];
-    for (const b of headerBlocks(header)) {
-      const ord = pick(b.labels, "SERV. ORDINARIO", "SERV ORDINARIO", "ORDINARIO");
-      const seg = pick(b.labels, "SEGURANCA", "SEGURANÇA", "SEG. PUBLICA", "SEG");
-      const brig = pick(b.labels, "BRIGADISTA");
-      eachRow(rows, efIdx + 2, b.munCol, (row, mun) => {
+  let efRow = -1;
+  for (let i = 0; i < rows.length; i++) {
+    const rowStr = (rows[i] || []).map((c) => String(c ?? "")).join(" | ");
+    if (/EFETIVO/i.test(rowStr) && rows[i + 1]?.some((c) => /ORDIN[AÁ]RIO/i.test(String(c ?? "")))) {
+      efRow = i;
+      break;
+    }
+  }
+
+  if (efRow >= 0) {
+    const header = rows[efRow + 1] || [];
+    const munCols: number[] = [];
+    header.forEach((c, idx) => {
+      if (norm(c) === "MUNICIPIO" || norm(c) === "BASES TEMPORARIAS") munCols.push(idx);
+    });
+
+    for (const munCol of munCols) {
+      let ordCol = -1;
+      let segCol = -1;
+      let brigCol = -1;
+      for (let c = munCol + 1; c < munCol + 5 && c < header.length; c++) {
+        const h = norm(header[c]);
+        if (h.includes("ORDINARIO")) ordCol = c;
+        else if (h.includes("SEG")) segCol = c;
+        else if (h.includes("BRIGADISTA")) brigCol = c;
+      }
+
+      for (let r = efRow + 2; r < rows.length; r++) {
+        const row = rows[r] || [];
+        const rawMun = String(row[munCol] ?? "").trim();
+        if (!rawMun || /TOTAL/i.test(rawMun)) break;
+        const mun = canonicalMunicipio(rawMun);
         out.efetivo.push({
           mun,
-          ord: ord === undefined ? 0 : num(row[ord]),
-          seg: seg === undefined ? 0 : num(row[seg]),
-          brig: brig === undefined ? 0 : num(row[brig]),
+          ord: ordCol >= 0 ? num(row[ordCol]) : 0,
+          seg: segCol >= 0 ? num(row[segCol]) : 0,
+          brig: brigCol >= 0 ? num(row[brigCol]) : 0,
         });
-      });
+      }
     }
   }
 
@@ -242,13 +266,14 @@ export function parseDailyReportSheet(rows: any[][]): ParsedDailyReport {
   if (recIdx >= 0) {
     const header = rows[recIdx + 1] ?? [];
     for (const b of headerBlocks(header)) {
+      // Apenas o primeiro bloco com MUNICÍPIO (coluna 1) contém as viaturas por município.
+      if (b.munCol > 5) continue;
       eachRow(rows, recIdx + 2, b.munCol, (row, mun) => {
         const extra: Record<string, number> = {};
         let viaturas = 0;
         let aeronaves = 0;
         let embarcacoes = 0;
         for (const [label, col] of b.labels) {
-          // Colunas de resumo da própria planilha não são recursos.
           if (/^(TOTAL|QTD|N°|Nº|SOMA)/.test(label)) continue;
           const v = num(row[col]);
           if (!v) continue;
@@ -257,77 +282,126 @@ export function parseDailyReportSheet(rows: any[][]): ParsedDailyReport {
           else if (label.startsWith("AERONAVE") || label.startsWith("HELICOPTERO")) aeronaves += v;
           else viaturas += v;
         }
-        out.recursos.push({ mun, viaturas, aeronaves, embarcacoes, ...extra });
+        out.recursos.push({ mun: canonicalMunicipio(mun), viaturas, aeronaves, embarcacoes, ...extra });
       });
     }
   }
 
-  // --- INCÊNDIOS (ocorrências do período) ---
-  const incIdx = findSection(rows, "INCENDIOS");
-  if (incIdx >= 0) {
-    const header = rows[incIdx + 1] ?? [];
-    for (const b of headerBlocks(header)) {
-      const urb = pick(b.labels, "INCENDIO URBANO");
-      const flor = pick(b.labels, "INCENDIO FLORESTAL");
-      const focos = pick(b.labels, "FOCOS COMBATIDOS", "FOCOS");
-      const sat = pick(b.labels, "FOCOS DETECTADOS SATELITE", "FOCOS DETECTADOS", "SATELITE");
-      const area = pick(
-        b.labels,
-        "TOTAL DE AREA POR METROS",
-        "TOTAL DE AREA",
-        "AREA POR METROS",
-        "AREA",
-      );
-      if (
-        urb === undefined &&
-        flor === undefined &&
-        focos === undefined &&
-        sat === undefined &&
-        area === undefined
-      )
-        continue;
-      eachRow(rows, incIdx + 2, b.munCol, (row, mun) => {
-        const rawUrb = urb === undefined ? 0 : num(row[urb]);
-        const rawFlor = flor === undefined ? 0 : num(row[flor]);
-        const rawFocos = focos === undefined ? 0 : num(row[focos]);
-        // Se a coluna lida for o acumulado anual (>30), registramos como 0 no diário
-        const isCum = rawUrb > 30 || rawFlor > 30 || rawFocos > 100;
-        out.incendios.push({
-          mun,
-          urb: isCum ? 0 : rawUrb,
-          flor: isCum ? 0 : rawFlor,
-          focos: isCum ? 0 : rawFocos,
-          sat: sat === undefined ? 0 : num(row[sat]),
-          area: area === undefined ? 0 : num(row[area]),
-        });
+  // --- INCÊNDIOS (ocorrências DIÁRIAS do período - APENAS BLOCO 1) ---
+  let incRow = -1;
+  for (let i = 0; i < rows.length; i++) {
+    const rowStr = (rows[i] || []).map((c) => String(c ?? "")).join(" | ");
+    if (/INC[EÊ]NDIOS\s*-\s*OCORR[EÊ]NCIAS DI[AÁ]RIAS/i.test(rowStr)) {
+      incRow = i;
+      break;
+    }
+  }
+
+  if (incRow >= 0) {
+    const header = rows[incRow + 1] || [];
+    let endTable1 = header.length;
+    for (let c = 2; c < header.length; c++) {
+      const h = norm(header[c]);
+      if (h === "MUNICIPIO" || h === "N°" || h === "Nº" || h.startsWith("N")) {
+        endTable1 = c;
+        break;
+      }
+    }
+
+    let munCol = 1;
+    let urbCol = -1;
+    let florCol = -1;
+    let focosCol = -1;
+
+    for (let c = 0; c < endTable1; c++) {
+      const h = norm(header[c]);
+      if (h === "MUNICIPIO") munCol = c;
+      else if (h.includes("URBANO")) urbCol = c;
+      else if (h.includes("FLORESTAL")) florCol = c;
+      else if (h.includes("FOCOS")) focosCol = c;
+    }
+
+    for (let r = incRow + 2; r < rows.length; r++) {
+      const row = rows[r] || [];
+      const rawMun = String(row[munCol] ?? "").trim();
+      if (!rawMun || /TOTAL/i.test(rawMun)) break;
+      const mun = canonicalMunicipio(rawMun);
+      const urb = urbCol >= 0 ? num(row[urbCol]) : 0;
+      const flor = florCol >= 0 ? num(row[florCol]) : 0;
+      const focos = focosCol >= 0 ? num(row[focosCol]) : 0;
+
+      out.incendios.push({
+        mun,
+        urb,
+        flor,
+        focos,
+        sat: 0,
+        area: 0,
       });
     }
   }
 
-  // --- OCORRÊNCIAS (salvamento, acidentes, APH, prevenção, serviços) ---
-  const outIdx = findSection(rows, "OUTRAS OCORRENCIAS");
-  if (outIdx >= 0) {
-    const header = rows[outIdx + 1] ?? [];
-    for (const b of headerBlocks(header)) {
-      const salvamento = pick(b.labels, "SALVAMENTO");
-      const acidentes = pick(b.labels, "ACIDENTES");
-      const aph = pick(b.labels, "APH");
-      const prevencao = pick(b.labels, "ACAO DE PREVENCAO", "PREVENCAO");
-      const servicos = pick(b.labels, "SERVICOS");
-      eachRow(rows, outIdx + 2, b.munCol, (row, mun) => {
-        out.outras.push({
-          mun,
-          salvamento: salvamento === undefined ? 0 : num(row[salvamento]),
-          acidentes: acidentes === undefined ? 0 : num(row[acidentes]),
-          aph: aph === undefined ? 0 : num(row[aph]),
-          prevencao: prevencao === undefined ? 0 : num(row[prevencao]),
-          servicos: servicos === undefined ? 0 : num(row[servicos]),
-        });
+  // --- OUTRAS OCORRÊNCIAS DIÁRIAS (APENAS BLOCO 1) ---
+  let outRow = -1;
+  for (let i = 0; i < rows.length; i++) {
+    const rowStr = (rows[i] || []).map((c) => String(c ?? "")).join(" | ");
+    if (/OUTRAS OCORR[EÊ]NCIAS DI[AÁ]RIAS/i.test(rowStr)) {
+      outRow = i;
+      break;
+    }
+  }
+
+  if (outRow >= 0) {
+    const header = rows[outRow + 1] || [];
+    let endTable1 = header.length;
+    for (let c = 2; c < header.length; c++) {
+      const h = norm(header[c]);
+      if (h.includes("REGIAO") || h.includes("TIPO DE OCORRENCIA")) {
+        endTable1 = c;
+        break;
+      }
+    }
+
+    let munCol = 1;
+    let salvCol = -1;
+    let acidCol = -1;
+    let aphCol = -1;
+    let prevCol = -1;
+    let servCol = -1;
+
+    for (let c = 0; c < endTable1; c++) {
+      const h = norm(header[c]);
+      if (h === "MUNICIPIO") munCol = c;
+      else if (h.includes("SALVAMENTO")) salvCol = c;
+      else if (h.includes("ACIDENTES")) acidCol = c;
+      else if (h.includes("APH")) aphCol = c;
+      else if (h.includes("PREVENCAO")) prevCol = c;
+      else if (h.includes("SERVICOS")) servCol = c;
+    }
+
+    for (let r = outRow + 2; r < rows.length; r++) {
+      const row = rows[r] || [];
+      const rawMun = String(row[munCol] ?? "").trim();
+      if (!rawMun || /TOTAL/i.test(rawMun)) break;
+      const mun = canonicalMunicipio(rawMun);
+      const salv = salvCol >= 0 ? num(row[salvCol]) : 0;
+      const acid = acidCol >= 0 ? num(row[acidCol]) : 0;
+      const aph = aphCol >= 0 ? num(row[aphCol]) : 0;
+      const prev = prevCol >= 0 ? num(row[prevCol]) : 0;
+      const serv = servCol >= 0 ? num(row[servCol]) : 0;
+
+      out.outras.push({
+        mun,
+        salvamento: salv,
+        acidentes: acid,
+        aph,
+        prevencao: prev,
+        servicos: serv,
       });
     }
   }
 
-  // Consolida municípios duplicados (como Boca do Acre), somando seus valores.
+  // Consolidação final e canonicalização única
   const consolidate = <T extends Record<string, any>>(list: T[]) => {
     const map = new Map<string, T>();
     for (const row of list) {
@@ -336,8 +410,7 @@ export function parseDailyReportSheet(rows: any[][]): ParsedDailyReport {
       const mun = canonicalMunicipio(rawMun);
       const existing = map.get(mun);
       if (!existing) {
-        const copy = { ...row, mun };
-        map.set(mun, copy);
+        map.set(mun, { ...row, mun });
       } else {
         for (const [k, v] of Object.entries(row)) {
           if (k === "mun" || k === "municipio") continue;

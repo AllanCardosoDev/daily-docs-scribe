@@ -3,15 +3,17 @@ import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/backend/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Flame } from "lucide-react";
+import { Flame, Database, ShieldCheck } from "lucide-react";
 import { AuthBrandSide } from "@/components/auth/AuthBrandSide";
 import { AuthCredentialsForm } from "@/components/auth/AuthCredentialsForm";
+import { ForgotPasswordDialog } from "@/components/auth/ForgotPasswordDialog";
+import { Badge } from "@/components/ui/badge";
 
 /** Aceita apenas caminhos internos, evitando redirecionamento aberto. */
 function safePath(value: unknown): string {
   const raw = typeof value === "string" ? value : "";
-  if (!raw.startsWith("/") || raw.startsWith("//")) return "/painel";
-  if (raw === "/" || raw.startsWith("/auth") || raw.startsWith("/reset-password")) return "/painel";
+  if (!raw.startsWith("/") || raw.startsWith("//")) return "/dashboard";
+  if (raw === "/" || raw.startsWith("/auth") || raw.startsWith("/reset-password")) return "/dashboard";
   return raw;
 }
 
@@ -30,60 +32,86 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
-function AuthPage() {
+export function AuthPage() {
   const navigate = useNavigate();
   const { redirect: redirectTo } = Route.useSearch();
   const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState("allancardoso.dev@gmail.com");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session?.user) navigate({ to: redirectTo, replace: true });
+      if (data.session?.user) {
+        navigate({ to: redirectTo || "/dashboard", replace: true });
+      }
     });
   }, [navigate, redirectTo]);
 
-  const goToPainel = () => navigate({ to: redirectTo, replace: true });
+  const goToDashboard = () => navigate({ to: redirectTo || "/dashboard", replace: true });
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
     if (loading) return;
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) {
-      setPassword("");
-      toast.error(error.message);
+    const targetEmail = email.trim();
+    if (!targetEmail || !password) {
+      toast.error("Preencha o e-mail e a senha.");
       return;
     }
-    toast.success("Login realizado");
-    goToPainel();
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: targetEmail,
+        password: password,
+      });
+
+      if (error) {
+        toast.error(error.message || "Credenciais inválidas. Verifique seu e-mail e senha.");
+        setLoading(false);
+        return;
+      }
+
+      toast.success(`Bem-vindo, ${data.user?.email}!`);
+      goToDashboard();
+    } catch (err: any) {
+      toast.error(err?.message || "Erro de conexão com o banco de dados.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSignup = async (e: FormEvent) => {
     e.preventDefault();
     if (loading) return;
     setLoading(true);
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/painel`,
-        data: { display_name: name },
-      },
-    });
-    setLoading(false);
-    if (error) {
-      setPassword("");
-      toast.error(error.message);
-      return;
-    }
-    if (data.session) {
-      toast.success("Cadastro criado! Redirecionando...");
-      goToPainel();
-    } else {
-      toast.success("Cadastro criado! Confirme seu e-mail para entrar.");
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/dashboard`,
+          data: { display_name: name },
+        },
+      });
+
+      if (error) {
+        toast.error(error.message);
+        setLoading(false);
+        return;
+      }
+
+      if (data.session) {
+        toast.success("Cadastro criado! Redirecionando...");
+        goToDashboard();
+      } else {
+        toast.success("Cadastro criado! Confirme seu e-mail para entrar.");
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Erro no cadastro.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -95,51 +123,39 @@ function AuthPage() {
         options: { redirectTo: `${window.location.origin}/auth` },
       });
       if (error) {
-        setLoading(false);
-        toast.error(error.message ?? "Falha ao autenticar com Google");
-        return;
+        toast.error("Não foi possível iniciar o login com Google.");
+        console.error(error);
       }
-      // O navegador é redirecionado para o Google; libera o botão se algo travar.
-      window.setTimeout(() => setLoading(false), 8000);
-    } catch (e) {
+    } finally {
       setLoading(false);
-      toast.error((e as Error)?.message ?? "Falha ao autenticar com Google");
     }
-  };
-  /** Envia o e-mail de redefinição de senha para o endereço informado. */
-  const handleForgotPassword = async () => {
-    const target = email.trim();
-    if (!target) {
-      toast.error("Informe seu e-mail no campo acima para redefinir a senha.");
-      return;
-    }
-    setLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(target, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-    setLoading(false);
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    toast.success("Enviamos um link de redefinição para o seu e-mail.");
   };
 
   return (
-    <div className="min-h-dvh grid lg:grid-cols-2 bg-muted/40">
+    <main className="min-h-dvh flex bg-background">
       <AuthBrandSide />
 
-      <section className="flex items-center justify-center px-4 py-8 sm:py-12">
-        <Card className="w-full max-w-md shadow-elevated border-border animate-fade-in-up">
-          <CardHeader className="text-center space-y-2 px-4 sm:px-6 pt-6">
-            <div className="mx-auto w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-brand flex items-center justify-center shadow-elevated ring-4 ring-white lg:hidden">
-              <Flame className="w-7 h-7 sm:w-8 sm:h-8 text-white" aria-hidden="true" />
+      <section
+        aria-label="Formulário de acesso"
+        className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 md:p-12"
+      >
+        <Card className="w-full max-w-md border-border shadow-elevated animate-fade-in-up">
+          <CardHeader className="space-y-2 text-center sm:text-left">
+            <div className="flex items-center justify-between">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-brand flex items-center justify-center shadow-elevated ring-4 ring-emerald-500/10">
+                <Flame className="w-6 h-6 text-white" aria-hidden="true" />
+              </div>
+              <Badge variant="outline" className="text-[11px] gap-1 bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800">
+                <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                Base Oficial (792 Relatórios)
+              </Badge>
             </div>
-            <CardTitle className="font-display text-xl sm:text-2xl tracking-tight">
-              Acesse o painel
+
+            <CardTitle className="font-display text-2xl tracking-tight">
+              Acesso ao Sistema
             </CardTitle>
-            <CardDescription className="text-xs sm:text-sm">
-              Entre com sua conta institucional para continuar
+            <CardDescription className="text-sm">
+              Entre com suas credenciais oficiais do CBMAM.
             </CardDescription>
           </CardHeader>
 
@@ -155,11 +171,17 @@ function AuthPage() {
               onLoginSubmit={handleLogin}
               onSignupSubmit={handleSignup}
               onGoogleClick={handleGoogle}
-              onForgotPassword={handleForgotPassword}
+              onForgotPassword={() => setForgotPasswordOpen(true)}
             />
           </CardContent>
         </Card>
       </section>
-    </div>
+
+      <ForgotPasswordDialog
+        open={forgotPasswordOpen}
+        onOpenChange={setForgotPasswordOpen}
+        defaultEmail={email}
+      />
+    </main>
   );
 }

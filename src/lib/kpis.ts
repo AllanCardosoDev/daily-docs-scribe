@@ -12,7 +12,7 @@ export interface Kpi {
   ring: string;
 }
 
-export function computeKpis(data: SheetsData): Kpi[] {
+export function computeKpis(data: SheetsData, isRange?: boolean): Kpi[] {
   const sum = (list: any[], key: string) =>
     list?.reduce((acc, r) => acc + (Number(r[key]) || 0), 0) ?? 0;
 
@@ -62,11 +62,13 @@ export function computeKpis(data: SheetsData): Kpi[] {
       return acc + keys.reduce((s, k) => s + (Number(r[k]) || 0), 0);
     }, 0) ?? 0;
 
+  const rangeActive = Boolean(isRange || (data as any)?.isRange);
+
   return [
     {
       label: "Recursos em campo",
       value: NF.format(totalRecursos),
-      hint: "Meios materiais do dia",
+      hint: rangeActive ? "Meios mobilizados no período" : "Meios materiais do dia",
       Icon: Car,
       accent: "linear-gradient(to bottom right, #3b82f6, #2563eb)",
       iconClass: "bg-blue-500/10 text-blue-600",
@@ -75,25 +77,25 @@ export function computeKpis(data: SheetsData): Kpi[] {
     {
       label: "Efetivo empenhado",
       value: NF.format(totalEfetivo),
-      hint: "Efetivo do dia",
+      hint: rangeActive ? "Efetivo mobilizado no período" : "Efetivo do dia",
       Icon: Users,
       accent: "linear-gradient(to bottom right, #10b981, #059669)",
       iconClass: "bg-emerald-500/10 text-emerald-600",
       ring: "ring-emerald-500/10",
     },
     {
-      label: "Incêndios (do dia)",
+      label: rangeActive ? "Incêndios (do período)" : "Incêndios (do dia)",
       value: NF.format(totalIncendios),
-      hint: "Ocorrências registradas no dia",
+      hint: rangeActive ? "Total acumulado no período" : "Ocorrências registradas no dia",
       Icon: Flame,
       accent: "linear-gradient(to bottom right, #ef4444, #dc2626)",
       iconClass: "bg-red-500/10 text-red-600",
       ring: "ring-red-500/10",
     },
     {
-      label: "Outras ocorrências (do dia)",
+      label: rangeActive ? "Outras ocorrências (do período)" : "Outras ocorrências (do dia)",
       value: NF.format(totalOcorrencias),
-      hint: "Salvamento, APH e serviços no dia",
+      hint: rangeActive ? "Salvamento, APH e serviços no período" : "Salvamento, APH e serviços no dia",
       Icon: ClipboardList,
       accent: "linear-gradient(to bottom right, #f59e0b, #d97706)",
       iconClass: "bg-amber-500/10 text-amber-600",

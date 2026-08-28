@@ -4,8 +4,14 @@ import { TrendingUp } from "lucide-react";
 import type { SheetsData } from "@/lib/sheets.types";
 import { computeKpis, type Kpi } from "@/lib/kpis";
 
-export const KpiCards = memo(function KpiCards({ data }: { data: SheetsData }) {
-  const items = useMemo(() => computeKpis(data), [data]);
+export const KpiCards = memo(function KpiCards({
+  data,
+  isRange,
+}: {
+  data: SheetsData;
+  isRange?: boolean;
+}) {
+  const items = useMemo(() => computeKpis(data, isRange), [data, isRange]);
 
   return (
     <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

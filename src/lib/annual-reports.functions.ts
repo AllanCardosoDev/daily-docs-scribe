@@ -17,6 +17,14 @@ export type AnnualIncendioRow = {
   total: number;
 };
 
+export type MonthlyTerritorialSummary = {
+  month: number;
+  manaus: { urb: number; flor: number; focos: number; total: number };
+  interior: { urb: number; flor: number; focos: number; total: number };
+  amazonas: { urb: number; flor: number; focos: number; total: number };
+  rows: AnnualIncendioRow[];
+};
+
 export type AnnualOutrasRow = {
   mun: string;
   salvamento: number;
@@ -47,6 +55,8 @@ export type AnnualYearSummary = {
   year: number;
   from: string | null;
   to: string | null;
+  // Breakdown mensal territorial de Incêndios
+  monthly: Record<number, MonthlyTerritorialSummary>;
   // Seções completas
   incendios: {
     rows: AnnualIncendioRow[];
@@ -114,6 +124,7 @@ export const getAnnualIncendios = createServerFn({ method: "GET" })
         min: string | null;
         max: string | null;
         incMap: Map<string, AnnualIncendioRow>;
+        monthIncMap: Map<number, Map<string, AnnualIncendioRow>>;
         outMap: Map<string, AnnualOutrasRow>;
         efMap: Map<string, AnnualEfetivoRow>;
         recMap: Map<string, AnnualRecursosRow>;
@@ -125,6 +136,7 @@ export const getAnnualIncendios = createServerFn({ method: "GET" })
         min: null,
         max: null,
         incMap: new Map(),
+        monthIncMap: new Map(),
         outMap: new Map(),
         efMap: new Map(),
         recMap: new Map(),
@@ -133,6 +145,7 @@ export const getAnnualIncendios = createServerFn({ method: "GET" })
 
     for (const r of all) {
       const y = Number(r.report_date.slice(0, 4));
+      const m = Number(r.report_date.slice(5, 7));
       const bucket = byYear.get(y);
       if (!bucket) continue;
 
@@ -156,11 +169,27 @@ export const getAnnualIncendios = createServerFn({ method: "GET" })
         const mun = canonicalMunicipio(rawMun);
         if (mun === "—") continue;
         const cur = bucket.incMap.get(mun) ?? { mun, urb: 0, flor: 0, focos: 0, total: 0 };
-        cur.urb += Number(item?.urb) || 0;
-        cur.flor += Number(item?.flor) || 0;
-        cur.focos += Number(item?.focos) || 0;
+        const urb = Number(item?.urb) || 0;
+        const flor = Number(item?.flor) || 0;
+        const focos = Number(item?.focos) || 0;
+        cur.urb += urb;
+        cur.flor += flor;
+        cur.focos += focos;
         cur.total = cur.urb + cur.flor;
         bucket.incMap.set(mun, cur);
+
+        if (m >= 1 && m <= 12) {
+          if (!bucket.monthIncMap.has(m)) {
+            bucket.monthIncMap.set(m, new Map());
+          }
+          const mSub = bucket.monthIncMap.get(m)!;
+          const mCur = mSub.get(mun) ?? { mun, urb: 0, flor: 0, focos: 0, total: 0 };
+          mCur.urb += urb;
+          mCur.flor += flor;
+          mCur.focos += focos;
+          mCur.total = mCur.urb + mCur.flor;
+          mSub.set(mun, mCur);
+        }
       }
 
       // Ocorrências / Atendimentos Diversos
@@ -295,10 +324,61 @@ export const getAnnualIncendios = createServerFn({ method: "GET" })
         { viaturas: 0, aeronaves: 0, embarcacoes: 0, total: 0 },
       );
 
+      const monthly: Record<number, MonthlyTerritorialSummary> = {};
+      for (let m = 1; m <= 12; m++) {
+        const mSub = bucket.monthIncMap.get(m) ?? new Map<string, AnnualIncendioRow>();
+        const mRows = Array.from(mSub.values()).sort((a, b) =>
+          isManaus(a.mun) !== isManaus(b.mun)
+            ? isManaus(a.mun)
+              ? -1
+              : 1
+            : b.total - a.total || a.mun.localeCompare(b.mun, "pt-BR"),
+        );
+
+        let manausUrb = 0, manausFlor = 0, manausFocos = 0;
+        let interiorUrb = 0, interiorFlor = 0, interiorFocos = 0;
+
+        for (const row of mRows) {
+          if (isManaus(row.mun)) {
+            manausUrb += row.urb;
+            manausFlor += row.flor;
+            manausFocos += row.focos;
+          } else {
+            interiorUrb += row.urb;
+            interiorFlor += row.flor;
+            interiorFocos += row.focos;
+          }
+        }
+
+        monthly[m] = {
+          month: m,
+          manaus: {
+            urb: manausUrb,
+            flor: manausFlor,
+            focos: manausFocos,
+            total: manausUrb + manausFlor,
+          },
+          interior: {
+            urb: interiorUrb,
+            flor: interiorFlor,
+            focos: interiorFocos,
+            total: interiorUrb + interiorFlor,
+          },
+          amazonas: {
+            urb: manausUrb + interiorUrb,
+            flor: manausFlor + interiorFlor,
+            focos: manausFocos + interiorFocos,
+            total: manausUrb + interiorUrb + manausFlor + interiorFlor,
+          },
+          rows: mRows,
+        };
+      }
+
       return {
         year,
         from: bucket.min,
         to: bucket.max,
+        monthly,
         incendios: { rows: incRows, totals: incTotals },
         outras: { rows: outRows, totals: outTotals },
         efetivo: { rows: efRows, totals: efTotals },
