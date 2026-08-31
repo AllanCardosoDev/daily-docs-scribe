@@ -136,13 +136,13 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
       case "aug2026":
         onChange({
           reportDate: new Date(2026, 7, 1),
-          endDate: new Date(2026, 7, 27),
+          endDate: new Date(2026, 7, 31),
         });
         break;
       case "all":
         onChange({
           reportDate: new Date(2026, 6, 1),
-          endDate: new Date(2026, 7, 27),
+          endDate: new Date(2026, 7, 31),
         });
         break;
     }

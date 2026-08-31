@@ -50,36 +50,36 @@ function DashboardPage() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [pdfQuality, setPdfQuality] = useState<"standard" | "high">("standard");
 
-  const [filters, setFilters] = useState<DashboardFilterState>({
-    reportDate: null,
-    endDate: null,
-    shift: "todos",
-    selectedCalha: "todas",
-    selectedMunicipio: "todos",
-    searchQuery: "",
+  const [filters, setFilters] = useState<DashboardFilterState>(() => {
+    const d = new Date(2026, 7, 30);
+    return {
+      reportDate: d,
+      endDate: d,
+      shift: "todos",
+      selectedCalha: "todas",
+      selectedMunicipio: "todos",
+      searchQuery: "",
+    };
   });
 
   const getLatest = useServerFn(getLatestReportDate);
 
   useEffect(() => {
-    getLatest().then((dateStr) => {
-      if (dateStr) {
-        const [y, m, d] = dateStr.split("-").map(Number);
-        const dt = new Date(y, m - 1, d);
-        setFilters((prev) => ({
-          ...prev,
-          reportDate: dt,
-          endDate: dt,
-        }));
-      } else {
-        const today = new Date();
-        setFilters((prev) => ({
-          ...prev,
-          reportDate: today,
-          endDate: today,
-        }));
-      }
-    });
+    getLatest()
+      .then((dateStr) => {
+        if (dateStr) {
+          const [y, m, d] = dateStr.split("-").map(Number);
+          const dt = new Date(y, m - 1, d);
+          setFilters((prev) => ({
+            ...prev,
+            reportDate: dt,
+            endDate: dt,
+          }));
+        }
+      })
+      .catch((err) => {
+        console.error("Erro ao sincronizar última data:", err);
+      });
   }, [getLatest]);
 
   const { configQuery, dataQuery, refresh } = useSheetsDashboard(
