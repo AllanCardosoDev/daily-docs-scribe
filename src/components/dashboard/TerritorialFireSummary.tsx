@@ -88,9 +88,9 @@ export function MonthMultiSelectDropdown({
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "w-full h-9 rounded-lg border border-slate-700/80 bg-slate-900/90 hover:bg-slate-900 text-foreground px-3 text-xs flex items-center justify-between font-medium shadow-sm transition-all focus:outline-none focus:ring-1",
+          "w-full h-9 rounded-lg border border-input bg-background hover:bg-muted/50 text-foreground px-3 text-xs flex items-center justify-between font-medium shadow-sm transition-all focus:outline-none focus:ring-2",
           ringFocusClass,
-          isOpen && "ring-1 ring-sky-500 border-sky-500"
+          isOpen && "ring-2 ring-primary border-primary"
         )}
       >
         <span className="truncate">
@@ -106,20 +106,20 @@ export function MonthMultiSelectDropdown({
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-xl bg-[#09101c] border border-slate-800 shadow-2xl p-3.5 min-w-[280px] animate-in fade-in zoom-in-95 duration-100">
+        <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-xl bg-popover text-popover-foreground border border-border shadow-2xl p-3.5 min-w-[280px] animate-in fade-in zoom-in-95 duration-100">
           {/* Ações Selecionar Todos / Limpar */}
-          <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-800/80 text-xs">
+          <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-border text-xs">
             <button
               type="button"
               onClick={handleSelectAll}
-              className="text-sky-400 hover:text-sky-300 font-semibold hover:underline transition-colors"
+              className="text-primary hover:underline font-bold transition-colors"
             >
               Selecionar todos
             </button>
             <button
               type="button"
               onClick={handleClearAll}
-              className="text-sky-400 hover:text-sky-300 font-semibold hover:underline transition-colors"
+              className="text-primary hover:underline font-bold transition-colors"
             >
               Limpar
             </button>
@@ -134,15 +134,15 @@ export function MonthMultiSelectDropdown({
                 return (
                   <label
                     key={m.value}
-                    className="flex items-center gap-2 cursor-pointer py-1 px-1.5 rounded hover:bg-slate-800/60 transition-colors select-none text-slate-200"
+                    className="flex items-center gap-2 cursor-pointer py-1.5 px-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors select-none text-foreground text-xs font-medium"
                   >
                     <input
                       type="checkbox"
                       checked={checked}
                       onChange={() => toggleMonth(m.value)}
-                      className="rounded border-slate-600 text-sky-500 focus:ring-sky-500 bg-slate-900 h-3.5 w-3.5 accent-sky-500 cursor-pointer"
+                      className="rounded border-input text-primary focus:ring-primary h-3.5 w-3.5 accent-primary cursor-pointer"
                     />
-                    <span className="text-[11px] font-medium">{m.label}</span>
+                    <span>{m.label}</span>
                   </label>
                 );
               })}
@@ -155,15 +155,15 @@ export function MonthMultiSelectDropdown({
                 return (
                   <label
                     key={m.value}
-                    className="flex items-center gap-2 cursor-pointer py-1 px-1.5 rounded hover:bg-slate-800/60 transition-colors select-none text-slate-200"
+                    className="flex items-center gap-2 cursor-pointer py-1.5 px-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors select-none text-foreground text-xs font-medium"
                   >
                     <input
                       type="checkbox"
                       checked={checked}
                       onChange={() => toggleMonth(m.value)}
-                      className="rounded border-slate-600 text-sky-500 focus:ring-sky-500 bg-slate-900 h-3.5 w-3.5 accent-sky-500 cursor-pointer"
+                      className="rounded border-input text-primary focus:ring-primary h-3.5 w-3.5 accent-primary cursor-pointer"
                     />
-                    <span className="text-[11px] font-medium">{m.label}</span>
+                    <span>{m.label}</span>
                   </label>
                 );
               })}
@@ -189,25 +189,25 @@ const CARDS_CONFIG: TerritorialCardConfig[] = [
     id: "manaus",
     title: "Manaus",
     icon: Building2,
-    borderColor: "border-sky-500/40 hover:border-sky-500/60",
+    borderColor: "border-sky-500/30 hover:border-sky-500/60",
     badgeBg: "bg-sky-500/15 border border-sky-500/30",
-    badgeText: "text-sky-400",
+    badgeText: "text-sky-600 dark:text-sky-400",
   },
   {
     id: "interior",
     title: "Interior",
     icon: Landmark,
-    borderColor: "border-purple-500/40 hover:border-purple-500/60",
+    borderColor: "border-purple-500/30 hover:border-purple-500/60",
     badgeBg: "bg-purple-500/15 border border-purple-500/30",
-    badgeText: "text-purple-400",
+    badgeText: "text-purple-600 dark:text-purple-400",
   },
   {
     id: "amazonas",
     title: "Amazonas",
     icon: MapPin,
-    borderColor: "border-amber-500/40 hover:border-amber-500/60",
+    borderColor: "border-amber-500/30 hover:border-amber-500/60",
     badgeBg: "bg-amber-500/15 border border-amber-500/30",
-    badgeText: "text-amber-400",
+    badgeText: "text-amber-600 dark:text-amber-400",
   },
 ];
 
@@ -218,18 +218,15 @@ export function TerritorialFireSummary({ annualData, className }: TerritorialFir
     return annualData.map((d) => d.year).sort((a, b) => b - a);
   }, [annualData]);
 
-  // Filtros individuais por card
-  // Manaus: 2025, Jan + Mar
-  const [yearManaus, setYearManaus] = useState<number>(2025);
-  const [monthsManaus, setMonthsManaus] = useState<number[]>([1, 3]);
+  // Filtros individuais por card: inicializa com 2026 e mês 8 (Agosto, com dados ativos)
+  const [yearManaus, setYearManaus] = useState<number>(2026);
+  const [monthsManaus, setMonthsManaus] = useState<number[]>([8]);
 
-  // Interior: 2025, Jan + Mar
-  const [yearInterior, setYearInterior] = useState<number>(2025);
-  const [monthsInterior, setMonthsInterior] = useState<number[]>([1, 3]);
+  const [yearInterior, setYearInterior] = useState<number>(2026);
+  const [monthsInterior, setMonthsInterior] = useState<number[]>([8]);
 
-  // Amazonas: 2025, Março
-  const [yearAmazonas, setYearAmazonas] = useState<number>(2025);
-  const [monthsAmazonas, setMonthsAmazonas] = useState<number[]>([3]);
+  const [yearAmazonas, setYearAmazonas] = useState<number>(2026);
+  const [monthsAmazonas, setMonthsAmazonas] = useState<number[]>([8]);
 
   // Cálculo dos totais para Manaus
   const statsManaus = useMemo(() => {
@@ -318,7 +315,7 @@ export function TerritorialFireSummary({ annualData, className }: TerritorialFir
         {/* CARD 1: MANAUS */}
         <div
           className={cn(
-            "rounded-2xl bg-[#09111e]/90 border p-4 sm:p-5 shadow-lg space-y-4 transition-all",
+            "rounded-2xl bg-card border p-4 sm:p-5 shadow-sm space-y-4 hover:shadow-md transition-all",
             CARDS_CONFIG[0].borderColor
           )}
         >
@@ -327,33 +324,33 @@ export function TerritorialFireSummary({ annualData, className }: TerritorialFir
             <div className={cn("p-2 rounded-xl shrink-0", CARDS_CONFIG[0].badgeBg, CARDS_CONFIG[0].badgeText)}>
               <Building2 className="w-5 h-5" />
             </div>
-            <h3 className="font-bold text-base text-foreground">Manaus</h3>
+            <h3 className="font-bold text-base text-foreground tracking-tight">Manaus</h3>
           </div>
 
           {/* Subcards de Estatísticas lado a lado */}
           <div className="grid grid-cols-2 gap-3">
             {/* Incêndios Urbanos */}
-            <div className="rounded-xl bg-[#1a1410] border border-amber-800/40 p-3.5 flex flex-col justify-between min-h-[90px]">
+            <div className="rounded-xl bg-amber-500/10 dark:bg-amber-950/30 border border-amber-500/25 p-3.5 flex flex-col justify-between min-h-[95px] shadow-sm">
               <div className="flex items-start justify-between">
-                <span className="text-3xl font-black text-amber-500 tabular-nums leading-none">
+                <span className="text-3xl font-black text-amber-600 dark:text-amber-400 tabular-nums leading-none">
                   {NF.format(statsManaus.urb)}
                 </span>
-                <Flame className="w-4 h-4 text-amber-500/80" />
+                <Flame className="w-4 h-4 text-amber-600 dark:text-amber-400" />
               </div>
-              <span className="text-[11px] font-medium text-slate-300 mt-2">
+              <span className="text-xs font-semibold text-foreground/80 mt-2">
                 Incêndios urbanos
               </span>
             </div>
 
             {/* Incêndios Florestais */}
-            <div className="rounded-xl bg-[#0d1d18] border border-emerald-800/40 p-3.5 flex flex-col justify-between min-h-[90px]">
+            <div className="rounded-xl bg-emerald-500/10 dark:bg-emerald-950/30 border border-emerald-500/25 p-3.5 flex flex-col justify-between min-h-[95px] shadow-sm">
               <div className="flex items-start justify-between">
-                <span className="text-3xl font-black text-emerald-500 tabular-nums leading-none">
+                <span className="text-3xl font-black text-emerald-600 dark:text-emerald-400 tabular-nums leading-none">
                   {NF.format(statsManaus.flor)}
                 </span>
-                <TreePine className="w-4 h-4 text-emerald-500/80" />
+                <TreePine className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               </div>
-              <span className="text-[11px] font-medium text-slate-300 mt-2">
+              <span className="text-xs font-semibold text-foreground/80 mt-2">
                 Incêndios florestais
               </span>
             </div>
@@ -362,13 +359,13 @@ export function TerritorialFireSummary({ annualData, className }: TerritorialFir
           {/* Controles de Filtro: Ano e Meses */}
           <div className="space-y-2.5 pt-1">
             <div>
-              <label className="text-[11px] font-semibold text-slate-400 block mb-1">
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">
                 Ano
               </label>
               <select
                 value={yearManaus}
                 onChange={(e) => setYearManaus(Number(e.target.value))}
-                className="w-full h-9 rounded-lg border border-slate-700/80 bg-slate-900/90 text-foreground px-3 text-xs font-semibold shadow-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
+                className="w-full h-9 rounded-lg border border-input bg-background text-foreground px-3 text-xs font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500/40 cursor-pointer"
               >
                 {availableYears.map((y) => (
                   <option key={y} value={y}>
@@ -379,7 +376,7 @@ export function TerritorialFireSummary({ annualData, className }: TerritorialFir
             </div>
 
             <div>
-              <label className="text-[11px] font-semibold text-slate-400 block mb-1">
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">
                 Meses
               </label>
               <MonthMultiSelectDropdown
@@ -394,7 +391,7 @@ export function TerritorialFireSummary({ annualData, className }: TerritorialFir
         {/* CARD 2: INTERIOR */}
         <div
           className={cn(
-            "rounded-2xl bg-[#09111e]/90 border p-4 sm:p-5 shadow-lg space-y-4 transition-all",
+            "rounded-2xl bg-card border p-4 sm:p-5 shadow-sm space-y-4 hover:shadow-md transition-all",
             CARDS_CONFIG[1].borderColor
           )}
         >
@@ -403,33 +400,33 @@ export function TerritorialFireSummary({ annualData, className }: TerritorialFir
             <div className={cn("p-2 rounded-xl shrink-0", CARDS_CONFIG[1].badgeBg, CARDS_CONFIG[1].badgeText)}>
               <Landmark className="w-5 h-5" />
             </div>
-            <h3 className="font-bold text-base text-foreground">Interior</h3>
+            <h3 className="font-bold text-base text-foreground tracking-tight">Interior</h3>
           </div>
 
           {/* Subcards de Estatísticas lado a lado */}
           <div className="grid grid-cols-2 gap-3">
             {/* Incêndios Urbanos */}
-            <div className="rounded-xl bg-[#1a1410] border border-amber-800/40 p-3.5 flex flex-col justify-between min-h-[90px]">
+            <div className="rounded-xl bg-amber-500/10 dark:bg-amber-950/30 border border-amber-500/25 p-3.5 flex flex-col justify-between min-h-[95px] shadow-sm">
               <div className="flex items-start justify-between">
-                <span className="text-3xl font-black text-amber-500 tabular-nums leading-none">
+                <span className="text-3xl font-black text-amber-600 dark:text-amber-400 tabular-nums leading-none">
                   {NF.format(statsInterior.urb)}
                 </span>
-                <Flame className="w-4 h-4 text-amber-500/80" />
+                <Flame className="w-4 h-4 text-amber-600 dark:text-amber-400" />
               </div>
-              <span className="text-[11px] font-medium text-slate-300 mt-2">
+              <span className="text-xs font-semibold text-foreground/80 mt-2">
                 Incêndios urbanos
               </span>
             </div>
 
             {/* Incêndios Florestais */}
-            <div className="rounded-xl bg-[#0d1d18] border border-emerald-800/40 p-3.5 flex flex-col justify-between min-h-[90px]">
+            <div className="rounded-xl bg-emerald-500/10 dark:bg-emerald-950/30 border border-emerald-500/25 p-3.5 flex flex-col justify-between min-h-[95px] shadow-sm">
               <div className="flex items-start justify-between">
-                <span className="text-3xl font-black text-emerald-500 tabular-nums leading-none">
+                <span className="text-3xl font-black text-emerald-600 dark:text-emerald-400 tabular-nums leading-none">
                   {NF.format(statsInterior.flor)}
                 </span>
-                <TreePine className="w-4 h-4 text-emerald-500/80" />
+                <TreePine className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               </div>
-              <span className="text-[11px] font-medium text-slate-300 mt-2">
+              <span className="text-xs font-semibold text-foreground/80 mt-2">
                 Incêndios florestais
               </span>
             </div>
@@ -438,13 +435,13 @@ export function TerritorialFireSummary({ annualData, className }: TerritorialFir
           {/* Controles de Filtro: Ano e Meses */}
           <div className="space-y-2.5 pt-1">
             <div>
-              <label className="text-[11px] font-semibold text-slate-400 block mb-1">
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">
                 Ano
               </label>
               <select
                 value={yearInterior}
                 onChange={(e) => setYearInterior(Number(e.target.value))}
-                className="w-full h-9 rounded-lg border border-slate-700/80 bg-slate-900/90 text-foreground px-3 text-xs font-semibold shadow-sm focus:outline-none focus:ring-1 focus:ring-purple-500"
+                className="w-full h-9 rounded-lg border border-input bg-background text-foreground px-3 text-xs font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500/40 cursor-pointer"
               >
                 {availableYears.map((y) => (
                   <option key={y} value={y}>
@@ -455,7 +452,7 @@ export function TerritorialFireSummary({ annualData, className }: TerritorialFir
             </div>
 
             <div>
-              <label className="text-[11px] font-semibold text-slate-400 block mb-1">
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">
                 Meses
               </label>
               <MonthMultiSelectDropdown
@@ -470,7 +467,7 @@ export function TerritorialFireSummary({ annualData, className }: TerritorialFir
         {/* CARD 3: AMAZONAS */}
         <div
           className={cn(
-            "rounded-2xl bg-[#09111e]/90 border p-4 sm:p-5 shadow-lg space-y-4 transition-all",
+            "rounded-2xl bg-card border p-4 sm:p-5 shadow-sm space-y-4 hover:shadow-md transition-all",
             CARDS_CONFIG[2].borderColor
           )}
         >
@@ -479,33 +476,33 @@ export function TerritorialFireSummary({ annualData, className }: TerritorialFir
             <div className={cn("p-2 rounded-xl shrink-0", CARDS_CONFIG[2].badgeBg, CARDS_CONFIG[2].badgeText)}>
               <MapPin className="w-5 h-5" />
             </div>
-            <h3 className="font-bold text-base text-foreground">Amazonas</h3>
+            <h3 className="font-bold text-base text-foreground tracking-tight">Amazonas</h3>
           </div>
 
           {/* Subcards de Estatísticas lado a lado */}
           <div className="grid grid-cols-2 gap-3">
             {/* Incêndios Urbanos */}
-            <div className="rounded-xl bg-[#1a1410] border border-amber-800/40 p-3.5 flex flex-col justify-between min-h-[90px]">
+            <div className="rounded-xl bg-amber-500/10 dark:bg-amber-950/30 border border-amber-500/25 p-3.5 flex flex-col justify-between min-h-[95px] shadow-sm">
               <div className="flex items-start justify-between">
-                <span className="text-3xl font-black text-amber-500 tabular-nums leading-none">
+                <span className="text-3xl font-black text-amber-600 dark:text-amber-400 tabular-nums leading-none">
                   {NF.format(statsAmazonas.urb)}
                 </span>
-                <Flame className="w-4 h-4 text-amber-500/80" />
+                <Flame className="w-4 h-4 text-amber-600 dark:text-amber-400" />
               </div>
-              <span className="text-[11px] font-medium text-slate-300 mt-2">
+              <span className="text-xs font-semibold text-foreground/80 mt-2">
                 Incêndios urbanos
               </span>
             </div>
 
             {/* Incêndios Florestais */}
-            <div className="rounded-xl bg-[#0d1d18] border border-emerald-800/40 p-3.5 flex flex-col justify-between min-h-[90px]">
+            <div className="rounded-xl bg-emerald-500/10 dark:bg-emerald-950/30 border border-emerald-500/25 p-3.5 flex flex-col justify-between min-h-[95px] shadow-sm">
               <div className="flex items-start justify-between">
-                <span className="text-3xl font-black text-emerald-500 tabular-nums leading-none">
+                <span className="text-3xl font-black text-emerald-600 dark:text-emerald-400 tabular-nums leading-none">
                   {NF.format(statsAmazonas.flor)}
                 </span>
-                <TreePine className="w-4 h-4 text-emerald-500/80" />
+                <TreePine className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               </div>
-              <span className="text-[11px] font-medium text-slate-300 mt-2">
+              <span className="text-xs font-semibold text-foreground/80 mt-2">
                 Incêndios florestais
               </span>
             </div>
@@ -514,13 +511,13 @@ export function TerritorialFireSummary({ annualData, className }: TerritorialFir
           {/* Controles de Filtro: Ano e Meses */}
           <div className="space-y-2.5 pt-1">
             <div>
-              <label className="text-[11px] font-semibold text-slate-400 block mb-1">
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">
                 Ano
               </label>
               <select
                 value={yearAmazonas}
                 onChange={(e) => setYearAmazonas(Number(e.target.value))}
-                className="w-full h-9 rounded-lg border border-slate-700/80 bg-slate-900/90 text-foreground px-3 text-xs font-semibold shadow-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
+                className="w-full h-9 rounded-lg border border-input bg-background text-foreground px-3 text-xs font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 cursor-pointer"
               >
                 {availableYears.map((y) => (
                   <option key={y} value={y}>
@@ -531,7 +528,7 @@ export function TerritorialFireSummary({ annualData, className }: TerritorialFir
             </div>
 
             <div>
-              <label className="text-[11px] font-semibold text-slate-400 block mb-1">
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">
                 Meses
               </label>
               <MonthMultiSelectDropdown
