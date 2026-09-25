@@ -6,6 +6,7 @@ import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { DashboardFooter } from "@/components/dashboard/DashboardFooter";
 import { ScrollToTop } from "@/components/dashboard/ScrollToTop";
 import { DashboardAnalytics } from "@/components/dashboard/DashboardAnalytics";
+import { EditableHeader } from "@/components/dashboard/EditableHeader";
 import {
   DashboardFilterBar,
   type DashboardFilterState,
@@ -82,7 +83,7 @@ function DashboardPage() {
       });
   }, [getLatest]);
 
-  const { configQuery, dataQuery, refresh } = useSheetsDashboard(
+  const { configQuery, dataQuery, refresh, savers, canEdit } = useSheetsDashboard(
     filters.reportDate,
     filters.endDate
   );
@@ -307,6 +308,13 @@ function DashboardPage() {
               onRefresh={refresh}
               onExportXlsx={exportXlsx}
               onExportPdf={exportPdf}
+            />
+
+            {/* Editor diário do documento */}
+            <EditableHeader
+              header={filteredData.header ?? {}}
+              editable={canEdit}
+              onSave={savers.header}
             />
 
             {/* Cartões Executivos de KPIs */}

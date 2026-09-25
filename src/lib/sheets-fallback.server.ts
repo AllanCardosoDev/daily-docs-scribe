@@ -270,7 +270,7 @@ export async function loadReportByDate(
 ): Promise<{ data: SheetsData; found: boolean }> {
   const { data: row, error } = await supabase
     .from("daily_reports")
-    .select("report_date, shift, efetivo, recursos, incendios, outras, updated_at")
+    .select("report_date, shift, efetivo, recursos, incendios, outras, header, updated_at")
     .eq("report_date", dateIso)
     .order("shift", { ascending: false }) // 24h (completo) antes de parcial se ambos existirem
     .limit(1)

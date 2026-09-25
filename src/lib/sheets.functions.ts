@@ -232,6 +232,7 @@ export const saveSheetsData = createServerFn({ method: "POST" })
 
     const patch = data.patch;
     const payload: any = { updated_by: context.userId };
+    if (patch.header) payload.header = patch.header;
     if (patch.efetivo) payload.efetivo = patch.efetivo;
     if (patch.recursos) payload.recursos = patch.recursos;
     if (patch.incendios_diario) payload.incendios = patch.incendios_diario;
@@ -250,6 +251,7 @@ export const saveSheetsData = createServerFn({ method: "POST" })
       .from("daily_reports")
       .insert({
         ...payload,
+        header: patch.header ?? {},
         report_date: iso,
         shift: "noturno",
         created_by: context.userId,
