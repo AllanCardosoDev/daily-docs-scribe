@@ -317,7 +317,7 @@ function TotaisPage() {
   }, [qComp2.data, shift, compMonths]);
 
 
-  const efetivoFull = useMemo(() => aggregateSnapshot(rows, "efetivo", ["ord", "seg", "brig"]), [rows]);
+  const efetivoFull = useMemo(() => aggregateSnapshot(rows, "efetivo", ["ord", "seg", "brig", "brig_semas"]), [rows]);
   const recursosFull = useMemo(
     () =>
       aggregateSnapshot(rows, "recursos", [
@@ -370,12 +370,12 @@ function TotaisPage() {
 
   const incendiosComp1 = useMemo(() => aggregateSum(rowsComp1, "incendios", ["urb", "flor", "focos", "focos_combatidos", "focos_atendidos", "sat"]), [rowsComp1]);
   const outrasComp1 = useMemo(() => aggregateSum(rowsComp1, "outras", ["salvamento", "acidentes", "aph", "prevencao", "servicos"]), [rowsComp1]);
-  const efetivoComp1 = useMemo(() => aggregateSnapshot(rowsComp1, "efetivo", ["ord", "seg", "brig"]), [rowsComp1]);
+  const efetivoComp1 = useMemo(() => aggregateSnapshot(rowsComp1, "efetivo", ["ord", "seg", "brig", "brig_semas"]), [rowsComp1]);
   const recursosComp1 = useMemo(() => aggregateSnapshot(rowsComp1, "recursos", ["abt", "at", "aem", "atp", "ata", "abf", "atf", "abs", "pipa", "dosa", "crs", "ar", "ur", "gse", "mt", "ta", "quadriciclo", "embarcacao", "picape_fn", "picape_muni", "autoarp", "picape_esfron", "helicoptero", "aviao", "jetski"]), [rowsComp1]);
 
   const incendiosComp2 = useMemo(() => aggregateSum(rowsComp2, "incendios", ["urb", "flor", "focos", "focos_combatidos", "focos_atendidos", "sat"]), [rowsComp2]);
   const outrasComp2 = useMemo(() => aggregateSum(rowsComp2, "outras", ["salvamento", "acidentes", "aph", "prevencao", "servicos"]), [rowsComp2]);
-  const efetivoComp2 = useMemo(() => aggregateSnapshot(rowsComp2, "efetivo", ["ord", "seg", "brig"]), [rowsComp2]);
+  const efetivoComp2 = useMemo(() => aggregateSnapshot(rowsComp2, "efetivo", ["ord", "seg", "brig", "brig_semas"]), [rowsComp2]);
   const recursosComp2 = useMemo(() => aggregateSnapshot(rowsComp2, "recursos", ["abt", "at", "aem", "atp", "ata", "abf", "atf", "abs", "pipa", "dosa", "crs", "ar", "ur", "gse", "mt", "ta", "quadriciclo", "embarcacao", "picape_fn", "picape_muni", "autoarp", "picape_esfron", "helicoptero", "aviao", "jetski"]), [rowsComp2]);
 
   // Filtro de município por busca
@@ -407,7 +407,7 @@ function TotaisPage() {
       incendios: sum(incendiosFull, ["urb", "flor"]),
       focos: sum(incendiosFull, ["focos", "focos_combatidos", "focos_atendidos", "sat"]),
       outras: sum(outrasFull, ["salvamento", "acidentes", "aph", "prevencao", "servicos"]),
-      efetivo: sum(efetivoFull, ["ord", "seg", "brig"]),
+      efetivo: sum(efetivoFull, ["ord", "seg", "brig", "brig_semas"]),
     };
   }, [rows, incendiosFull, outrasFull, efetivoFull]);
 
@@ -421,7 +421,7 @@ function TotaisPage() {
       urb: sum(incendiosComp1, ["urb"]),
       focos: sum(incendiosComp1, ["focos", "focos_combatidos", "focos_atendidos", "sat"]),
       outras: sum(outrasComp1, ["salvamento", "acidentes", "aph", "prevencao", "servicos"]),
-      efetivo: sum(efetivoComp1, ["ord", "seg", "brig"]),
+      efetivo: sum(efetivoComp1, ["ord", "seg", "brig", "brig_semas"]),
     };
   }, [rowsComp1, incendiosComp1, outrasComp1, efetivoComp1]);
 
@@ -435,7 +435,7 @@ function TotaisPage() {
       urb: sum(incendiosComp2, ["urb"]),
       focos: sum(incendiosComp2, ["focos", "focos_combatidos", "focos_atendidos", "sat"]),
       outras: sum(outrasComp2, ["salvamento", "acidentes", "aph", "prevencao", "servicos"]),
-      efetivo: sum(efetivoComp2, ["ord", "seg", "brig"]),
+      efetivo: sum(efetivoComp2, ["ord", "seg", "brig", "brig_semas"]),
     };
   }, [rowsComp2, incendiosComp2, outrasComp2, efetivoComp2]);
 
@@ -1199,9 +1199,9 @@ ${topIncendios || "  Nenhum registro no período."}
                 <TabsContent value="efetivo">
                   <AggTable
                     title="Efetivo por município"
-                    headers={["Município", "Ordinário", "SEG", "Brigada", "Total"]}
+                    headers={["Município", "Ordinário", "SEG", "Brigadista", "Brigadista SEMAS", "Total"]}
                     rows={efetivo}
-                    keys={["ord", "seg", "brig"]}
+                    keys={["ord", "seg", "brig", "brig_semas"]}
                   />
                 </TabsContent>
 
@@ -1565,9 +1565,9 @@ ${topIncendios || "  Nenhum registro no período."}
                     {activeTab === "efetivo" && (
                       <AggTable
                         title={`Efetivo em ${compYear1}`}
-                        headers={["Município", "Ordinário", "SEG", "Brigada", "Total"]}
+                        headers={["Município", "Ordinário", "SEG", "Brigadista", "Brigadista SEMAS", "Total"]}
                         rows={efetivoFiltered1}
-                        keys={["ord", "seg", "brig"]}
+                        keys={["ord", "seg", "brig", "brig_semas"]}
                       />
                     )}
                     {activeTab === "recursos" && (
@@ -1615,9 +1615,9 @@ ${topIncendios || "  Nenhum registro no período."}
                     {activeTab === "efetivo" && (
                       <AggTable
                         title={`Efetivo em ${compYear2}`}
-                        headers={["Município", "Ordinário", "SEG", "Brigada", "Total"]}
+                        headers={["Município", "Ordinário", "SEG", "Brigadista", "Brigadista SEMAS", "Total"]}
                         rows={efetivoFiltered2}
-                        keys={["ord", "seg", "brig"]}
+                        keys={["ord", "seg", "brig", "brig_semas"]}
                       />
                     )}
                     {activeTab === "recursos" && (
@@ -1673,8 +1673,8 @@ ${topIncendios || "  Nenhum registro no período."}
                       year2={compYear2}
                       rows1={efetivoFiltered1}
                       rows2={efetivoFiltered2}
-                      keys={["ord", "seg", "brig"]}
-                      keyLabels={{ ord: "Ordinário", seg: "SEG", brig: "Brigada" }}
+                      keys={["ord", "seg", "brig", "brig_semas"]}
+                      keyLabels={{ ord: "Ordinário", seg: "SEG", brig: "Brigadista", brig_semas: "Brigadista SEMAS" }}
                     />
                   )}
                   {activeTab === "recursos" && (

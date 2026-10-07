@@ -72,7 +72,7 @@ function countNegativeCells(data: SheetsData): number {
       }
     }
   };
-  scan(data.efetivo, ["ord", "seg", "brig"]);
+  scan(data.efetivo, ["ord", "seg", "brig", "brig_semas"]);
   scan(data.incendios_diario, ["urb", "flor", "focos"]);
   scan(data.incendios_acumulado, ["urb", "flor", "focos", "sat", "area"]);
   scan(data.outras_diarias, ["salvamento", "acidentes", "aph", "prevencao", "servicos"]);

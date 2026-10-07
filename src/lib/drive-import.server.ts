@@ -19,7 +19,7 @@ export type DriveFile = {
 };
 
 export type ParsedDailyReport = {
-  efetivo: Array<{ mun: string; ord: number; seg: number; brig: number }>;
+  efetivo: Array<{ mun: string; ord: number; seg: number; brig: number; brig_semas?: number }>;
   recursos: Array<Record<string, any>>;
   incendios: Array<{ mun: string; urb: number; flor: number; focos: number; sat?: number; area?: number }>;
   outras: Array<{
@@ -232,17 +232,24 @@ export function parseDailyReportSheet(rows: any[][]): ParsedDailyReport {
     const header = rows[efRow + 1] || [];
     const munCols: number[] = [];
     header.forEach((c, idx) => {
-      if (norm(c) === "MUNICIPIO" || norm(c) === "BASES TEMPORARIAS") munCols.push(idx);
+      const n = norm(c);
+      if (n === "MUNICIPIO" || n === "BASES TEMPORARIAS") munCols.push(idx);
     });
 
-    for (const munCol of munCols) {
+    for (let k = 0; k < munCols.length; k++) {
+      const munCol = munCols[k];
+      const nextMunCol = k + 1 < munCols.length ? munCols[k + 1] : header.length;
+
       let ordCol = -1;
       let segCol = -1;
       let brigCol = -1;
-      for (let c = munCol + 1; c < munCol + 5 && c < header.length; c++) {
+      let brigSemasCol = -1;
+
+      for (let c = munCol + 1; c < nextMunCol && c < header.length; c++) {
         const h = norm(header[c]);
         if (h.includes("ORDINARIO")) ordCol = c;
-        else if (h.includes("SEG")) segCol = c;
+        else if (h === "SEG" || h.includes("SEGURANCA") || h.startsWith("SEG")) segCol = c;
+        else if (h.includes("SEMAS")) brigSemasCol = c;
         else if (h.includes("BRIGADISTA")) brigCol = c;
       }
 
@@ -251,11 +258,18 @@ export function parseDailyReportSheet(rows: any[][]): ParsedDailyReport {
         const rawMun = String(row[munCol] ?? "").trim();
         if (!rawMun || /TOTAL/i.test(rawMun)) break;
         const mun = canonicalMunicipio(rawMun);
+        const ord = ordCol >= 0 ? num(row[ordCol]) : 0;
+        const seg = segCol >= 0 ? num(row[segCol]) : 0;
+        const brigCiv = brigCol >= 0 ? num(row[brigCol]) : 0;
+        const brigSemas = brigSemasCol >= 0 ? num(row[brigSemasCol]) : 0;
+        const brigTotal = brigCiv + brigSemas;
+
         out.efetivo.push({
           mun,
-          ord: ordCol >= 0 ? num(row[ordCol]) : 0,
-          seg: segCol >= 0 ? num(row[segCol]) : 0,
-          brig: brigCol >= 0 ? num(row[brigCol]) : 0,
+          ord,
+          seg,
+          brig: brigCiv,
+          brig_semas: brigSemas,
         });
       }
     }

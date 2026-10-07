@@ -17,6 +17,7 @@ export interface EfetivoRow {
   ord: number;
   seg: number;
   brig: number;
+  brig_semas?: number;
 }
 export interface RecursosRow {
   mun: string;

@@ -9,6 +9,7 @@ export const DASHBOARD_COLUMNS = {
     { key: "ord", label: "Serv. Ordinário", numeric: true, editable: true },
     { key: "seg", label: "SEG", numeric: true, editable: true },
     { key: "brig", label: "Brigadista", numeric: true, editable: true },
+    { key: "brig_semas", label: "Brigadista SEMAS", numeric: true, editable: true },
     { key: "total", label: "Total", numeric: true, editable: false },
   ],
   incendios_diario: [

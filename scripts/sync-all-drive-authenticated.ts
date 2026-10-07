@@ -57,6 +57,8 @@ async function main() {
     "1dhogH-8J8RpID6NNU-dbY58xInDkyyX5", // Junho
     "1k-zx56jOzlIfMuKir_0K388c5mQF-MjM", // Julho
     "1C77k-tUwxQXsKTyQ6VRByNa7yEmk9HZT", // Agosto
+    "1N3zAet2OFzgdreQ0YYgOGQwbEW3PMJHZ", // Setembro
+    "1N71G18dgxO2yhA20LqXREcOfseTU8xz7", // Outubro
   ];
 
   console.log("\n🔍 Buscando planilhas em todas as pastas do Google Drive...");

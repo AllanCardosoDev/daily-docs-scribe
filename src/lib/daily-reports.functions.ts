@@ -13,7 +13,13 @@ const nnInt = z.preprocess(
 );
 const shortStr = z.preprocess((v) => (v == null ? "" : String(v)), z.string().trim().max(200));
 
-const EfetivoRow = z.object({ mun: shortStr, ord: nnInt, seg: nnInt, brig: nnInt });
+const EfetivoRow = z.object({
+  mun: shortStr,
+  ord: nnInt,
+  seg: nnInt,
+  brig: nnInt,
+  brig_semas: nnInt.optional(),
+});
 const RecursosRow = z.object({ mun: shortStr }).catchall(z.any());
 const IncendiosRow = z.object({ mun: shortStr, urb: nnInt, flor: nnInt, focos: nnInt });
 const OutrasRow = z.object({
@@ -90,6 +96,18 @@ export const getLatestReportDate = createServerFn({ method: "GET" })
     return data?.report_date ?? null;
   });
 
+export const listAvailableReportDates = createServerFn({ method: "GET" })
+  .middleware([requireBackendAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("daily_reports")
+      .select("report_date, shift, updated_at")
+      .order("report_date", { ascending: false })
+      .limit(300);
+    if (error) dbFail(error, "daily-reports");
+    return data ?? [];
+  });
+
 export const getDailyReport = createServerFn({ method: "GET" })
   .middleware([requireBackendAuth])
   .inputValidator((raw: unknown) =>
@@ -157,7 +175,7 @@ export const getDailyReport = createServerFn({ method: "GET" })
         return Array.from(map.values()).sort((a, b) => compareMunicipios(a.mun, b.mun));
       };
 
-      (row as any).efetivo = cleanList((row as any).efetivo, ["ord", "seg", "brig"]);
+      (row as any).efetivo = cleanList((row as any).efetivo, ["ord", "seg", "brig", "brig_semas"]);
       (row as any).incendios = cleanList((row as any).incendios, ["urb", "flor", "focos"]);
       (row as any).outras = cleanList((row as any).outras, ["salvamento", "acidentes", "aph", "prevencao", "servicos"]);
 

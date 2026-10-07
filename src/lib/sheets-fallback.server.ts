@@ -182,10 +182,17 @@ function consolidateAndCanonicalizeRows<T extends Record<string, any>>(
  */
 export async function loadLatestDriveReport(
   supabase: SupabaseClient<any>,
+  shift?: "noturno" | "parcial" | "todos",
 ): Promise<{ data: SheetsData; found: boolean }> {
-  const { data: row, error } = await supabase
+  let query = supabase
     .from("daily_reports")
-    .select("report_date, shift, efetivo, recursos, incendios, outras, updated_at")
+    .select("report_date, shift, efetivo, recursos, incendios, outras, updated_at");
+
+  if (shift && shift !== "todos") {
+    query = query.eq("shift", shift);
+  }
+
+  const { data: row, error } = await query
     .order("report_date", { ascending: false })
     .order("shift", { ascending: false })
     .order("updated_at", { ascending: false })
@@ -244,7 +251,7 @@ export async function loadLatestDriveReport(
       coordenador: "Coordenador Amazonas + Verde",
       subcomandante: "Subcomandante-Geral do CBMAM",
     },
-    efetivo: consolidateAndCanonicalizeRows(rawEfetivo, ["ord", "seg", "brig"]),
+    efetivo: consolidateAndCanonicalizeRows(rawEfetivo, ["ord", "seg", "brig", "brig_semas"]),
     recursos: normaliseRecursos(asRows(row.recursos)),
     incendios_diario: consolidateAndCanonicalizeRows(rawInc, ["urb", "flor", "focos", "total_periodo"]),
     incendios_acumulado: acum,
@@ -267,14 +274,19 @@ export async function loadLatestDriveReport(
 export async function loadReportByDate(
   supabase: SupabaseClient<any>,
   dateIso: string,
+  shift?: "noturno" | "parcial" | "todos",
 ): Promise<{ data: SheetsData; found: boolean }> {
-  const { data: row, error } = await supabase
-    .from("daily_reports")
+  let query = supabase
     .select("report_date, shift, efetivo, recursos, incendios, outras, header, updated_at")
-    .eq("report_date", dateIso)
-    .order("shift", { ascending: false }) // 24h (completo) antes de parcial se ambos existirem
-    .limit(1)
-    .maybeSingle();
+    .eq("report_date", dateIso);
+
+  if (shift && shift !== "todos") {
+    query = query.eq("shift", shift);
+  } else {
+    query = query.order("shift", { ascending: false }); // 24h (noturno) antes de parcial se ambos existirem
+  }
+
+  const { data: row, error } = await query.limit(1).maybeSingle();
 
   if (error || !row) return { data: EMPTY_SHEETS_DATA, found: false };
 
@@ -328,7 +340,7 @@ export async function loadReportByDate(
       coordenador: "Coordenador Amazonas + Verde",
       subcomandante: "Subcomandante-Geral do CBMAM",
     },
-    efetivo: consolidateAndCanonicalizeRows(rawEfetivo, ["ord", "seg", "brig"]),
+    efetivo: consolidateAndCanonicalizeRows(rawEfetivo, ["ord", "seg", "brig", "brig_semas"]),
     recursos: normaliseRecursos(asRows(row.recursos)),
     incendios_diario: consolidateAndCanonicalizeRows(rawInc, ["urb", "flor", "focos", "total_periodo"]),
     incendios_acumulado: acum,
@@ -346,29 +358,37 @@ export async function loadReportByDate(
   return { data, found: true };
 }
 
-/**
- * Carrega e agrega dados de um período de tempo.
- */
 export async function loadReportRange(
   supabase: SupabaseClient<any>,
   startIso: string,
   endIso: string,
+  shift?: "noturno" | "parcial" | "todos",
 ): Promise<SheetsData> {
-  const { data: rows, error } = await supabase
+  let query = supabase
     .from("daily_reports")
     .select("report_date, shift, efetivo, recursos, incendios, outras")
     .gte("report_date", startIso)
     .lte("report_date", endIso)
     .order("report_date", { ascending: true });
 
+  if (shift && shift !== "todos") {
+    query = query.eq("shift", shift);
+  }
+
+  const { data: rows, error } = await query;
+
   if (error || !rows || !rows.length) return EMPTY_SHEETS_DATA;
 
-  // Deduplica: se houver 24h e Parcial no mesmo dia, pega o 24h
+  // Deduplica: se shift for 'todos', prioriza o 24h (noturno) para não duplicar contagem do mesmo dia
   const byDate = new Map<string, any>();
   for (const r of rows) {
-    const cur = byDate.get(r.report_date);
-    if (!cur || (r.shift === "noturno" && cur.shift !== "noturno")) {
+    if (shift && shift !== "todos") {
       byDate.set(r.report_date, r);
+    } else {
+      const cur = byDate.get(r.report_date);
+      if (!cur || (r.shift === "noturno" && cur.shift !== "noturno")) {
+        byDate.set(r.report_date, r);
+      }
     }
   }
 
@@ -390,6 +410,7 @@ export async function loadReportRange(
     "ord",
     "seg",
     "brig",
+    "brig_semas",
   ]) as any;
   const lastRecursos = normaliseRecursos(asRows(lastRow.recursos));
 

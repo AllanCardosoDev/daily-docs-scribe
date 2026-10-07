@@ -4,8 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Plus, Trash2, CalendarDays, Lock, FileText, RotateCcw } from "lucide-react";
-import { exportDailyPdf } from "@/lib/daily-export";
+import { ArrowLeft, Save, Plus, Trash2, CalendarDays, Lock, CheckCircle2, Clock, Info, Check, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,18 +14,16 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getDailyReport, saveDailyReport } from "@/lib/daily-reports.functions";
+import { getDailyReport, saveDailyReport, listAvailableReportDates } from "@/lib/daily-reports.functions";
 import { SHIFTS, SHIFT_LABEL, SHIFT_TAB, type ReportShift } from "@/lib/report-shift";
 import { DailyReportAuditDialog } from "@/components/dashboard/DailyReportAuditDialog";
 import { DriveImportDialog } from "@/components/dashboard/DriveImportDialog";
 import { MunicipioPicker } from "@/components/dashboard/MunicipiosDialog";
-import { DailyReportExportCard } from "@/components/dashboard/DailyReportExportCard";
 import {
   DadosComplementaresForm,
   type DadosComplementaresState,
@@ -43,7 +40,7 @@ export const Route = createFileRoute("/_authenticated/registro")({
 });
 
 // ------- Row types -------
-type EfetivoRow = { mun: string; ord: number; seg: number; brig: number };
+type EfetivoRow = { mun: string; ord: number; seg: number; brig: number; brig_semas?: number };
 type RecursoRow = { mun: string; viaturas: number; aeronaves: number; embarcacoes: number };
 type IncendioRow = { mun: string; urb: number; flor: number; focos: number };
 type OutraRow = {
@@ -55,7 +52,7 @@ type OutraRow = {
   servicos: number;
 };
 
-const EFETIVO_EMPTY: EfetivoRow = { mun: "", ord: 0, seg: 0, brig: 0 };
+const EFETIVO_EMPTY: EfetivoRow = { mun: "", ord: 0, seg: 0, brig: 0, brig_semas: 0 };
 const RECURSO_EMPTY: RecursoRow = { mun: "", viaturas: 0, aeronaves: 0, embarcacoes: 0 };
 const INCENDIO_EMPTY: IncendioRow = { mun: "", urb: 0, flor: 0, focos: 0 };
 const OUTRA_EMPTY: OutraRow = {
@@ -79,13 +76,26 @@ function RegistroPage() {
   const qc = useQueryClient();
   const getFn = useServerFn(getDailyReport);
   const saveFn = useServerFn(saveDailyReport);
+  const listDatesFn = useServerFn(listAvailableReportDates);
+
+  const availableDatesQuery = useQuery({
+    queryKey: ["available-report-dates"],
+    queryFn: () => listDatesFn(),
+    staleTime: 60_000,
+  });
+
+  const availableDates = useMemo(() => {
+    const list = availableDatesQuery.data ?? [];
+    const set = new Set<string>();
+    for (const r of list) {
+      if (r.report_date) set.add(r.report_date);
+    }
+    return Array.from(set).sort().reverse();
+  }, [availableDatesQuery.data]);
 
   const q = useQuery({
     queryKey: ["daily-report", date, shift],
     queryFn: () => getFn({ data: { date, shift } }),
-    // Mantém os dados anteriores visíveis ao trocar de data/turno,
-    // evitando o "pisca" de tela em branco a cada consulta.
-    placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
 
@@ -167,23 +177,15 @@ function RegistroPage() {
   const [noturnoBaselineIncMap, setNoturnoBaselineIncMap] = useState<Map<string, IncendioRow>>(new Map());
   const [noturnoBaselineOutrasMap, setNoturnoBaselineOutrasMap] = useState<Map<string, OutraRow>>(new Map());
 
-  // Enquanto `placeholderData` mantém o resultado da data anterior na tela,
-  // o formulário é limpo — assim o usuário nunca salva dados de outro dia
-  // na data recém-selecionada.
   useEffect(() => {
+    // Se a consulta ainda estiver buscando na rede e não tiver dados, aguarda
+    if (q.isFetching && !q.data) return;
+
     const key = `${date}|${shift}`;
     const switchedReport = key !== loadedKeyRef.current;
-    // Só sobrescreve o formulário quando muda de relatório ou não há rascunho.
+    // Só sobrescreve se mudou de relatório ou se não há edições não salvas
     if (!switchedReport && dirtyRef.current) return;
-    if (q.isPlaceholderData) {
-      setEfetivo([]);
-      setRecursos([]);
-      setIncendios([]);
-      setOutras([]);
-      setDadosComplementares({});
-      setNotes("");
-      return;
-    }
+
     const row: any = q.data?.row;
 
     // Se o relatório de 24h estiver sendo aberto pela primeira vez e houver parcial:
@@ -214,7 +216,7 @@ function RegistroPage() {
       setNoturnoBaselineOutrasMap(new Map());
     }
 
-    // Manaus (capital) sempre na primeira linha de todas as seções.
+    // Carrega exatamente os dados salvos para aquele dia/turno
     setEfetivo(manausFirst((row?.efetivo as EfetivoRow[]) ?? []));
     setRecursos(manausFirst((row?.recursos as RecursoRow[]) ?? []));
     setIncendios(manausFirst(initialInc));
@@ -226,9 +228,8 @@ function RegistroPage() {
   }, [
     date,
     shift,
-    q.isPlaceholderData,
-    q.data?.row?.id,
-    q.data?.row?.updated_at,
+    q.data,
+    q.isFetching,
     sameDayParcialQuery.data?.row,
     prevParcialQuery.data?.row,
   ]);
@@ -287,12 +288,26 @@ function RegistroPage() {
       }),
     onSuccess: () => {
       dirtyRef.current = false;
-      toast.success("Registro salvo.");
+      toast.success("Registro salvo com sucesso no banco de dados.");
       qc.invalidateQueries({ queryKey: ["daily-report", date, shift] });
       qc.invalidateQueries({ queryKey: ["daily-reports"] });
+      qc.invalidateQueries({ queryKey: ["available-report-dates"] });
     },
-    onError: (e: any) => toast.error("Falha ao salvar", { description: e?.message }),
+    onError: (e: any) => toast.error("Falha ao salvar dados", { description: e?.message }),
   });
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        if (canEdit && !save.isPending) {
+          save.mutate();
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [canEdit, save]);
 
   const dateLabel = useMemo(() => {
     try {
@@ -356,27 +371,58 @@ function RegistroPage() {
       </header>
 
       <main className="w-full max-w-[98%] mx-auto px-3 sm:px-6 py-6 space-y-5">
-        <section className="rounded-xl bg-card shadow-elevated p-4 sm:p-5">
+        <section className="rounded-xl bg-card shadow-elevated p-4 sm:p-5 space-y-4">
           <div className="flex flex-col lg:flex-row lg:items-end gap-3">
             <div className="flex-1 min-w-0">
-              <Label htmlFor="report-date">Data do serviço na sala</Label>
-              <Input
-                id="report-date"
-                type="date"
-                value={date}
-                onChange={(e) => {
-                  if (confirmDiscard()) {
-                    dirtyRef.current = false;
-                    setDate(e.target.value);
-                  }
-                }}
-                className="mt-1 w-full sm:max-w-xs"
-              />
+              <Label htmlFor="report-date" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Data do serviço na sala
+              </Label>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-1">
+                <Input
+                  id="report-date"
+                  type="date"
+                  value={date}
+                  onChange={(e) => {
+                    const newD = e.target.value;
+                    if (!newD) return;
+                    if (confirmDiscard()) {
+                      dirtyRef.current = false;
+                      setDate(newD);
+                    }
+                  }}
+                  className="w-full sm:w-44 font-medium"
+                />
+                {availableDates.length > 0 && (
+                  <select
+                    aria-label="Selecionar dia com dados existentes"
+                    value={availableDates.includes(date) ? date : ""}
+                    onChange={(e) => {
+                      const newD = e.target.value;
+                      if (newD && confirmDiscard()) {
+                        dirtyRef.current = false;
+                        setDate(newD);
+                      }
+                    }}
+                    className="h-9 px-3 rounded-md border border-input bg-background text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <option value="" disabled>
+                      📅 Ver dias já gravados ({availableDates.length} dias)...
+                    </option>
+                    {availableDates.map((d) => (
+                      <option key={d} value={d}>
+                        {d.split("-").reverse().join("/")}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground mt-1 capitalize">{dateLabel}</p>
             </div>
 
             <div className="flex-1 min-w-0">
-              <Label>Relatório</Label>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Turno
+              </Label>
               <div className="mt-1 grid grid-cols-2 gap-1 rounded-lg border border-border bg-muted/40 p-1 sm:inline-flex">
                 {SHIFTS.map((s) => (
                   <button
@@ -413,37 +459,76 @@ function RegistroPage() {
 
               <Button
                 onClick={() => save.mutate()}
-                disabled={!canEdit || save.isPending || q.isPlaceholderData || q.isLoading}
-                variant="outline"
-                className="gap-2 font-semibold"
+                disabled={!canEdit || save.isPending || q.isLoading}
+                className="gap-2 bg-gradient-brand text-white font-bold shadow-elevated hover:opacity-95 hover-lift px-6 min-h-10"
               >
-                <Save className="w-4 h-4 text-primary" />
-                {save.isPending ? "Salvando…" : "Salvar Rascunho"}
-              </Button>
-
-              <Button
-                onClick={async () => {
-                  try {
-                    await save.mutateAsync();
-                    exportDailyPdf({
-                      date,
-                      shift,
-                      row: { efetivo, recursos, incendios, outras, notes },
-                    });
-                    toast.success(
-                      `🎉 Relatório ${shift === "noturno" ? "24h" : "Parcial"} finalizado! Arquivo PDF baixado com sucesso.`,
-                    );
-                  } catch (err: any) {
-                    toast.error("Erro ao finalizar relatório", { description: err?.message });
-                  }
-                }}
-                disabled={!canEdit || save.isPending || q.isPlaceholderData || q.isLoading}
-                className="gap-2 bg-gradient-brand text-white font-bold shadow-elevated hover:opacity-95 hover-lift px-5"
-              >
-                <FileText className="w-4 h-4 text-white" />
-                Finalizar {shift === "noturno" ? "24h" : "Parcial"} e Baixar PDF
+                {save.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Salvando dados…
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    Salvar Dados (Ctrl+S)
+                  </>
+                )}
               </Button>
             </div>
+          </div>
+
+          {/* Feedback automático do dia carregado */}
+          <div className="pt-2 border-t border-border/60">
+            {q.isFetching ? (
+              <div className="flex items-center gap-2 text-xs text-primary font-medium p-2.5 rounded-md bg-primary/10 animate-pulse">
+                <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                Carregando dados salvos de {date.split("-").reverse().join("/")} ({SHIFT_TAB[shift]})…
+              </div>
+            ) : q.data?.row ? (
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 p-2.5 rounded-md">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>
+                    <strong>Dados carregados:</strong> Registro de {date.split("-").reverse().join("/")} ({SHIFT_TAB[shift]}) carregado do banco ({efetivo.length} municípios).
+                  </span>
+                </div>
+                {q.data.row.updated_at && (
+                  <span className="text-emerald-700 font-mono">
+                    Última gravação: {new Date(q.data.row.updated_at).toLocaleString("pt-BR")}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-blue-800 bg-blue-50 border border-blue-200 p-2.5 rounded-md">
+                <div className="flex items-center gap-2">
+                  <Info className="w-4 h-4 text-blue-600 shrink-0" />
+                  <span>
+                    <strong>Inserção de dados:</strong> Nenhum registro salvo para {date.split("-").reverse().join("/")} ({SHIFT_TAB[shift]}). Preencha os dados e clique em Salvar Dados.
+                  </span>
+                </div>
+                {shift === "noturno" && sameDayParcialQuery.data?.row && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs bg-white text-blue-900 border-blue-300 hover:bg-blue-100"
+                    onClick={() => {
+                      const base = sameDayParcialQuery.data?.row;
+                      if (base) {
+                        if (base.efetivo) setEfetivo(manausFirst(base.efetivo as any));
+                        if (base.recursos) setRecursos(manausFirst(base.recursos as any));
+                        if (base.incendios) setIncendios(manausFirst(base.incendios as any));
+                        if (base.outras) setOutras(manausFirst(base.outras as any));
+                        dirtyRef.current = true;
+                        toast.success("Dados do relatório Parcial copiados para este 24h.");
+                      }
+                    }}
+                  >
+                    Copiar base do Parcial deste dia
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="mt-4 pt-4 border-t border-border">
@@ -479,7 +564,7 @@ function RegistroPage() {
           <TabsContent value="efetivo">
             <SectionTable
               title="Efetivo empenhado"
-              headers={["Município", "Ordinário", "Segurança", "Brigada", ""]}
+              headers={["Município", "Ordinário", "Segurança", "Brigadista", "Brigadista SEMAS", ""]}
               rows={efetivo}
               onChange={mark(setEfetivo)}
               empty={EFETIVO_EMPTY}
@@ -496,6 +581,7 @@ function RegistroPage() {
                   <NumCell v={r.ord} on={(v) => patch({ ord: v })} disabled={!canEdit} />
                   <NumCell v={r.seg} on={(v) => patch({ seg: v })} disabled={!canEdit} />
                   <NumCell v={r.brig} on={(v) => patch({ brig: v })} disabled={!canEdit} />
+                  <NumCell v={r.brig_semas ?? 0} on={(v) => patch({ brig_semas: v })} disabled={!canEdit} />
                 </>
               )}
             />
@@ -746,12 +832,6 @@ function RegistroPage() {
             </div>
           </TabsContent>
         </Tabs>
-
-        <DailyReportExportCard
-          date={date}
-          shift={shift}
-          row={{ efetivo, recursos, incendios, outras, notes }}
-        />
       </main>
     </div>
   );
