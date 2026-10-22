@@ -15,42 +15,29 @@ import {
   FileText,
   Eye,
   CalendarIcon,
-  X,
-  Sparkles,
   ChevronDown,
   FileSpreadsheet,
   BarChart3,
-  ArrowRightLeft,
 } from "lucide-react";
 import { ReportHistoryDialog } from "./ReportHistoryDialog";
 import { AddMunicipioDialog } from "./AddMunicipioDialog";
-import { fmtDateLong } from "@/lib/report-date";
+import { AddOutroEfetivoDialog } from "./AddOutroEfetivoDialog";
 import { cn } from "@/lib/utils";
-import type { PdfQuality } from "@/lib/export-pdf";
 
-import { ReportShift, SHIFT_TAB } from "@/lib/report-shift";
+import { ReportShift } from "@/lib/report-shift";
 
 interface Props {
   canEdit: boolean;
   isRefreshing: boolean;
   reportDate: Date | null;
   onReportDateChange: (d: Date | null) => void;
-  endDate: Date | null;
-  onEndDateChange: (d: Date | null) => void;
-  comparisonMode?: boolean;
-  onComparisonModeChange?: (active: boolean) => void;
-  compReportDate?: Date | null;
-  onCompReportDateChange?: (d: Date | null) => void;
-  compEndDate?: Date | null;
-  onCompEndDateChange?: (d: Date | null) => void;
-  pdfQuality: PdfQuality;
-  onPdfQualityChange: (q: PdfQuality) => void;
   onRefresh: () => void;
   onExportXlsx: () => void;
   onExportPdf: () => void;
   onPreviewPdf: () => void;
   existingMunicipios?: string[];
   onAddMunicipio?: (name: string) => Promise<void> | void;
+  onAddOutroEfetivo?: (name: string, ord?: number, seg?: number, brig?: number) => Promise<void> | void;
   shift?: ReportShift;
   onShiftChange?: (s: ReportShift) => void;
 }
@@ -64,22 +51,13 @@ export const PainelToolbar = memo(function PainelToolbar({
   isRefreshing,
   reportDate,
   onReportDateChange,
-  endDate,
-  onEndDateChange,
-  comparisonMode,
-  onComparisonModeChange,
-  compReportDate,
-  onCompReportDateChange,
-  compEndDate,
-  onCompEndDateChange,
-  pdfQuality,
-  onPdfQualityChange,
   onRefresh,
   onExportXlsx,
   onExportPdf,
   onPreviewPdf,
   existingMunicipios = [],
   onAddMunicipio,
+  onAddOutroEfetivo,
   shift = "noturno",
   onShiftChange,
 }: Props) {
@@ -99,11 +77,6 @@ export const PainelToolbar = memo(function PainelToolbar({
             </span>
             <span aria-hidden="true">·</span>
             <span>Documento oficial · Comando Integrado</span>
-            {reportDate && endDate && reportDate.getTime() !== endDate.getTime() && (
-              <span className="ml-2 bg-primary/20 text-primary px-2 py-0.5 rounded-full lowercase tracking-normal">
-                Modo Período Ativo
-              </span>
-            )}
           </div>
           <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-foreground">
             Panorama operacional
@@ -116,22 +89,6 @@ export const PainelToolbar = memo(function PainelToolbar({
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap lg:items-center lg:justify-end">
-          {/* Comparison Toggle */}
-          {onComparisonModeChange && (
-            <Button
-              variant={comparisonMode ? "default" : "outline"}
-              size="sm"
-              onClick={() => onComparisonModeChange(!comparisonMode)}
-              className={cn(
-                "h-11 sm:h-10 gap-2 font-bold transition-all",
-                comparisonMode && "bg-amber-600 hover:bg-amber-700 text-white"
-              )}
-            >
-              <ArrowRightLeft className="w-4 h-4" />
-              <span className="hidden sm:inline">Comparar</span>
-            </Button>
-          )}
-
           {/* Shift selector: 24h vs Parcial */}
           {onShiftChange && (
             <div className="flex items-center rounded-lg border border-border bg-muted/50 p-1 h-11 sm:h-10">
@@ -166,173 +123,32 @@ export const PainelToolbar = memo(function PainelToolbar({
             </div>
           )}
 
-          {/* Report date selector */}
+          {/* Single report date selector */}
           <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/50 px-1 py-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    className={cn(
-                      "h-9 min-w-[120px] justify-start gap-2 font-medium text-xs px-2",
-                      !reportDate && "text-muted-foreground",
-                    )}
-                  >
-                    <CalendarIcon className="w-3.5 h-3.5 shrink-0 text-primary" />
-                    <span className="truncate">
-                      {reportDate ? reportDate.toLocaleDateString("pt-BR") : "Início"}
-                    </span>
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent align="end" className="w-auto p-0">
-                  <LazyCalendar
-                    mode="single"
-                    selected={reportDate ?? undefined}
-                    onSelect={(d) => onReportDateChange(d ?? null)}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-
-              <span className="text-muted-foreground text-[10px] font-bold">ATÉ</span>
-
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    className={cn(
-                      "h-9 min-w-[120px] justify-start gap-2 font-medium text-xs px-2",
-                      !endDate && "text-muted-foreground",
-                    )}
-                  >
-                    <CalendarIcon className="w-3.5 h-3.5 shrink-0 text-primary" />
-                    <span className="truncate">
-                      {endDate ? endDate.toLocaleDateString("pt-BR") : "Fim"}
-                    </span>
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent align="end" className="w-auto p-0">
-                  <LazyCalendar
-                    mode="single"
-                    selected={endDate ?? undefined}
-                    onSelect={(d) => onEndDateChange(d ?? null)}
-                    disabled={(date) => (reportDate ? date < reportDate : false)}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            {(reportDate || endDate) && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-foreground ml-1"
-                onClick={() => {
-                  onReportDateChange(null);
-                  onEndDateChange(null);
-                }}
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            )}
-          </div>
-
-          {/* Comparison range selector */}
-          {comparisonMode && onCompReportDateChange && onCompEndDateChange && (
-            <div className="flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50/50 px-1 py-1 min-w-0 animate-in slide-in-from-top-2 duration-300">
-              <div className="flex items-center gap-2">
-                <div className="text-[9px] font-black text-amber-700 ml-1 uppercase">Ref. B</div>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      className={cn(
-                        "h-9 min-w-[120px] justify-start gap-2 font-medium text-xs px-2 hover:bg-amber-100/50",
-                        !compReportDate && "text-muted-foreground",
-                      )}
-                    >
-                      <CalendarIcon className="w-3.5 h-3.5 shrink-0 text-amber-600" />
-                      <span className="truncate">
-                        {compReportDate ? compReportDate.toLocaleDateString("pt-BR") : "Início B"}
-                      </span>
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent align="end" className="w-auto p-0">
-                    <LazyCalendar
-                      mode="single"
-                      selected={compReportDate ?? undefined}
-                      onSelect={(d) => onCompReportDateChange(d ?? null)}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-
-                <span className="text-amber-700 text-[10px] font-bold">ATÉ</span>
-
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      className={cn(
-                        "h-9 min-w-[120px] justify-start gap-2 font-medium text-xs px-2 hover:bg-amber-100/50",
-                        !compEndDate && "text-muted-foreground",
-                      )}
-                    >
-                      <CalendarIcon className="w-3.5 h-3.5 shrink-0 text-amber-600" />
-                      <span className="truncate">
-                        {compEndDate ? compEndDate.toLocaleDateString("pt-BR") : "Fim B"}
-                      </span>
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent align="end" className="w-auto p-0">
-                    <LazyCalendar
-                      mode="single"
-                      selected={compEndDate ?? undefined}
-                      onSelect={(d) => onCompEndDateChange(d ?? null)}
-                      disabled={(date) => (compReportDate ? date < compReportDate : false)}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </div>
-          )}
-
-          {/* Quality selector for PDF export/preview */}
-          <div
-            role="group"
-            aria-label="Qualidade do PDF"
-            className="flex items-center rounded-lg border border-border bg-muted/50 p-0.5 h-11 sm:h-10 sm:inline-flex [&>button]:flex-1 sm:[&>button]:flex-none [&>button]:justify-center"
-          >
-            <button
-              type="button"
-              onClick={() => onPdfQualityChange("standard")}
-              className={cn(
-                "px-3 h-full rounded-md text-xs font-semibold cursor-pointer transition-all duration-200 hover:bg-background/60",
-                pdfQuality === "standard"
-                  ? "bg-card shadow-sm text-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-              aria-pressed={pdfQuality === "standard"}
-              title="Qualidade padrão"
-            >
-              Padrão
-            </button>
-            <button
-              type="button"
-              onClick={() => onPdfQualityChange("high")}
-              className={cn(
-                "px-3 h-full rounded-md text-xs font-semibold inline-flex items-center gap-1 cursor-pointer transition-all duration-200 hover:bg-background/60",
-                pdfQuality === "high"
-                  ? "bg-card shadow-sm text-primary"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-              aria-pressed={pdfQuality === "high"}
-              title="Alta legibilidade — fontes e espaçamento maiores"
-            >
-              <Sparkles className="w-3.5 h-3.5" /> Alta
-            </button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className={cn(
+                    "h-9 min-w-[135px] justify-start gap-2 font-medium text-xs px-2.5",
+                    !reportDate && "text-muted-foreground",
+                  )}
+                >
+                  <CalendarIcon className="w-3.5 h-3.5 shrink-0 text-primary" />
+                  <span className="truncate font-semibold">
+                    {reportDate ? reportDate.toLocaleDateString("pt-BR") : "Selecionar dia"}
+                  </span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-auto p-0">
+                <LazyCalendar
+                  mode="single"
+                  selected={reportDate ?? undefined}
+                  onSelect={(d) => onReportDateChange(d ?? null)}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -343,6 +159,14 @@ export const PainelToolbar = memo(function PainelToolbar({
                 disabled={!canEdit}
               />
             )}
+
+            {onAddOutroEfetivo && (
+              <AddOutroEfetivoDialog
+                onAddOutroEfetivo={onAddOutroEfetivo}
+                disabled={!canEdit}
+              />
+            )}
+
             <ReportHistoryDialog reportDate={reportDate} />
 
             <DropdownMenu>

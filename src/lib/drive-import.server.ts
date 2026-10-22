@@ -10,6 +10,7 @@
 import * as XLSX from "xlsx";
 import type { ReportShift } from "./report-shift";
 import { canonicalMunicipio } from "./municipio-order";
+import type { SheetsHeader } from "./sheets.types";
 
 export type DriveFile = {
   id: string;
@@ -19,9 +20,27 @@ export type DriveFile = {
 };
 
 export type ParsedDailyReport = {
-  efetivo: Array<{ mun: string; ord: number; seg: number; brig: number }>;
+  header: SheetsHeader;
+  efetivo: Array<{
+    mun: string;
+    ord: number;
+    seg: number;
+    brig: number;
+    servico: number;
+    opamv: number;
+    opam_ref: number;
+    inc1: number;
+    inc2: number;
+    inc3: number;
+    cbmsp: number;
+    prevfogo: number;
+    fn: number;
+    brig_mun: number;
+    brig_semas: number;
+  }>;
   recursos: Array<Record<string, any>>;
   incendios: Array<{ mun: string; urb: number; flor: number; focos: number; sat?: number; area?: number }>;
+  incendios_acumulado: Array<{ mun: string; urb: number; flor: number; focos: number; sat: number; area: number }>;
   outras: Array<{
     mun: string;
     salvamento: number;
@@ -54,10 +73,15 @@ const BROWSER_HEADERS = {
 };
 
 /** Lista os .xlsx de uma pasta pública do Drive (incluindo subpastas), mais recentes primeiro. */
+function assertFolderId(folderId: string) {
+  if (!/^[-_A-Za-z0-9]+$/.test(folderId)) throw new Error("ID de pasta inválido.");
+}
+
 export async function listFolderSpreadsheets(
   folderId: string,
   depth = 0,
 ): Promise<DriveFile[]> {
+  assertFolderId(folderId);
   if (depth > 3) return [];
   try {
     const res = await fetch(`${FOLDER_VIEW}${encodeURIComponent(folderId)}#list`, {
@@ -117,15 +141,31 @@ function decodeEntities(s: string) {
     .replace(/&#39;/g, "'");
 }
 
+const MAX_DOWNLOAD_BYTES = 10 * 1024 * 1024;
+
+function assertDownloadSize(res: Response, buf: ArrayBuffer) {
+  const claimed = Number(res.headers.get("content-length") ?? 0);
+  if (claimed > MAX_DOWNLOAD_BYTES) {
+    throw new Error(`Planilha excede limite de ${MAX_DOWNLOAD_BYTES / (1024 * 1024)} MB.`);
+  }
+  if (buf.byteLength > MAX_DOWNLOAD_BYTES) {
+    throw new Error(`Planilha excede limite de ${MAX_DOWNLOAD_BYTES / (1024 * 1024)} MB.`);
+  }
+  if (buf.byteLength === 0) throw new Error("Planilha vazia.");
+}
+
 /** Baixa a planilha pública e devolve a matriz da aba de relatório. */
 export async function downloadSheetMatrix(fileId: string): Promise<any[][]> {
+  if (!/^[-_A-Za-z0-9]+$/.test(fileId)) throw new Error("ID de arquivo inválido.");
   const res = await fetch(`${DOWNLOAD}${encodeURIComponent(fileId)}`, {
     headers: BROWSER_HEADERS,
     redirect: "follow",
     signal: AbortSignal.timeout(30000),
   });
   if (!res.ok) throw new Error(`Falha ao baixar a planilha (HTTP ${res.status}).`);
-  const buf = new Uint8Array(await res.arrayBuffer());
+  const raw = await res.arrayBuffer();
+  assertDownloadSize(res, raw);
+  const buf = new Uint8Array(raw);
   const wb = XLSX.read(buf, { type: "array" });
   const sheetName =
     wb.SheetNames.find((n) =>
@@ -148,7 +188,7 @@ const norm = (v: any) =>
 
 const num = (v: any) => {
   if (v === null || v === undefined || v === "") return 0;
-  const n = Number(String(v).replace(",", "."));
+  const n = Number(String(v).replace(",", ".").replace(/\s/g, ""));
   return Number.isFinite(n) && n >= 0 ? n : 0;
 };
 
@@ -204,7 +244,6 @@ function eachRow(
     const mun = String(row[munCol] ?? "").trim();
     const upper = norm(mun);
     if (!mun) {
-      // Duas linhas vazias seguidas encerram o bloco.
       const next = String((rows[i + 1] ?? [])[munCol] ?? "").trim();
       if (!next) break;
       continue;
@@ -214,59 +253,206 @@ function eachRow(
   }
 }
 
-/** Converte a aba RELATÓRIO no formato de `daily_reports`. */
-export function parseDailyReportSheet(rows: any[][]): ParsedDailyReport {
-  const out: ParsedDailyReport = { efetivo: [], recursos: [], incendios: [], outras: [] };
+function parseHeader(rows: any[][]): SheetsHeader {
+  const header: SheetsHeader = {};
+  for (let i = 0; i < Math.min(10, rows.length); i++) {
+    const row = rows[i] ?? [];
+    const line = row.map((c) => String(c ?? "").trim()).join(" | ");
+    const upper = norm(line);
+    const getVal = () => {
+      for (let c = row.length - 1; c >= 0; c--) {
+        const v = String(row[c] ?? "").trim();
+        if (v && !/^(DATA DE HOJE|NÃO MEXER|NAO MEXER)/i.test(v) && !/^\d{1,2}\/\d{1,2}\/\d{2,4}/.test(v)) {
+          // skip pure date cells - we want the name/period string
+          // Actually for period we want date, so check label
+        }
+      }
+      return "";
+    };
+    void getVal;
+    // Use label search: find label cell, then value is the next non-empty cell or last meaningful cell in row
+    const findAfter = (labelRe: RegExp): string | null => {
+      for (let c = 0; c < row.length; c++) {
+        if (labelRe.test(norm(row[c]))) {
+          for (let k = c + 1; k < row.length; k++) {
+            const v = String(row[k] ?? "").trim();
+            if (v) return v;
+          }
+        }
+      }
+      return null;
+    };
+    const comandante = findAfter(/COMANDANTE DO INCIDENTE/);
+    if (comandante) header.comandante = comandante;
+    const chefeCap = findAfter(/CHEFE DE OPERA.*CAPITAL/);
+    if (chefeCap) header.chefeCapital = chefeCap;
+    const chefeInt = findAfter(/CHEFE DE OPERA.*INTERIOR/);
+    if (chefeInt) header.chefeInterior = chefeInt;
+    const coord = findAfter(/COORDENADOR DA SALA/);
+    if (coord) header.coordSituacao = coord;
+    // Período operacional: row contains "Período Operacional:" but not "Próximo"
+    if (upper.includes("PERIODO OPERACIONAL") && !upper.includes("PROXIMO")) {
+      const v = findAfter(/PERIODO OPERACIONAL/);
+      if (v) header.periodo = v;
+    }
+    if (upper.includes("PROXIMO PERIODO")) {
+      const v = findAfter(/PROXIMO PERIODO/);
+      if (v) header.proximoPeriodo = v;
+    }
+    if (upper.includes("REUNIAO DE PLANEJAMENTO")) {
+      const v = findAfter(/REUNIAO DE PLANEJAMENTO/);
+      if (v) header.reuniaoPlanejamento = v;
+    }
+    if (upper.includes("REUNIAO DE BRIEFING")) {
+      const v = findAfter(/REUNIAO DE BRIEFING/);
+      if (v) header.reuniaoBriefing = v;
+    }
+  }
+  // Coordenador / subcomandante are at bottom signatures
+  for (let i = rows.length - 1; i >= 0 && i > rows.length - 30; i--) {
+    const row = rows[i] ?? [];
+    for (const c of row) {
+      const v = String(c ?? "").trim();
+      if (/CRISTIANO BRAZ/i.test(v)) header.coordenador = "TC QOBM CRISTIANO BRAZ FERREIRA";
+      if (/HELYANTHUS/i.test(v)) header.subcomandante = "CEL QOBM HELYANTHUS FRANK DA SILVA BORGES";
+    }
+  }
+  return header;
+}
 
-  // --- EFETIVO ---
+function parseEfetivo(rows: any[][]): ParsedDailyReport["efetivo"] {
   let efRow = -1;
   for (let i = 0; i < rows.length; i++) {
     const rowStr = (rows[i] || []).map((c) => String(c ?? "")).join(" | ");
-    if (/EFETIVO/i.test(rowStr) && rows[i + 1]?.some((c) => /ORDIN[AÁ]RIO/i.test(String(c ?? "")))) {
-      efRow = i;
-      break;
-    }
-  }
-
-  if (efRow >= 0) {
-    const header = rows[efRow + 1] || [];
-    const munCols: number[] = [];
-    header.forEach((c, idx) => {
-      if (norm(c) === "MUNICIPIO" || norm(c) === "BASES TEMPORARIAS") munCols.push(idx);
-    });
-
-    for (const munCol of munCols) {
-      let ordCol = -1;
-      let segCol = -1;
-      let brigCol = -1;
-      for (let c = munCol + 1; c < munCol + 5 && c < header.length; c++) {
-        const h = norm(header[c]);
-        if (h.includes("ORDINARIO")) ordCol = c;
-        else if (h.includes("SEG")) segCol = c;
-        else if (h.includes("BRIGADISTA")) brigCol = c;
-      }
-
-      for (let r = efRow + 2; r < rows.length; r++) {
-        const row = rows[r] || [];
-        const rawMun = String(row[munCol] ?? "").trim();
-        if (!rawMun || /TOTAL/i.test(rawMun)) break;
-        const mun = canonicalMunicipio(rawMun);
-        out.efetivo.push({
-          mun,
-          ord: ordCol >= 0 ? num(row[ordCol]) : 0,
-          seg: segCol >= 0 ? num(row[segCol]) : 0,
-          brig: brigCol >= 0 ? num(row[brigCol]) : 0,
-        });
+    // New layout has "EFETIVO" alone on row, next row has header with SERVIÇO or ORDINÁRIO
+    if (/EFETIVO/i.test(rowStr) && i + 1 < rows.length) {
+      const next = (rows[i + 1] || []).map((c) => norm(c)).join(" ");
+      if (next.includes("SERVICO") || next.includes("ORDINARIO") || next.includes("MUNICIPIO")) {
+        efRow = i;
+        break;
       }
     }
   }
+  if (efRow < 0) return [];
+
+  const header = rows[efRow + 1] || [];
+  // Find all MUNICÍPIO columns plus BASES TEMPORÁRIAS start
+  const munCols: number[] = [];
+  header.forEach((c, idx) => {
+    const n = norm(c);
+    if (n === "MUNICIPIO" || n === "BASES TEMPORARIAS") munCols.push(idx);
+  });
+
+  // Build label map per munCol block
+  type BlockMap = {
+    munCol: number;
+    servico?: number;
+    opamv?: number;
+    opam_ref?: number;
+    inc1?: number;
+    inc2?: number;
+    inc3?: number;
+    cbmsp?: number;
+    prevfogo?: number;
+    fn?: number;
+    brig_mun?: number;
+    brig_semas?: number;
+    seg?: number;
+    ordLegacy?: number;
+  };
+  const blocks: BlockMap[] = munCols.map((munCol, k) => {
+    const end = k + 1 < munCols.length ? munCols[k + 1] : header.length;
+    const b: BlockMap = { munCol };
+    for (let c = munCol + 1; c < end && c < header.length; c++) {
+      const h = norm(header[c]);
+      if (!h || h === "TOTAL" || h.startsWith("TOTAL GERAL")) continue;
+      if (h === "SERVICO" || h === "SERV. ORDINARIO" || h === "SERVICO ORDINARIO" || h.includes("SERVICO") || h === "SERV") {
+        if (b.servico === undefined) b.servico = c;
+        if (b.ordLegacy === undefined) b.ordLegacy = c;
+      } else if (h.includes("OPAMV")) b.opamv = c;
+      else if (h.includes("OPAM REF")) b.opam_ref = c;
+      else if (h.match(/^INC\s*1/) || h.includes("INC 1")) b.inc1 = c;
+      else if (h.match(/^INC\s*2/) || h.includes("INC 2")) b.inc2 = c;
+      else if (h.match(/^INC\s*3/) || h.includes("INC3") || h.includes("INC 3")) b.inc3 = c;
+      else if (h.includes("CBMSP") || h.includes("CBMS P")) b.cbmsp = c;
+      else if (h.includes("PREVFOGO")) b.prevfogo = c;
+      else if (h === "FN") b.fn = c;
+      else if (h.includes("BRIGADISTA MUN") || h.includes("BRIGADISTA MUNC")) b.brig_mun = c;
+      else if (h.includes("BRIGADISTA SEMAS") || h.includes("BRIGADISTA SEMA")) b.brig_semas = c;
+      else if (h === "SEG") b.seg = c;
+      else if (h.includes("ORDINARIO") && b.ordLegacy === undefined) b.ordLegacy = c;
+      else if (h.includes("BRIGADISTA") && b.brig_mun === undefined) b.brig_mun = c;
+    }
+    return b;
+  });
+
+  const out: ParsedDailyReport["efetivo"] = [];
+
+  for (const b of blocks) {
+    for (let r = efRow + 2; r < rows.length; r++) {
+      const row = rows[r] || [];
+      const rawMun = String(row[b.munCol] ?? "").trim();
+      if (!rawMun) {
+        const next = String((rows[r + 1] ?? [])[b.munCol] ?? "").trim();
+        if (!next) break;
+        // skip empty separator but continue scanning - check if next block row has RECURSOS
+        if (/RECURSOS/i.test((rows[r] || []).join(" "))) break;
+        continue;
+      }
+      if (/^(TOTAL|RECURSOS)/i.test(rawMun)) break;
+      if (/^(CAPITAL|INTERIOR|MISSÃO|MISSAO)/i.test(rawMun)) break;
+
+      const servico = b.servico !== undefined ? num(row[b.servico]) : b.ordLegacy !== undefined ? num(row[b.ordLegacy]) : 0;
+      const opamv = b.opamv !== undefined ? num(row[b.opamv]) : 0;
+      const opam_ref = b.opam_ref !== undefined ? num(row[b.opam_ref]) : 0;
+      const inc1 = b.inc1 !== undefined ? num(row[b.inc1]) : 0;
+      const inc2 = b.inc2 !== undefined ? num(row[b.inc2]) : 0;
+      const inc3 = b.inc3 !== undefined ? num(row[b.inc3]) : 0;
+      const cbmsp = b.cbmsp !== undefined ? num(row[b.cbmsp]) : 0;
+      const prevfogo = b.prevfogo !== undefined ? num(row[b.prevfogo]) : 0;
+      const fn = b.fn !== undefined ? num(row[b.fn]) : 0;
+      const brig_mun = b.brig_mun !== undefined ? num(row[b.brig_mun]) : 0;
+      const brig_semas = b.brig_semas !== undefined ? num(row[b.brig_semas]) : 0;
+      const seg = b.seg !== undefined ? num(row[b.seg]) : 0;
+
+      // Keep original name for bases temporárias - don't canonicalize aggressively for distinction
+      // but still canonicalize for consistency
+      const mun = canonicalMunicipio(rawMun);
+
+      out.push({
+        mun,
+        ord: servico,
+        seg,
+        brig: brig_mun + brig_semas,
+        servico,
+        opamv,
+        opam_ref,
+        inc1,
+        inc2,
+        inc3,
+        cbmsp,
+        prevfogo,
+        fn,
+        brig_mun,
+        brig_semas,
+      });
+    }
+  }
+
+  return out;
+}
+
+/** Converte a aba RELATÓRIO no formato de `daily_reports`. */
+export function parseDailyReportSheet(rows: any[][]): ParsedDailyReport {
+  const out: ParsedDailyReport = { header: parseHeader(rows), efetivo: [], recursos: [], incendios: [], incendios_acumulado: [], outras: [] };
+
+  out.efetivo = parseEfetivo(rows);
 
   // --- RECURSOS ---
   const recIdx = findSection(rows, "RECURSOS");
   if (recIdx >= 0) {
     const header = rows[recIdx + 1] ?? [];
     for (const b of headerBlocks(header)) {
-      // Apenas o primeiro bloco com MUNICÍPIO (coluna 1) contém as viaturas por município.
       if (b.munCol > 5) continue;
       eachRow(rows, recIdx + 2, b.munCol, (row, mun) => {
         const extra: Record<string, number> = {};
@@ -279,7 +465,7 @@ export function parseDailyReportSheet(rows: any[][]): ParsedDailyReport {
           if (!v) continue;
           extra[label] = v;
           if (label.startsWith("EMBARCACAO") || label.startsWith("LANCHA")) embarcacoes += v;
-          else if (label.startsWith("AERONAVE") || label.startsWith("HELICOPTERO")) aeronaves += v;
+          else if (label.startsWith("AERONAVE") || label.startsWith("HELICOPTERO") || label.startsWith("AVIAO")) aeronaves += v;
           else viaturas += v;
         }
         out.recursos.push({ mun: canonicalMunicipio(mun), viaturas, aeronaves, embarcacoes, ...extra });
@@ -287,7 +473,7 @@ export function parseDailyReportSheet(rows: any[][]): ParsedDailyReport {
     }
   }
 
-  // --- INCÊNDIOS (ocorrências DIÁRIAS do período - APENAS BLOCO 1) ---
+  // --- INCÊNDIOS (3 blocos lado a lado) ---
   let incRow = -1;
   for (let i = 0; i < rows.length; i++) {
     const rowStr = (rows[i] || []).map((c) => String(c ?? "")).join(" | ");
@@ -299,46 +485,47 @@ export function parseDailyReportSheet(rows: any[][]): ParsedDailyReport {
 
   if (incRow >= 0) {
     const header = rows[incRow + 1] || [];
-    let endTable1 = header.length;
-    for (let c = 2; c < header.length; c++) {
-      const h = norm(header[c]);
-      if (h === "MUNICIPIO" || h === "N°" || h === "Nº" || h.startsWith("N")) {
-        endTable1 = c;
-        break;
+    // Find all MUNICIPIO column positions in this multi-block header
+    const munColsInc: number[] = [];
+    header.forEach((c, idx) => {
+      if (norm(c) === "MUNICIPIO") munColsInc.push(idx);
+    });
+    // Block boundaries: diárias = [0, munColsInc[1]), acumulado atual = [munColsInc[1], munColsInc[2]), anterior = [munColsInc[2], end)
+    const blockEnds = munColsInc.map((_, k) => (k + 1 < munColsInc.length ? munColsInc[k + 1] : header.length));
+
+    const parseIncBlock = (blockIdx: number, target: "diario" | "acumulado") => {
+      if (blockIdx >= munColsInc.length) return;
+      const munCol = munColsInc[blockIdx];
+      const end = blockEnds[blockIdx];
+      let urbCol = -1, florCol = -1, focosCol = -1, satCol = -1, areaCol = -1;
+      for (let c = munCol + 1; c < end; c++) {
+        const h = norm(header[c]);
+        if (h.includes("URBANO")) urbCol = c;
+        else if (h.includes("FLORESTAL")) florCol = c;
+        else if (h.includes("FOCOS") && h.includes("SATELITE")) satCol = c;
+        else if (h.includes("FOCOS") && satCol === -1 && focosCol === -1) focosCol = c;
+        else if (h.includes("AREA")) areaCol = c;
+        else if (h.includes("FOCOS") && focosCol === -1) focosCol = c;
       }
-    }
+      // FOCOS combatidos vs sat: if both present, keep distinct
+      for (let r = incRow + 2; r < rows.length; r++) {
+        const row = rows[r] || [];
+        const rawMun = String(row[munCol] ?? "").trim();
+        if (!rawMun || /^(TOTAL|INCÊNDIOS|REGIÃO|CAPITAL|INTERIOR)/i.test(rawMun)) break;
+        const mun = canonicalMunicipio(rawMun);
+        const urb = urbCol >= 0 ? num(row[urbCol]) : 0;
+        const flor = florCol >= 0 ? num(row[florCol]) : 0;
+        const focos = focosCol >= 0 ? num(row[focosCol]) : 0;
+        const sat = satCol >= 0 ? num(row[satCol]) : 0;
+        const area = areaCol >= 0 ? num(row[areaCol]) : 0;
+        if (target === "diario") out.incendios.push({ mun, urb, flor, focos, sat, area });
+        else out.incendios_acumulado.push({ mun, urb, flor, focos, sat, area });
+      }
+    };
 
-    let munCol = 1;
-    let urbCol = -1;
-    let florCol = -1;
-    let focosCol = -1;
-
-    for (let c = 0; c < endTable1; c++) {
-      const h = norm(header[c]);
-      if (h === "MUNICIPIO") munCol = c;
-      else if (h.includes("URBANO")) urbCol = c;
-      else if (h.includes("FLORESTAL")) florCol = c;
-      else if (h.includes("FOCOS")) focosCol = c;
-    }
-
-    for (let r = incRow + 2; r < rows.length; r++) {
-      const row = rows[r] || [];
-      const rawMun = String(row[munCol] ?? "").trim();
-      if (!rawMun || /TOTAL/i.test(rawMun)) break;
-      const mun = canonicalMunicipio(rawMun);
-      const urb = urbCol >= 0 ? num(row[urbCol]) : 0;
-      const flor = florCol >= 0 ? num(row[florCol]) : 0;
-      const focos = focosCol >= 0 ? num(row[focosCol]) : 0;
-
-      out.incendios.push({
-        mun,
-        urb,
-        flor,
-        focos,
-        sat: 0,
-        area: 0,
-      });
-    }
+    parseIncBlock(0, "diario");
+    parseIncBlock(1, "acumulado");
+    // block 2 (anterior) ignored - not needed for current report
   }
 
   // --- OUTRAS OCORRÊNCIAS DIÁRIAS (APENAS BLOCO 1) ---
@@ -382,13 +569,16 @@ export function parseDailyReportSheet(rows: any[][]): ParsedDailyReport {
     for (let r = outRow + 2; r < rows.length; r++) {
       const row = rows[r] || [];
       const rawMun = String(row[munCol] ?? "").trim();
-      if (!rawMun || /TOTAL/i.test(rawMun)) break;
+      if (!rawMun || /^(TOTAL|REGIÃO|CAPITAL|INTERIOR)/i.test(rawMun)) break;
       const mun = canonicalMunicipio(rawMun);
       const salv = salvCol >= 0 ? num(row[salvCol]) : 0;
       const acid = acidCol >= 0 ? num(row[acidCol]) : 0;
       const aph = aphCol >= 0 ? num(row[aphCol]) : 0;
       const prev = prevCol >= 0 ? num(row[prevCol]) : 0;
       const serv = servCol >= 0 ? num(row[servCol]) : 0;
+      if (!rawMun) continue;
+      // Skip empty outras rows (many municipios have no entry)
+      if (salv === 0 && acid === 0 && aph === 0 && prev === 0 && serv === 0) continue;
 
       out.outras.push({
         mun,
@@ -424,6 +614,7 @@ export function parseDailyReportSheet(rows: any[][]): ParsedDailyReport {
   out.efetivo = consolidate(out.efetivo);
   out.recursos = consolidate(out.recursos as Array<Record<string, any>>) as any;
   out.incendios = consolidate(out.incendios);
+  out.incendios_acumulado = consolidate(out.incendios_acumulado);
   out.outras = consolidate(out.outras);
 
   return out;

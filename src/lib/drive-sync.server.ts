@@ -67,34 +67,37 @@ export async function syncDriveFolder(opts: {
   for (const file of targets) {
     try {
       const parsed = parseDailyReportSheet(await downloadSheetMatrix(file.id));
-      const payload = {
+      const payload: Record<string, any> = {
         report_date: file.reportDate!,
         shift: file.shift as ReportShift,
         efetivo: manausFirst(parsed.efetivo) as any,
         recursos: manausFirst(parsed.recursos) as any,
         incendios: manausFirst(parsed.incendios) as any,
         outras: manausFirst(parsed.outras) as any,
+        dados_complementares: {
+          header: parsed.header,
+          incendios_acumulado: manausFirst(parsed.incendios_acumulado) as any,
+        } as any,
         updated_by: opts.actorId ?? null,
       };
 
       const { data: existing } = await supabase
         .from("daily_reports")
-        .select("id, efetivo, recursos, incendios, outras")
+        .select("id, efetivo, recursos, incendios, outras, dados_complementares")
         .eq("report_date", payload.report_date)
         .eq("shift", payload.shift)
         .maybeSingle();
 
       if (existing) {
-        // Evita gravações (e versões de auditoria) desnecessárias quando
-        // a planilha não mudou desde a última sincronização.
         const same =
           JSON.stringify([
             existing.efetivo,
             existing.recursos,
             existing.incendios,
             existing.outras,
+            (existing as any).dados_complementares,
           ]) ===
-          JSON.stringify([payload.efetivo, payload.recursos, payload.incendios, payload.outras]);
+          JSON.stringify([payload.efetivo, payload.recursos, payload.incendios, payload.outras, payload.dados_complementares]);
         if (same) {
           result.skipped += 1;
           continue;

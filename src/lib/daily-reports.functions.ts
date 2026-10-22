@@ -13,7 +13,25 @@ const nnInt = z.preprocess(
 );
 const shortStr = z.preprocess((v) => (v == null ? "" : String(v)), z.string().trim().max(200));
 
-const EfetivoRow = z.object({ mun: shortStr, ord: nnInt, seg: nnInt, brig: nnInt });
+const EfetivoRow = z
+  .object({
+    mun: shortStr,
+    ord: nnInt,
+    seg: nnInt,
+    brig: nnInt,
+    servico: nnInt.optional(),
+    opamv: nnInt.optional(),
+    opam_ref: nnInt.optional(),
+    inc1: nnInt.optional(),
+    inc2: nnInt.optional(),
+    inc3: nnInt.optional(),
+    cbmsp: nnInt.optional(),
+    prevfogo: nnInt.optional(),
+    fn: nnInt.optional(),
+    brig_mun: nnInt.optional(),
+    brig_semas: nnInt.optional(),
+  })
+  .passthrough();
 const RecursosRow = z.object({ mun: shortStr }).catchall(z.any());
 const IncendiosRow = z.object({ mun: shortStr, urb: nnInt, flor: nnInt, focos: nnInt });
 const OutrasRow = z.object({
@@ -199,13 +217,39 @@ export const saveDailyReport = createServerFn({ method: "POST" })
   .middleware([requireBackendAuth])
   .inputValidator((raw: unknown) => DailyReportSchema.parse(raw))
   .handler(async ({ data, context }) => {
-    const { data: existing, error: readErr } = await context.supabase
-      .from("daily_reports")
-      .select("id, created_by")
-      .eq("report_date", data.report_date)
-      .eq("shift", data.shift)
-      .maybeSingle();
+    const dbClient = context.supabase;
+
+    const [{ data: rolesData }, { data: existing, error: readErr }] = await Promise.all([
+      dbClient.from("user_roles").select("role").eq("user_id", context.userId),
+      dbClient
+        .from("daily_reports")
+        .select("id, created_by")
+        .eq("report_date", data.report_date)
+        .eq("shift", data.shift)
+        .maybeSingle(),
+    ]);
     if (readErr) dbFail(readErr, "daily-reports");
+
+    const roles = new Set((rolesData ?? []).map((r: any) => r.role));
+    const isAdmin = roles.has("admin");
+    const isEditor = roles.has("editor");
+    if (!isAdmin && !isEditor) throw new Error("Sem permissão para editar.");
+
+    if (!isAdmin && existing && (existing as any).created_by !== context.userId) {
+      const scaleISO =
+        data.shift === "noturno"
+          ? new Date(new Date(`${data.report_date}T00:00:00Z`).getTime() - 86_400_000)
+              .toISOString()
+              .slice(0, 10)
+          : data.report_date;
+      const { data: sched } = await dbClient
+        .from("escala_shifts")
+        .select("id, escala_operators!inner(profile_id)")
+        .in("shift_date", Array.from(new Set([data.report_date, scaleISO])))
+        .eq("escala_operators.profile_id", context.userId)
+        .limit(1);
+      if (!sched?.length) throw new Error("Sem permissão para editar este relatório.");
+    }
 
     const payload = {
       report_date: data.report_date,
@@ -219,14 +263,14 @@ export const saveDailyReport = createServerFn({ method: "POST" })
     };
 
     if (existing) {
-      const { error } = await context.supabase
+      const { error } = await dbClient
         .from("daily_reports")
         .update(payload)
         .eq("id", existing.id);
       if (error) dbFail(error, "daily-reports");
       return { id: existing.id, created: false };
     }
-    const { data: inserted, error } = await context.supabase
+    const { data: inserted, error } = await dbClient
       .from("daily_reports")
       .insert({ ...payload, created_by: context.userId })
       .select("id")

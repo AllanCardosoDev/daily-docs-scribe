@@ -33,7 +33,7 @@ function connectionStatus(configured: boolean, error?: string) {
   if (!configured)
     return { dot: "bg-amber-400", label: "Aguardando configuração", tone: "text-amber-100" };
   if (error) return { dot: "bg-red-500", label: `Erro: ${error}`, tone: "text-red-100" };
-  return { dot: "bg-emerald-400", label: "Conectado ao Google Sheets", tone: "text-emerald-100" };
+  return { dot: "bg-emerald-400", label: "Banco de Dados Conectado", tone: "text-emerald-100" };
 }
 
 export const DashboardHeader = memo(function DashboardHeader({

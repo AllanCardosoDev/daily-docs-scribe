@@ -30,6 +30,14 @@ export type SectionSavers = Record<SavableListKey, SectionSaver> & {
   header: (h: SheetsHeader) => Promise<void>;
 };
 
+function toDateIso(d?: Date | null): string | undefined {
+  if (!d || Number.isNaN(d.getTime())) return undefined;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 export function useSheetsDashboard(reportDate?: Date | null, endDate?: Date | null) {
   const qc = useQueryClient();
   const getCfg = useServerFn(getAppConfig);
@@ -46,8 +54,8 @@ export function useSheetsDashboard(reportDate?: Date | null, endDate?: Date | nu
     staleTime: 5 * 60_000,
   });
 
-  const dateIso = reportDate?.toISOString().split("T")[0];
-  const endDateIso = endDate?.toISOString().split("T")[0];
+  const dateIso = toDateIso(reportDate);
+  const endDateIso = toDateIso(endDate);
 
   const dataQuery = useQuery({
     queryKey: [...queryKeys.sheetsData, dateIso, endDateIso],

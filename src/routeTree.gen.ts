@@ -9,22 +9,26 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AuthenticatedTotaisRouteImport } from './routes/_authenticated/totais'
-import { Route as AuthenticatedStatusRouteImport } from './routes/_authenticated/status'
-import { Route as AuthenticatedRegistroRouteImport } from './routes/_authenticated/registro'
-import { Route as AuthenticatedPainelRouteImport } from './routes/_authenticated/painel'
-import { Route as AuthenticatedEscalaRouteImport } from './routes/_authenticated/escala'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
-import { Route as ApiPublicGrupoAdicionalIncendioRouteImport } from './routes/api/public/grupo-adicional-incendio'
+import { Route as AuthenticatedEscalaRouteImport } from './routes/_authenticated/escala'
+import { Route as AuthenticatedPainelRouteImport } from './routes/_authenticated/painel'
+import { Route as AuthenticatedRegistroRouteImport } from './routes/_authenticated/registro'
+import { Route as AuthenticatedStatusRouteImport } from './routes/_authenticated/status'
+import { Route as AuthenticatedTotaisRouteImport } from './routes/_authenticated/totais'
 import { Route as ApiPublicDriveSyncRouteImport } from './routes/api/public/drive-sync'
+import { Route as ApiPublicGrupoAdicionalIncendioRouteImport } from './routes/api/public/grupo-adicional-incendio'
 
-const ResetPasswordRoute = ResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -32,33 +36,14 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
-  id: '/_authenticated',
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthenticatedTotaisRoute = AuthenticatedTotaisRouteImport.update({
-  id: '/totais',
-  path: '/totais',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedStatusRoute = AuthenticatedStatusRouteImport.update({
-  id: '/status',
-  path: '/status',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedRegistroRoute = AuthenticatedRegistroRouteImport.update({
-  id: '/registro',
-  path: '/registro',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedPainelRoute = AuthenticatedPainelRouteImport.update({
-  id: '/painel',
-  path: '/painel',
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedEscalaRoute = AuthenticatedEscalaRouteImport.update({
@@ -66,10 +51,30 @@ const AuthenticatedEscalaRoute = AuthenticatedEscalaRouteImport.update({
   path: '/escala',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
+const AuthenticatedPainelRoute = AuthenticatedPainelRouteImport.update({
+  id: '/painel',
+  path: '/painel',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedRegistroRoute = AuthenticatedRegistroRouteImport.update({
+  id: '/registro',
+  path: '/registro',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedStatusRoute = AuthenticatedStatusRouteImport.update({
+  id: '/status',
+  path: '/status',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedTotaisRoute = AuthenticatedTotaisRouteImport.update({
+  id: '/totais',
+  path: '/totais',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const ApiPublicDriveSyncRoute = ApiPublicDriveSyncRouteImport.update({
+  id: '/api/public/drive-sync',
+  path: '/api/public/drive-sync',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicGrupoAdicionalIncendioRoute =
   ApiPublicGrupoAdicionalIncendioRouteImport.update({
@@ -77,11 +82,6 @@ const ApiPublicGrupoAdicionalIncendioRoute =
     path: '/api/public/grupo-adicional-incendio',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicDriveSyncRoute = ApiPublicDriveSyncRouteImport.update({
-  id: '/api/public/drive-sync',
-  path: '/api/public/drive-sync',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -178,18 +178,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/reset-password': {
-      id: '/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -199,39 +192,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/totais': {
-      id: '/_authenticated/totais'
-      path: '/totais'
-      fullPath: '/totais'
-      preLoaderRoute: typeof AuthenticatedTotaisRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/status': {
-      id: '/_authenticated/status'
-      path: '/status'
-      fullPath: '/status'
-      preLoaderRoute: typeof AuthenticatedStatusRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/registro': {
-      id: '/_authenticated/registro'
-      path: '/registro'
-      fullPath: '/registro'
-      preLoaderRoute: typeof AuthenticatedRegistroRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/painel': {
-      id: '/_authenticated/painel'
-      path: '/painel'
-      fullPath: '/painel'
-      preLoaderRoute: typeof AuthenticatedPainelRouteImport
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/escala': {
@@ -241,25 +220,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedEscalaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/dashboard': {
-      id: '/_authenticated/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+    '/_authenticated/painel': {
+      id: '/_authenticated/painel'
+      path: '/painel'
+      fullPath: '/painel'
+      preLoaderRoute: typeof AuthenticatedPainelRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/api/public/grupo-adicional-incendio': {
-      id: '/api/public/grupo-adicional-incendio'
-      path: '/api/public/grupo-adicional-incendio'
-      fullPath: '/api/public/grupo-adicional-incendio'
-      preLoaderRoute: typeof ApiPublicGrupoAdicionalIncendioRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_authenticated/registro': {
+      id: '/_authenticated/registro'
+      path: '/registro'
+      fullPath: '/registro'
+      preLoaderRoute: typeof AuthenticatedRegistroRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/status': {
+      id: '/_authenticated/status'
+      path: '/status'
+      fullPath: '/status'
+      preLoaderRoute: typeof AuthenticatedStatusRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/totais': {
+      id: '/_authenticated/totais'
+      path: '/totais'
+      fullPath: '/totais'
+      preLoaderRoute: typeof AuthenticatedTotaisRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/api/public/drive-sync': {
       id: '/api/public/drive-sync'
       path: '/api/public/drive-sync'
       fullPath: '/api/public/drive-sync'
       preLoaderRoute: typeof ApiPublicDriveSyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/grupo-adicional-incendio': {
+      id: '/api/public/grupo-adicional-incendio'
+      path: '/api/public/grupo-adicional-incendio'
+      fullPath: '/api/public/grupo-adicional-incendio'
+      preLoaderRoute: typeof ApiPublicGrupoAdicionalIncendioRouteImport
       parentRoute: typeof rootRouteImport
     }
   }

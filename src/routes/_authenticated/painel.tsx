@@ -12,8 +12,6 @@ import { ScrollToTop } from "@/components/dashboard/ScrollToTop";
 import { LayoutGrid } from "lucide-react";
 import { useSheetsDashboard } from "@/hooks/use-sheets";
 import { EMPTY_SHEETS_DATA } from "@/lib/sheets.types";
-import { getComparisonData } from "@/lib/sheets.functions";
-import type { ComparisonResult } from "@/lib/comparison";
 import { useExporters } from "@/hooks/use-exporters";
 import { useServerFn } from "@tanstack/react-start";
 import { getLatestReportDate } from "@/lib/daily-reports.functions";
@@ -50,54 +48,27 @@ function PainelPage() {
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [shift, setShift] = useState<ReportShift>("noturno");
   const getLatest = useServerFn(getLatestReportDate);
-  const [comparisonMode, setComparisonMode] = useState(false);
-  const [compReportDate, setCompReportDate] = useState<Date | null>(null);
-  const [compEndDate, setCompEndDate] = useState<Date | null>(null);
 
   useEffect(() => {
     getLatest().then((dateStr) => {
       if (dateStr) {
         // Use local time for the date string from DB to avoid timezone shifts
         const [y, m, d] = dateStr.split("-").map(Number);
-        setReportDate(new Date(y, m - 1, d));
-        setEndDate(new Date(y, m - 1, d));
+        const dt = new Date(y, m - 1, d);
+        setReportDate(dt);
+        setEndDate(dt);
       } else {
-        setReportDate(new Date());
-        setEndDate(new Date());
+        const dt = new Date();
+        setReportDate(dt);
+        setEndDate(dt);
       }
     });
   }, [getLatest]);
 
-  const [pdfQuality, setPdfQuality] = useState<"standard" | "high">("standard");
   const { configQuery, dataQuery, savers, canEdit, refresh } = useSheetsDashboard(
     reportDate,
     endDate,
   );
-
-  const getComparison = useServerFn(getComparisonData);
-  const comparisonQuery = useQuery({
-    queryKey: [
-      "comparison-data",
-      reportDate?.toISOString().split("T")[0],
-      endDate?.toISOString().split("T")[0],
-      compReportDate?.toISOString().split("T")[0],
-      compEndDate?.toISOString().split("T")[0],
-    ],
-    queryFn: () =>
-      getComparison({
-        data: {
-          rangeA: {
-            reportDate: reportDate!.toISOString().split("T")[0],
-            endDate: endDate?.toISOString().split("T")[0],
-          },
-          rangeB: {
-            reportDate: compReportDate!.toISOString().split("T")[0],
-            endDate: compEndDate?.toISOString().split("T")[0],
-          },
-        },
-      }),
-    enabled: comparisonMode && !!reportDate && !!compReportDate,
-  });
 
   const cfg = configQuery.data;
   const payload = dataQuery.data;
@@ -116,13 +87,12 @@ function PainelPage() {
     setPreviewMounted(true);
     setPreviewOpen(true);
   }, []);
-  const { exportXlsx, exportPdf, exportMunicipioPdf, exportMunicipioCsv } = useExporters(
+  const { exportXlsx, exportPdf } = useExporters(
     data, 
     reportDate, 
-    pdfQuality,
-    comparisonQuery.data || undefined
+    "standard",
+    undefined
   );
-
 
   const existingMunicipios = useMemo(() => {
     const list = data.incendios_diario ?? [];
@@ -181,6 +151,44 @@ function PainelPage() {
     [data, savers],
   );
 
+  const handleAddOutroEfetivo = useCallback(
+    async (name: string, ord = 0, seg = 0, brig = 0) => {
+      const cleanName = name.trim();
+      if (!cleanName) return;
+
+      const appendOrUpdate = <T extends { mun?: string; municipio?: string }>(
+        list: T[],
+        newRow: T,
+      ) => {
+        const idx = list.findIndex(
+          (r) =>
+            (r.mun ?? (r as any).municipio)?.trim().toLowerCase() ===
+            cleanName.toLowerCase(),
+        );
+        if (idx >= 0) {
+          const updated = [...list];
+          updated[idx] = { ...updated[idx], ...newRow };
+          return updated;
+        }
+        return [...list, newRow];
+      };
+
+      const updatedEfetivo = appendOrUpdate(data.efetivo ?? [], {
+        mun: cleanName,
+        ord: Number(ord) || 0,
+        seg: Number(seg) || 0,
+        brig: Number(brig) || 0,
+      });
+
+      const updatedRecursos = appendOrUpdate(data.recursos ?? [], { mun: cleanName });
+
+      await savers.efetivo(updatedEfetivo);
+      await savers.recursos(updatedRecursos);
+      toast.success(`Efetivo "${cleanName}" adicionado ao relatório!`);
+    },
+    [data, savers],
+  );
+
   const isBooting = configQuery.isLoading || (dataQuery.isLoading && !dataQuery.isPlaceholderData);
   // A fonte oficial é sempre a pasta do Google Drive — não há configuração manual.
 
@@ -203,28 +211,19 @@ function PainelPage() {
               canEdit={canEdit}
               isRefreshing={dataQuery.isFetching}
               reportDate={reportDate}
-              endDate={endDate}
               onReportDateChange={(d) => {
                 setReportDate(d);
-                if (d && endDate && d > endDate) setEndDate(d);
+                setEndDate(d);
               }}
-              onEndDateChange={setEndDate}
-              pdfQuality={pdfQuality}
-              onPdfQualityChange={setPdfQuality}
               onRefresh={refresh}
               onExportXlsx={exportXlsx}
               onExportPdf={exportPdf}
               onPreviewPdf={openPreview}
               existingMunicipios={existingMunicipios}
               onAddMunicipio={handleAddMunicipio}
+              onAddOutroEfetivo={handleAddOutroEfetivo}
               shift={shift}
               onShiftChange={setShift}
-              comparisonMode={comparisonMode}
-              onComparisonModeChange={setComparisonMode}
-              compReportDate={compReportDate}
-              onCompReportDateChange={setCompReportDate}
-              compEndDate={compEndDate}
-              onCompEndDateChange={setCompEndDate}
             />
             <EditableHeader header={data.header ?? {}} editable={canEdit} onSave={savers.header} />
             <KpiCards data={data} />

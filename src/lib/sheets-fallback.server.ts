@@ -35,6 +35,7 @@ const RECURSOS_ALIASES: Record<string, string> = {
   picape_esfron: "picape_esfron",
   helicoptero: "helicoptero",
   aviao: "aviao",
+  abtf: "abtf",
   municipio: "mun",
 };
 
@@ -101,6 +102,68 @@ export const OFFICIAL_CUMULATIVE_04_08_2026 = [
   { mun: "Tefé", urb: 5, flor: 3, focos: 6, sat: 7, area: 250 },
   { mun: "Urucurituba", urb: 0, flor: 0, focos: 0, sat: 9, area: 0 },
 ];
+
+export const STANDARD_OPERATIONAL_MUNICIPIOS = [
+  "Manaus",
+  "Apuí",
+  "Atalaia do Norte",
+  "Autazes",
+  "Barcelos",
+  "Boa Vista do Ramos",
+  "Boca do Acre",
+  "Borba",
+  "Caapiranga",
+  "Canutama",
+  "Careiro",
+  "Careiro da Várzea",
+  "Coari",
+  "Envira",
+  "Humaitá",
+  "Iranduba",
+  "Itacoatiara",
+  "Itapiranga",
+  "Jutaí",
+  "Lábrea",
+  "Manacapuru",
+  "Manaquiri",
+  "Manicoré",
+  "Maués",
+  "Nhamundá",
+  "Novo Airão",
+  "Novo Aripuanã",
+  "Parintins",
+  "Presidente Figueiredo",
+  "Rio Preto da Eva",
+  "Tabatinga",
+  "Tapauá",
+  "Tefé",
+  "Urucurituba",
+  "Benjamin Constant",
+  "São Gabriel da Cachoeira",
+  "São Paulo de Olivença",
+  "Santo Antônio do Içá",
+  "Santa Isabel do Rio Negro",
+];
+
+export function ensureAllMunicipios<T extends { mun: string }>(
+  existingRows: T[],
+  defaultFactory: (mun: string) => T,
+): T[] {
+  const map = new Map<string, T>();
+  for (const m of STANDARD_OPERATIONAL_MUNICIPIOS) {
+    const canonical = canonicalMunicipio(m);
+    map.set(canonical.toLowerCase(), defaultFactory(canonical));
+  }
+  for (const row of existingRows) {
+    const rawMun = row?.mun ?? (row as any)?.municipio;
+    if (!rawMun) continue;
+    const canonical = canonicalMunicipio(rawMun);
+    if (!canonical || canonical === "—") continue;
+    const existing = map.get(canonical.toLowerCase()) ?? defaultFactory(canonical);
+    map.set(canonical.toLowerCase(), { ...existing, ...row, mun: canonical });
+  }
+  return Array.from(map.values()).sort((a, b) => compareMunicipios(a.mun, b.mun));
+}
 
 export async function fetchIncendiosAcumulado(
   supabase: SupabaseClient<any>,
@@ -183,86 +246,25 @@ function consolidateAndCanonicalizeRows<T extends Record<string, any>>(
 export async function loadLatestDriveReport(
   supabase: SupabaseClient<any>,
 ): Promise<{ data: SheetsData; found: boolean }> {
-  const { data: row, error } = await supabase
+  const { data: row } = await supabase
     .from("daily_reports")
-    .select("report_date, shift, efetivo, recursos, incendios, outras, updated_at")
+    .select("report_date")
     .order("report_date", { ascending: false })
     .order("shift", { ascending: false })
     .order("updated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  if (error || !row) return { data: EMPTY_SHEETS_DATA, found: false };
-
-  const shiftLabel = row.shift === "parcial" ? "Parcial (07:00–18:30)" : "24h (18:30–07:00)";
-  const dateStr = formatDateBR(String(row.report_date));
-  const acum = await fetchIncendiosAcumulado(supabase, String(row.report_date));
-
-  const rawEfetivo = asRows(row.efetivo).map((r) => {
-    const mun = canonicalMunicipio(r.mun ?? r.municipio);
-    const isItapiranga = mun.toLowerCase().includes("itapiranga");
-    return {
-      mun,
-      ord: isItapiranga ? num(r.ord) || 6 : num(r.ord),
-      seg: num(r.seg),
-      brig: isItapiranga ? num(r.brig) || 12 : num(r.brig),
-    };
-  });
-  if (!rawEfetivo.some((r) => r.mun.toLowerCase().includes("itapiranga"))) {
-    rawEfetivo.push({ mun: "Itapiranga", ord: 6, seg: 0, brig: 12 });
-  }
-
-  const rawInc = asRows(row.incendios).map((r) => ({
-    mun: canonicalMunicipio(r.mun ?? r.municipio),
-    urb: num(r.urb),
-    flor: num(r.flor),
-    focos: num(r.focos),
-    total_periodo: num(r.total_periodo),
-  }));
-
-  const rawOutras = asRows(row.outras).map((r) => ({
-    mun: canonicalMunicipio(r.mun ?? r.municipio),
-    salvamento: num(r.salvamento),
-    acidentes: num(r.acidentes),
-    aph: num(r.aph),
-    prevencao: num(r.prevencao),
-    servicos: num(r.servicos),
-    total_periodo: num(r.total_periodo),
-  }));
-
-  const data: SheetsData = {
-    header: {
-      titulo: "Relatório Diário — Sala de Situação",
-      periodo: `${dateStr} · ${shiftLabel}`,
-      proximoPeriodo: "",
-      reuniaoPlanejamento: `${dateStr} – 8H15`,
-      reuniaoBriefing: `${dateStr} – 8H30`,
-      comandante: "CEL QOBM BORGES",
-      chefeCapital: "CEL QOBM MENEZES",
-      chefeInterior: "CEL QOBM MONTEIRO",
-      coordSituacao: "TC QOBM FERREIRA",
-      coordenador: "Coordenador Amazonas + Verde",
-      subcomandante: "Subcomandante-Geral do CBMAM",
-    },
-    efetivo: consolidateAndCanonicalizeRows(rawEfetivo, ["ord", "seg", "brig"]),
-    recursos: normaliseRecursos(asRows(row.recursos)),
-    incendios_diario: consolidateAndCanonicalizeRows(rawInc, ["urb", "flor", "focos", "total_periodo"]),
-    incendios_acumulado: acum,
-    outras_diarias: consolidateAndCanonicalizeRows(rawOutras, [
-      "salvamento",
-      "acidentes",
-      "aph",
-      "prevencao",
-      "servicos",
-      "total_periodo",
-    ]),
-    occurrences: [],
-  };
-  return { data, found: true };
+  const reportDateIso = row?.report_date
+    ? String(row.report_date)
+    : new Date().toISOString().split("T")[0];
+  return loadReportByDate(supabase, reportDateIso);
 }
 
 /**
  * Carrega um relatório específico por data e turno.
+ * Se não houver dados gravados para a data, gera a estrutura padrão
+ * completa com todos os municípios e campos zerados para inserção imediata.
  */
 export async function loadReportByDate(
   supabase: SupabaseClient<any>,
@@ -270,19 +272,18 @@ export async function loadReportByDate(
 ): Promise<{ data: SheetsData; found: boolean }> {
   const { data: row, error } = await supabase
     .from("daily_reports")
-    .select("report_date, shift, efetivo, recursos, incendios, outras, header, updated_at")
+    .select("report_date, shift, efetivo, recursos, incendios, outras, dados_complementares, notes, updated_at")
     .eq("report_date", dateIso)
     .order("shift", { ascending: false }) // 24h (completo) antes de parcial se ambos existirem
     .limit(1)
     .maybeSingle();
 
-  if (error || !row) return { data: EMPTY_SHEETS_DATA, found: false };
+  const isFound = !error && !!row;
+  const shiftLabel = row?.shift === "parcial" ? "Parcial (07:00–18:30)" : "24h (18:30–07:00)";
+  const dateStr = formatDateBR(dateIso);
+  const acum = await fetchIncendiosAcumulado(supabase, dateIso);
 
-  const shiftLabel = row.shift === "parcial" ? "Parcial (07:00–18:30)" : "24h (18:30–07:00)";
-  const dateStr = formatDateBR(String(row.report_date));
-  const acum = await fetchIncendiosAcumulado(supabase, String(row.report_date));
-
-  const rawEfetivo = asRows(row.efetivo).map((r) => {
+  const rawEfetivo = asRows(row?.efetivo).map((r) => {
     const mun = canonicalMunicipio(r.mun ?? r.municipio);
     const isItapiranga = mun.toLowerCase().includes("itapiranga");
     return {
@@ -290,13 +291,24 @@ export async function loadReportByDate(
       ord: isItapiranga ? num(r.ord) || 6 : num(r.ord),
       seg: num(r.seg),
       brig: isItapiranga ? num(r.brig) || 12 : num(r.brig),
+      servico: num(r.servico ?? r.ord),
+      opamv: num(r.opamv),
+      opam_ref: num(r.opam_ref),
+      inc1: num(r.inc1),
+      inc2: num(r.inc2),
+      inc3: num(r.inc3),
+      cbmsp: num(r.cbmsp),
+      prevfogo: num(r.prevfogo),
+      fn: num(r.fn),
+      brig_mun: num(r.brig_mun),
+      brig_semas: num(r.brig_semas),
     };
   });
   if (!rawEfetivo.some((r) => r.mun.toLowerCase().includes("itapiranga"))) {
-    rawEfetivo.push({ mun: "Itapiranga", ord: 6, seg: 0, brig: 12 });
+    rawEfetivo.push({ mun: "Itapiranga", ord: 6, seg: 0, brig: 12, servico: 6, opamv: 0, opam_ref: 0, inc1: 0, inc2: 0, inc3: 0, cbmsp: 0, prevfogo: 0, fn: 0, brig_mun: 12, brig_semas: 0 });
   }
 
-  const rawInc = asRows(row.incendios).map((r) => ({
+  const rawInc = asRows(row?.incendios).map((r) => ({
     mun: canonicalMunicipio(r.mun ?? r.municipio),
     urb: num(r.urb),
     flor: num(r.flor),
@@ -304,7 +316,7 @@ export async function loadReportByDate(
     total_periodo: num(r.total_periodo),
   }));
 
-  const rawOutras = asRows(row.outras).map((r) => ({
+  const rawOutras = asRows(row?.outras).map((r) => ({
     mun: canonicalMunicipio(r.mun ?? r.municipio),
     salvamento: num(r.salvamento),
     acidentes: num(r.acidentes),
@@ -314,25 +326,50 @@ export async function loadReportByDate(
     total_periodo: num(r.total_periodo),
   }));
 
-  const data: SheetsData = {
-    header: {
-      titulo: "Relatório Diário — Sala de Situação",
-      periodo: `${dateStr} · ${shiftLabel}`,
-      proximoPeriodo: "",
-      reuniaoPlanejamento: `${dateStr} – 8H15`,
-      reuniaoBriefing: `${dateStr} – 8H30`,
-      comandante: "CEL QOBM BORGES",
-      chefeCapital: "CEL QOBM MENEZES",
-      chefeInterior: "CEL QOBM MONTEIRO",
-      coordSituacao: "TC QOBM FERREIRA",
-      coordenador: "Coordenador Amazonas + Verde",
-      subcomandante: "Subcomandante-Geral do CBMAM",
-    },
-    efetivo: consolidateAndCanonicalizeRows(rawEfetivo, ["ord", "seg", "brig"]),
-    recursos: normaliseRecursos(asRows(row.recursos)),
-    incendios_diario: consolidateAndCanonicalizeRows(rawInc, ["urb", "flor", "focos", "total_periodo"]),
-    incendios_acumulado: acum,
-    outras_diarias: consolidateAndCanonicalizeRows(rawOutras, [
+  const efetivoConsolidado = ensureAllMunicipios(
+    consolidateAndCanonicalizeRows(rawEfetivo, ["ord", "seg", "brig", "servico", "opamv", "opam_ref", "inc1", "inc2", "inc3", "cbmsp", "prevfogo", "fn", "brig_mun", "brig_semas"]),
+    (mun) => ({
+      mun,
+      ord: mun.toLowerCase().includes("itapiranga") ? 6 : 0,
+      seg: 0,
+      brig: mun.toLowerCase().includes("itapiranga") ? 12 : 0,
+      servico: mun.toLowerCase().includes("itapiranga") ? 6 : 0,
+      opamv: 0,
+      opam_ref: 0,
+      inc1: 0,
+      inc2: 0,
+      inc3: 0,
+      cbmsp: 0,
+      prevfogo: 0,
+      fn: 0,
+      brig_mun: mun.toLowerCase().includes("itapiranga") ? 12 : 0,
+      brig_semas: 0,
+    }),
+  );
+
+  const recursosConsolidados = ensureAllMunicipios(
+    normaliseRecursos(asRows(row?.recursos)),
+    (mun) => ({
+      mun,
+      viaturas: 0,
+      aeronaves: 0,
+      embarcacoes: 0,
+    }),
+  );
+
+  const incendiosConsolidados = ensureAllMunicipios(
+    consolidateAndCanonicalizeRows(rawInc, ["urb", "flor", "focos", "total_periodo"]),
+    (mun) => ({
+      mun,
+      urb: 0,
+      flor: 0,
+      focos: 0,
+      total_periodo: 0,
+    }),
+  );
+
+  const outrasConsolidadas = ensureAllMunicipios(
+    consolidateAndCanonicalizeRows(rawOutras, [
       "salvamento",
       "acidentes",
       "aph",
@@ -340,10 +377,49 @@ export async function loadReportByDate(
       "servicos",
       "total_periodo",
     ]),
-    occurrences: [],
+    (mun) => ({
+      mun,
+      salvamento: 0,
+      acidentes: 0,
+      aph: 0,
+      prevencao: 0,
+      servicos: 0,
+      total_periodo: 0,
+    }),
+  );
+
+  const dados = (row?.dados_complementares as Record<string, any>) || {};
+  const headerObj = (dados.header && typeof dados.header === "object"
+    ? dados.header
+    : row?.header && typeof row.header === "object"
+      ? row.header
+      : {}) as Record<string, string>;
+
+  const data: SheetsData = {
+    header: {
+      titulo: headerObj.titulo ?? "Relatório Diário — Sala de Situação",
+      periodo: headerObj.periodo ?? `${dateStr} · ${shiftLabel}`,
+      proximoPeriodo: headerObj.proximoPeriodo ?? "",
+      reuniaoPlanejamento: headerObj.reuniaoPlanejamento ?? `${dateStr} – 8H15`,
+      reuniaoBriefing: headerObj.reuniaoBriefing ?? `${dateStr} – 8H30`,
+      comandante: headerObj.comandante ?? "CEL QOBM BORGES",
+      chefeCapital: headerObj.chefeCapital ?? "CEL QOBM MENEZES",
+      chefeInterior: headerObj.chefeInterior ?? "CEL QOBM MONTEIRO",
+      coordSituacao: headerObj.coordSituacao ?? "TC QOBM FERREIRA",
+      coordenador: headerObj.coordenador ?? "Coordenador Amazonas + Verde",
+      subcomandante: headerObj.subcomandante ?? "Subcomandante-Geral do CBMAM",
+    },
+    efetivo: efetivoConsolidado,
+    recursos: recursosConsolidados,
+    incendios_diario: incendiosConsolidados,
+    incendios_acumulado: Array.isArray(dados.incendios_acumulado) && dados.incendios_acumulado.length > 0
+      ? dados.incendios_acumulado
+      : acum,
+    outras_diarias: outrasConsolidadas,
+    occurrences: Array.isArray(dados.occurrences) ? dados.occurrences : [],
   };
 
-  return { data, found: true };
+  return { data, found: isFound };
 }
 
 /**

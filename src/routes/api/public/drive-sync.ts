@@ -57,7 +57,23 @@ async function handler({ request }: { request: Request }) {
   });
 
   const days = Number(url.searchParams.get("days") ?? 3);
-  const folderId = url.searchParams.get("folder") ?? undefined;
+  const rawFolder = url.searchParams.get("folder");
+  if (rawFolder && !/^[-_A-Za-z0-9]+$/.test(rawFolder)) {
+    return Response.json({ error: "ID de pasta inválido." }, { status: 400 });
+  }
+  const folderId = rawFolder ?? undefined;
+
+  // Rate limit simples por IP (best-effort em serverless; sem estado externo).
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const bucket = (globalThis as any).__driveSyncHits ?? ((globalThis as any).__driveSyncHits = new Map<string, number[]>());
+  const now = Date.now();
+  const hits: number[] = bucket.get(ip) ?? [];
+  const recent = hits.filter((t: number) => now - t < 60_000);
+  if (recent.length >= 10) {
+    return Response.json({ error: "Muitas requisições. Tente novamente em breve." }, { status: 429 });
+  }
+  recent.push(now);
+  bucket.set(ip, recent);
 
   const [{ syncDriveFolder }, { DEFAULT_DRIVE_FOLDER_ID }] = await Promise.all([
     import("@/lib/drive-sync.server"),

@@ -21,8 +21,22 @@ async function readAppsScriptUrl(supabase: SB): Promise<string | null> {
 }
 
 async function readUserRoles(supabase: SB, userId: string): Promise<string[]> {
-  const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
-  return (data ?? []).map((r: { role: string }) => r.role);
+  try {
+    const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+    if (data && data.length > 0) {
+      return data.map((r: { role: string }) => r.role);
+    }
+  } catch {
+    // continue to fallback
+  }
+
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await supabaseAdmin.from("user_roles").select("role").eq("user_id", userId);
+    return (data ?? []).map((r: { role: string }) => r.role);
+  } catch {
+    return [];
+  }
 }
 
 /** Shape returned by the Apps Script Web App. Fields default to safe empties. */
@@ -85,11 +99,7 @@ export const getSheetsData = createServerFn({ method: "GET" })
         data: resData,
         version: 1,
         configured: true,
-        error: fallback.found
-          ? undefined
-          : input.reportDate
-            ? `Nenhum relatório encontrado para ${input.reportDate}.`
-            : "Nenhum relatório encontrado no sistema.",
+        error: undefined,
       };
     },
   );
@@ -159,7 +169,23 @@ const HeaderSchema = z
   .passthrough();
 
 const EfetivoRowSchema = z
-  .object({ mun: shortStr, ord: nnInt, seg: nnInt, brig: nnInt })
+  .object({
+    mun: shortStr,
+    ord: nnInt,
+    seg: nnInt,
+    brig: nnInt,
+    servico: nnInt.optional(),
+    opamv: nnInt.optional(),
+    opam_ref: nnInt.optional(),
+    inc1: nnInt.optional(),
+    inc2: nnInt.optional(),
+    inc3: nnInt.optional(),
+    cbmsp: nnInt.optional(),
+    prevfogo: nnInt.optional(),
+    fn: nnInt.optional(),
+    brig_mun: nnInt.optional(),
+    brig_semas: nnInt.optional(),
+  })
   .passthrough();
 const IncDiarioRowSchema = z
   .object({ mun: shortStr, urb: nnInt, flor: nnInt, focos: nnInt, total_periodo: nnInt.optional() })
@@ -219,10 +245,12 @@ export const saveSheetsData = createServerFn({ method: "POST" })
       throw new Error("Sem permissão para editar. Peça ao administrador o papel de editor.");
     }
 
+    const dbClient = context.supabase;
+
     const iso = data.reportDate || new Date().toISOString().split("T")[0];
-    const { data: existing, error: readErr } = await context.supabase
+    const { data: existing, error: readErr } = await dbClient
       .from("daily_reports")
-      .select("id")
+      .select("id, dados_complementares")
       .eq("report_date", iso)
       .order("shift", { ascending: false })
       .limit(1)
@@ -231,34 +259,48 @@ export const saveSheetsData = createServerFn({ method: "POST" })
     if (readErr) dbFail(readErr, "daily-reports");
 
     const patch = data.patch;
-    const payload: any = { updated_by: context.userId };
-    if (patch.header) payload.header = patch.header;
+    const payload: any = { updated_by: context.userId, updated_at: new Date().toISOString() };
     if (patch.efetivo) payload.efetivo = patch.efetivo;
     if (patch.recursos) payload.recursos = patch.recursos;
     if (patch.incendios_diario) payload.incendios = patch.incendios_diario;
     if (patch.outras_diarias) payload.outras = patch.outras_diarias;
 
+    if (patch.header || patch.occurrences || patch.incendios_acumulado) {
+      const existingDados = (existing?.dados_complementares as Record<string, any>) || {};
+      payload.dados_complementares = {
+        ...existingDados,
+        ...(patch.header ? { header: patch.header } : {}),
+        ...(patch.occurrences ? { occurrences: patch.occurrences } : {}),
+        ...(patch.incendios_acumulado ? { incendios_acumulado: patch.incendios_acumulado } : {}),
+      };
+    }
+
     if (existing) {
-      const { error } = await context.supabase
+      const { error } = await dbClient
         .from("daily_reports")
         .update(payload)
         .eq("id", existing.id);
-      if (error) dbFail(error, "daily-reports");
+      if (error) {
+        console.error("[saveSheetsData] Erro ao atualizar daily_reports:", error);
+        dbFail(error, "daily-reports");
+      }
       return { ok: true, version: 1 };
     }
 
-    const { data: inserted, error: insErr } = await context.supabase
+    const { data: inserted, error: insErr } = await dbClient
       .from("daily_reports")
       .insert({
         ...payload,
-        header: patch.header ?? {},
         report_date: iso,
         shift: "noturno",
         created_by: context.userId,
       })
       .select("id")
       .single();
-    if (insErr) dbFail(insErr, "daily-reports");
+    if (insErr) {
+      console.error("[saveSheetsData] Erro ao inserir daily_reports:", insErr);
+      dbFail(insErr, "daily-reports");
+    }
 
     return { ok: true, version: 1 };
   });

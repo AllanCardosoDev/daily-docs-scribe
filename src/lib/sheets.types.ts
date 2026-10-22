@@ -17,6 +17,18 @@ export interface EfetivoRow {
   ord: number;
   seg: number;
   brig: number;
+  // Campos expandidos do XLSX oficial (operação Amazonas + Verde)
+  servico?: number;
+  opamv?: number;
+  opam_ref?: number;
+  inc1?: number;
+  inc2?: number;
+  inc3?: number;
+  cbmsp?: number;
+  prevfogo?: number;
+  fn?: number;
+  brig_mun?: number;
+  brig_semas?: number;
 }
 export interface RecursosRow {
   mun: string;

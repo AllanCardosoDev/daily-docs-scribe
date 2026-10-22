@@ -32,11 +32,11 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
-export function AuthPage() {
+function AuthPage() {
   const navigate = useNavigate();
   const { redirect: redirectTo } = Route.useSearch();
   const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState("allancardoso.dev@gmail.com");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
