@@ -245,12 +245,13 @@ export const saveSheetsData = createServerFn({ method: "POST" })
       throw new Error("Sem permissão para editar. Peça ao administrador o papel de editor.");
     }
 
-    const dbClient = context.supabase;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const dbClient = supabaseAdmin ?? context.supabase;
 
     const iso = data.reportDate || new Date().toISOString().split("T")[0];
     const { data: existing, error: readErr } = await dbClient
       .from("daily_reports")
-      .select("id, dados_complementares")
+      .select("id, notes")
       .eq("report_date", iso)
       .order("shift", { ascending: false })
       .limit(1)
@@ -266,13 +267,20 @@ export const saveSheetsData = createServerFn({ method: "POST" })
     if (patch.outras_diarias) payload.outras = patch.outras_diarias;
 
     if (patch.header || patch.occurrences || patch.incendios_acumulado) {
-      const existingDados = (existing?.dados_complementares as Record<string, any>) || {};
-      payload.dados_complementares = {
-        ...existingDados,
+      let existingNotes: Record<string, any> = {};
+      if (existing?.notes) {
+        try {
+          existingNotes = JSON.parse(existing.notes);
+        } catch {
+          existingNotes = {};
+        }
+      }
+      payload.notes = JSON.stringify({
+        ...existingNotes,
         ...(patch.header ? { header: patch.header } : {}),
         ...(patch.occurrences ? { occurrences: patch.occurrences } : {}),
         ...(patch.incendios_acumulado ? { incendios_acumulado: patch.incendios_acumulado } : {}),
-      };
+      });
     }
 
     if (existing) {

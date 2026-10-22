@@ -140,19 +140,16 @@ export const DataTable = memo(function DataTable({
               ) : (
                 <>
                   {local.map((row, i) => {
-                    // Calculate row total if 'total' column exists and is not editable
                     const rowWithTotal = { ...row };
                     const totalCol = columns.find((c) => c.key === "total" && !c.editable);
                     if (totalCol) {
-                      rowWithTotal.total = columns
-                        .filter(
-                          (c) =>
-                            c.numeric &&
-                            c.key !== "total" &&
-                            c.key !== "total_periodo" &&
-                            c.key !== "focos",
-                        )
-                        .reduce((sum, c) => sum + (Number(row[c.key]) || 0), 0);
+                      const numericKeys = columns.filter((c) => c.numeric && c.key !== "total" && c.key !== "total_periodo" && c.key !== "focos").map((c) => c.key);
+                      const isEfetivo = numericKeys.includes("servico") || numericKeys.includes("opamv");
+                      if (isEfetivo) {
+                        rowWithTotal.total = (Number(row.servico) || Number(row.ord) || 0) + (Number(row.opamv) || 0) + (Number(row.opam_ref) || 0) + (Number(row.inc1) || 0) + (Number(row.inc2) || 0) + (Number(row.inc3) || 0) + (Number(row.cbmsp) || 0) + (Number(row.prevfogo) || 0) + (Number(row.fn) || 0) + (Number(row.seg) || 0) + (Number(row.brig_mun) || Number(row.brig) || 0) + (Number(row.brig_semas) || 0);
+                      } else {
+                        rowWithTotal.total = numericKeys.reduce((sum, k) => sum + (Number(row[k]) || 0), 0);
+                      }
                     }
 
                     return (
@@ -197,19 +194,12 @@ export const DataTable = memo(function DataTable({
                       if (c.numeric) {
                         const sum = local.reduce((acc, row) => {
                           if (c.key === "total") {
-                            // Sum of row totals
-                            return (
-                              acc +
-                              columns
-                                .filter(
-                                  (col) =>
-                                    col.numeric &&
-                                    col.key !== "total" &&
-                                    col.key !== "total_periodo" &&
-                                    col.key !== "focos",
-                                )
-                                .reduce((s, col) => s + (Number(row[col.key]) || 0), 0)
-                            );
+                            const numericKeys = columns.filter((col) => col.numeric && col.key !== "total" && col.key !== "total_periodo" && col.key !== "focos").map((col) => col.key);
+                            const isEfetivo = numericKeys.includes("servico") || numericKeys.includes("opamv");
+                            if (isEfetivo) {
+                              return acc + (Number(row.servico) || Number(row.ord) || 0) + (Number(row.opamv) || 0) + (Number(row.opam_ref) || 0) + (Number(row.inc1) || 0) + (Number(row.inc2) || 0) + (Number(row.inc3) || 0) + (Number(row.cbmsp) || 0) + (Number(row.prevfogo) || 0) + (Number(row.fn) || 0) + (Number(row.seg) || 0) + (Number(row.brig_mun) || Number(row.brig) || 0) + (Number(row.brig_semas) || 0);
+                            }
+                            return acc + numericKeys.reduce((s, k) => s + (Number(row[k]) || 0), 0);
                           }
                           return acc + (Number(row[c.key]) || 0);
                         }, 0);

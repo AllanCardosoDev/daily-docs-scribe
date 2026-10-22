@@ -266,15 +266,22 @@ export async function loadLatestDriveReport(
  * Se não houver dados gravados para a data, gera a estrutura padrão
  * completa com todos os municípios e campos zerados para inserção imediata.
  */
+function parseNotesEnvelope(notes: unknown): Record<string, any> {
+  if (!notes || typeof notes !== "string") return {};
+  const s = notes.trim();
+  if (!s.startsWith("{")) return {};
+  try { return JSON.parse(s); } catch { return {}; }
+}
+
 export async function loadReportByDate(
   supabase: SupabaseClient<any>,
   dateIso: string,
 ): Promise<{ data: SheetsData; found: boolean }> {
   const { data: row, error } = await supabase
     .from("daily_reports")
-    .select("report_date, shift, efetivo, recursos, incendios, outras, dados_complementares, notes, updated_at")
+    .select("report_date, shift, efetivo, recursos, incendios, outras, notes, updated_at")
     .eq("report_date", dateIso)
-    .order("shift", { ascending: false }) // 24h (completo) antes de parcial se ambos existirem
+    .order("shift", { ascending: false })
     .limit(1)
     .maybeSingle();
 
@@ -388,12 +395,13 @@ export async function loadReportByDate(
     }),
   );
 
-  const dados = (row?.dados_complementares as Record<string, any>) || {};
-  const headerObj = (dados.header && typeof dados.header === "object"
-    ? dados.header
-    : row?.header && typeof row.header === "object"
-      ? row.header
-      : {}) as Record<string, string>;
+  const notesEnv = parseNotesEnvelope((row as any)?.notes);
+  const headerObj = (
+    (notesEnv.header && typeof notesEnv.header === "object" ? notesEnv.header : null) ??
+    ((row as any)?.dados_complementares?.header && typeof (row as any).dados_complementares.header === "object" ? (row as any).dados_complementares.header : null) ??
+    ((row as any)?.header && typeof (row as any).header === "object" ? (row as any).header : null) ??
+    {}
+  ) as Record<string, string>;
 
   const data: SheetsData = {
     header: {
@@ -412,11 +420,11 @@ export async function loadReportByDate(
     efetivo: efetivoConsolidado,
     recursos: recursosConsolidados,
     incendios_diario: incendiosConsolidados,
-    incendios_acumulado: Array.isArray(dados.incendios_acumulado) && dados.incendios_acumulado.length > 0
-      ? dados.incendios_acumulado
+    incendios_acumulado: Array.isArray(notesEnv.incendios_acumulado) && notesEnv.incendios_acumulado.length > 0
+      ? notesEnv.incendios_acumulado
       : acum,
     outras_diarias: outrasConsolidadas,
-    occurrences: Array.isArray(dados.occurrences) ? dados.occurrences : [],
+    occurrences: Array.isArray(notesEnv.occurrences) ? notesEnv.occurrences : [],
   };
 
   return { data, found: isFound };

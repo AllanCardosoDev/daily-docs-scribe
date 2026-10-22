@@ -7,8 +7,6 @@
 const CANONICAL_MUNICIPIOS: Record<string, string> = {
   "manaus": "Manaus",
   "apui": "Apuí",
-  "apui ": "Apuí",
-  "boca de acre": "Boca do Acre",
   "boca do acre": "Boca do Acre",
   "humaita": "Humaitá",
   "labrea": "Lábrea",
@@ -28,37 +26,45 @@ const CANONICAL_MUNICIPIOS: Record<string, string> = {
   "canutama": "Canutama",
   "careiro": "Careiro",
   "careiro da varzea": "Careiro da Várzea",
-  "careiro da várzea": "Careiro da Várzea",
   "nhamunda": "Nhamundá",
-  "uricurituba": "Urucurituba",
   "urucurituba": "Urucurituba",
   "benjamim constant": "Benjamin Constant",
   "benjamin constant": "Benjamin Constant",
   "sao gabriel da cachoeira": "São Gabriel da Cachoeira",
-  "são gabriel da cachoeira": "São Gabriel da Cachoeira",
   "sao paulo de olivenca": "São Paulo de Olivença",
-  "são paulo de olivença": "São Paulo de Olivença",
   "santo antonio do ica": "Santo Antônio do Içá",
-  "santo antônio do içá": "Santo Antônio do Içá",
   "santa isabel do rio negro": "Santa Isabel do Rio Negro",
+  // Bases temporárias / postos avançados
+  "autazes posto km 53": "Autazes Posto Km 53",
+  "anamã": "Anamã",
+  "anama": "Anamã",
+  "boa vista do ramos": "Boa Vista do Ramos",
+  "caapiranga": "Caapiranga",
+  "careiro castanho": "Careiro Castanho",
+  "careiro da varzea": "Careiro da Várzea",
+  "atalaiado norte": "Atalaia do Norte",
+  "atalaia do norte": "Atalaia do Norte",
+  "envira": "Envira",
+  "itapiranga": "Itapiranga",
+  "jutai": "Jutaí",
+  "manaquiri": "Manaquiri",
+  "maues": "Maués",
+  "barcelos": "Barcelos",
+  "coari": "Coari",
 };
 
 export function canonicalMunicipio(mun: unknown): string {
-  const s = String(mun ?? "").trim();
-  if (!s) return "—";
-  const normKey = s
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
+  const raw = String(mun ?? "").trim();
+  if (!raw) return "—";
+  const normKey = raw.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
   if (CANONICAL_MUNICIPIOS[normKey]) return CANONICAL_MUNICIPIOS[normKey];
-  // Fallback: Title Case para qualquer nome não cadastrado
-  return s.charAt(0).toUpperCase() + s.slice(1);
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
 }
 
 const norm = (v: unknown) =>
   String(v ?? "")
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[̀-ͯ]/g, "")
     .trim()
     .toLowerCase();
 

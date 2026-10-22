@@ -257,54 +257,63 @@ function parseHeader(rows: any[][]): SheetsHeader {
   const header: SheetsHeader = {};
   for (let i = 0; i < Math.min(10, rows.length); i++) {
     const row = rows[i] ?? [];
-    const line = row.map((c) => String(c ?? "").trim()).join(" | ");
-    const upper = norm(line);
-    const getVal = () => {
-      for (let c = row.length - 1; c >= 0; c--) {
-        const v = String(row[c] ?? "").trim();
-        if (v && !/^(DATA DE HOJE|NÃO MEXER|NAO MEXER)/i.test(v) && !/^\d{1,2}\/\d{1,2}\/\d{2,4}/.test(v)) {
-          // skip pure date cells - we want the name/period string
-          // Actually for period we want date, so check label
-        }
-      }
-      return "";
-    };
-    void getVal;
-    // Use label search: find label cell, then value is the next non-empty cell or last meaningful cell in row
-    const findAfter = (labelRe: RegExp): string | null => {
+    const upper = norm(row.map((c) => String(c ?? "").trim()).join(" | "));
+    // Period/date fields share row with officer names (e.g. col 6 = name, col 22 = period label)
+    // For officer fields, take immediate next non-empty value. For period fields, join until "8H".
+    const findOfficer = (labelRe: RegExp): string | null => {
       for (let c = 0; c < row.length; c++) {
         if (labelRe.test(norm(row[c]))) {
           for (let k = c + 1; k < row.length; k++) {
             const v = String(row[k] ?? "").trim();
-            if (v) return v;
+            if (!v) continue;
+            // Officer name is "CEL QOBM ..." / "TC QOBM ..." - single token before next label
+            if (/^(CEL|TC)\s+QOBM/i.test(v)) return v;
+            // fallback: first non-empty that is not a period fragment
+            if (!/^\d+\s*\/\s*[A-Z]+/i.test(v)) return v;
           }
         }
       }
       return null;
     };
-    const comandante = findAfter(/COMANDANTE DO INCIDENTE/);
+    const findPeriod = (labelRe: RegExp): string | null => {
+      for (let c = 0; c < row.length; c++) {
+        if (labelRe.test(norm(row[c]))) {
+          const parts: string[] = [];
+          for (let k = c + 1; k < row.length; k++) {
+            const v = String(row[k] ?? "").trim();
+            if (!v) continue;
+            if (/^(DATA DE HOJE|NÃO MEXER|NAO MEXER)$/i.test(v)) break;
+            if (/^\d{5}$/.test(v)) break;
+            parts.push(v);
+            if (parts.join(" ").includes("8H")) break;
+          }
+          if (parts.length) return parts.join(" ").replace(/\s+/g, " ").trim();
+        }
+      }
+      return null;
+    };
+    const comandante = findOfficer(/COMANDANTE DO INCIDENTE/);
     if (comandante) header.comandante = comandante;
-    const chefeCap = findAfter(/CHEFE DE OPERA.*CAPITAL/);
+    const chefeCap = findOfficer(/CHEFE DE OPERA.*CAPITAL/);
     if (chefeCap) header.chefeCapital = chefeCap;
-    const chefeInt = findAfter(/CHEFE DE OPERA.*INTERIOR/);
+    const chefeInt = findOfficer(/CHEFE DE OPERA.*INTERIOR/);
     if (chefeInt) header.chefeInterior = chefeInt;
-    const coord = findAfter(/COORDENADOR DA SALA/);
+    const coord = findOfficer(/COORDENADOR DA SALA/);
     if (coord) header.coordSituacao = coord;
-    // Período operacional: row contains "Período Operacional:" but not "Próximo"
     if (upper.includes("PERIODO OPERACIONAL") && !upper.includes("PROXIMO")) {
-      const v = findAfter(/PERIODO OPERACIONAL/);
+      const v = findPeriod(/PERIODO OPERACIONAL/);
       if (v) header.periodo = v;
     }
     if (upper.includes("PROXIMO PERIODO")) {
-      const v = findAfter(/PROXIMO PERIODO/);
+      const v = findPeriod(/PROXIMO PERIODO/);
       if (v) header.proximoPeriodo = v;
     }
     if (upper.includes("REUNIAO DE PLANEJAMENTO")) {
-      const v = findAfter(/REUNIAO DE PLANEJAMENTO/);
+      const v = findPeriod(/REUNIAO DE PLANEJAMENTO/);
       if (v) header.reuniaoPlanejamento = v;
     }
     if (upper.includes("REUNIAO DE BRIEFING")) {
-      const v = findAfter(/REUNIAO DE BRIEFING/);
+      const v = findPeriod(/REUNIAO DE BRIEFING/);
       if (v) header.reuniaoBriefing = v;
     }
   }
