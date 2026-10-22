@@ -97,7 +97,9 @@ export const listDailyReports = createServerFn({ method: "GET" })
 export const getLatestReportDate = createServerFn({ method: "GET" })
   .middleware([requireBackendAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const dbClient = supabaseAdmin ?? context.supabase;
+    const { data, error } = await dbClient
       .from("daily_reports")
       .select("report_date")
       .order("report_date", { ascending: false })
@@ -106,6 +108,20 @@ export const getLatestReportDate = createServerFn({ method: "GET" })
       .maybeSingle();
     if (error) dbFail(error, "daily-reports");
     return data?.report_date ?? null;
+  });
+
+export const listAvailableReportDates = createServerFn({ method: "GET" })
+  .middleware([requireBackendAuth])
+  .handler(async ({ context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const dbClient = supabaseAdmin ?? context.supabase;
+    const { data, error } = await dbClient
+      .from("daily_reports")
+      .select("report_date, shift")
+      .order("report_date", { ascending: false })
+      .limit(300);
+    if (error) dbFail(error, "daily-reports");
+    return data ?? [];
   });
 
 export const getDailyReport = createServerFn({ method: "GET" })
