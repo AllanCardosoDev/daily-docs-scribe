@@ -36,14 +36,20 @@ export default defineConfig(async ({ mode }) => {
       ],
     },
     server: {
-      host: "::",
+      host: "0.0.0.0",
       port: 8080,
+      hmr: {
+        overlay: false,
+      },
     },
     plugins: [
       tailwindcss(),
       tsConfigPaths({ projects: ["./tsconfig.json"] }),
       tanstackStart({
         server: { entry: "server" },
+        serverFns: {
+          disableCsrfMiddlewareWarning: true,
+        },
         importProtection: {
           behavior: "error",
           client: {

@@ -21,7 +21,7 @@ export function computeKpis(data: SheetsData, isRange?: boolean): Kpi[] {
     sum(data.incendios_diario, "flor");
 
   const totalEfetivo =
-    sum(data.efetivo, "ord") + sum(data.efetivo, "seg") + sum(data.efetivo, "brig");
+    sum(data.efetivo, "ord") + sum(data.efetivo, "seg") + sum(data.efetivo, "brig") + sum(data.efetivo, "brig_semas");
 
   const totalOcorrencias =
     sum(data.outras_diarias, "salvamento") +

@@ -79,8 +79,8 @@ export function calculateComparison(dataA: SheetsData, dataB: SheetsData): Compa
     total: sum(dataB.outras_diarias, ["salvamento", "acidentes", "aph", "prevencao", "servicos"])
   };
 
-  const efetivoA = sum(dataA.efetivo, ["ord", "seg", "brig"]);
-  const efetivoB = sum(dataB.efetivo, ["ord", "seg", "brig"]);
+  const efetivoA = sum(dataA.efetivo, ["ord", "seg", "brig", "brig_semas"]);
+  const efetivoB = sum(dataB.efetivo, ["ord", "seg", "brig", "brig_semas"]);
 
   const areaA = sum(dataA.incendios_acumulado ?? [], ["area"]);
   const areaB = sum(dataB.incendios_acumulado ?? [], ["area"]);

@@ -1,5 +1,5 @@
-/** Pasta pública do Google Drive com os relatórios diários oficiais (Agosto 2026 / Recente). */
-export const DEFAULT_DRIVE_FOLDER_ID = "1C77k-tUwxQXsKTyQ6VRByNa7yEmk9HZT";
+/** Pasta pública do Google Drive com os relatórios diários oficiais (Outubro 2026 / Recente). */
+export const DEFAULT_DRIVE_FOLDER_ID = "1N71G18dgxO2yhA20LqXREcOfseTU8xz7";
 
 /** Aceita tanto o ID quanto a URL completa da pasta. */
 export function extractFolderId(input: string): string {

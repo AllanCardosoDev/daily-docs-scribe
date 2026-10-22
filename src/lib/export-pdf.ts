@@ -172,7 +172,7 @@ export function buildSheetsPdfDoc(
       mun: munName,
       ord: matches.reduce((s, r) => s + num(r.ord), 0),
       seg: matches.reduce((s, r) => s + num(r.seg), 0),
-      brig: matches.reduce((s, r) => s + num(r.brig), 0),
+      brig: matches.reduce((s, r) => s + num(r.brig) + num((r as any).brig_semas), 0),
     };
   };
 
@@ -198,7 +198,7 @@ export function buildSheetsPdfDoc(
   const allInteriorEf = efetivoList.filter((r) => r.mun?.toLowerCase() !== "manaus");
   const interiorOrd = allInteriorEf.reduce((s, r) => s + num(r.ord), 0);
   const interiorSeg = allInteriorEf.reduce((s, r) => s + num(r.seg), 0);
-  const interiorBrig = allInteriorEf.reduce((s, r) => s + num(r.brig), 0);
+  const interiorBrig = allInteriorEf.reduce((s, r) => s + num(r.brig) + num((r as any).brig_semas), 0);
 
   // Tabela Efetivo Coluna 1
   autoTable(doc, {

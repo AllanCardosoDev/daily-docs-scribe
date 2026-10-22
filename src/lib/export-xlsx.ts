@@ -111,6 +111,7 @@ export function exportSheetsToXlsx(
       { key: "ord", label: "Ordinário" },
       { key: "seg", label: "SEG" },
       { key: "brig", label: "Brigadistas" },
+      { key: "brig_semas", label: "Brigadistas SEMAS" },
     ],
     data.efetivo,
     "efetivo"
@@ -230,8 +231,8 @@ export function exportTotaisToXlsx(
 
   addSheet(
     "Efetivo",
-    ["Município", "Ordinário", "SEG", "Brigada"],
-    ["ord", "seg", "brig"],
+    ["Município", "Ordinário", "SEG", "Brigada", "Brigada SEMAS"],
+    ["ord", "seg", "brig", "brig_semas"],
     efetivo,
   );
 
