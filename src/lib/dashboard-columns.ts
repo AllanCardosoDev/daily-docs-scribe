@@ -6,8 +6,7 @@ export type EditableSection =
 export const DASHBOARD_COLUMNS = {
   efetivo: [
     { key: "mun", label: "Município", editable: true },
-    { key: "ord", label: "Serv. Ordinário", numeric: true, editable: true },
-    { key: "servico", label: "Serviço", numeric: true, editable: true },
+    { key: "cbmam", label: "CBMAM", numeric: true, editable: true },
     { key: "opamv", label: "OPAMV 26/10", numeric: true, editable: true },
     { key: "opam_ref", label: "OPAM REF 21/10", numeric: true, editable: true },
     { key: "inc1", label: "INC 1 29/10", numeric: true, editable: true },

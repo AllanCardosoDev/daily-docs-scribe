@@ -78,6 +78,12 @@ export const DataTable = memo(function DataTable({
           }
 
           const updatedRow = { ...r, [key]: nextVal };
+          if (key === "cbmam") {
+            updatedRow.ord = nextVal;
+            updatedRow.servico = nextVal;
+          } else if (key === "ord" || key === "servico") {
+            updatedRow.cbmam = nextVal;
+          }
 
           // Se a coluna 'total_periodo' existir e for um campo numérico sendo editado
           // que não seja o próprio total_periodo ou o 'total' (calculado)
@@ -150,9 +156,9 @@ export const DataTable = memo(function DataTable({
                     const totalCol = columns.find((c) => c.key === "total" && !c.editable);
                     if (totalCol) {
                       const numericKeys = columns.filter((c) => c.numeric && c.key !== "total" && c.key !== "total_periodo" && c.key !== "focos").map((c) => c.key);
-                      const isEfetivo = numericKeys.includes("servico") || numericKeys.includes("opamv");
+                      const isEfetivo = numericKeys.includes("cbmam") || numericKeys.includes("servico") || numericKeys.includes("opamv") || numericKeys.includes("ord");
                       if (isEfetivo) {
-                        rowWithTotal.total = (Number(row.servico) || Number(row.ord) || 0) + (Number(row.opamv) || 0) + (Number(row.opam_ref) || 0) + (Number(row.inc1) || 0) + (Number(row.inc2) || 0) + (Number(row.inc3) || 0) + (Number(row.cbmsp) || 0) + (Number(row.prevfogo) || 0) + (Number(row.fn) || 0) + (Number(row.seg) || 0) + (Number(row.brig_mun) || Number(row.brig) || 0) + (Number(row.brig_semas) || 0);
+                        rowWithTotal.total = (Number(row.cbmam) || Number(row.servico) || Number(row.ord) || 0) + (Number(row.opamv) || 0) + (Number(row.opam_ref) || 0) + (Number(row.inc1) || 0) + (Number(row.inc2) || 0) + (Number(row.inc3) || 0) + (Number(row.cbmsp) || 0) + (Number(row.prevfogo) || 0) + (Number(row.fn) || 0) + (Number(row.seg) || 0) + (Number(row.brig_mun) || Number(row.brig) || 0) + (Number(row.brig_semas) || 0);
                       } else {
                         rowWithTotal.total = numericKeys.reduce((sum, k) => sum + (Number(row[k]) || 0), 0);
                       }
@@ -197,9 +203,9 @@ export const DataTable = memo(function DataTable({
                         const sum = local.reduce((acc, row) => {
                           if (c.key === "total") {
                             const numericKeys = columns.filter((col) => col.numeric && col.key !== "total" && col.key !== "total_periodo" && col.key !== "focos").map((col) => col.key);
-                            const isEfetivo = numericKeys.includes("servico") || numericKeys.includes("opamv");
+                            const isEfetivo = numericKeys.includes("cbmam") || numericKeys.includes("servico") || numericKeys.includes("opamv") || numericKeys.includes("ord");
                             if (isEfetivo) {
-                              return acc + (Number(row.servico) || Number(row.ord) || 0) + (Number(row.opamv) || 0) + (Number(row.opam_ref) || 0) + (Number(row.inc1) || 0) + (Number(row.inc2) || 0) + (Number(row.inc3) || 0) + (Number(row.cbmsp) || 0) + (Number(row.prevfogo) || 0) + (Number(row.fn) || 0) + (Number(row.seg) || 0) + (Number(row.brig_mun) || Number(row.brig) || 0) + (Number(row.brig_semas) || 0);
+                              return acc + (Number(row.cbmam) || Number(row.servico) || Number(row.ord) || 0) + (Number(row.opamv) || 0) + (Number(row.opam_ref) || 0) + (Number(row.inc1) || 0) + (Number(row.inc2) || 0) + (Number(row.inc3) || 0) + (Number(row.cbmsp) || 0) + (Number(row.prevfogo) || 0) + (Number(row.fn) || 0) + (Number(row.seg) || 0) + (Number(row.brig_mun) || Number(row.brig) || 0) + (Number(row.brig_semas) || 0);
                             }
                             return acc + numericKeys.reduce((s, k) => s + (Number(row[k]) || 0), 0);
                           }

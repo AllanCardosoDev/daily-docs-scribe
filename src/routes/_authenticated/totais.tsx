@@ -972,9 +972,9 @@ ${topIncendios || "  Nenhum registro no período."}
                 <TabsContent value="efetivo">
                   <AggTable
                     title="Efetivo por município"
-                    headers={["Município", "Ordinário", "SEG", "Brigadista", "Brigadista SEMA", "Total"]}
-                    rows={efetivo}
-                    keys={["ord", "seg", "brig", "brig_semas"]}
+                    headers={["Município", "CBMAM", "SEG", "Brigadista", "Brigadista SEMA", "Total"]}
+                    rows={efetivo.map((r: any) => ({ ...r, cbmam: r.cbmam ?? r.ord }))}
+                    keys={["cbmam", "seg", "brig", "brig_semas"]}
                   />
                 </TabsContent>
 

@@ -519,7 +519,7 @@ function RegistroPage() {
           <TabsContent value="efetivo">
             <SectionTable
               title="Efetivo empenhado"
-              headers={["Município", "Ordinário", "Segurança", "Brigadista", "Brigadista SEMA", ""]}
+              headers={["Município", "CBMAM", "Segurança", "Brigadista", "Brigadista SEMA", ""]}
               rows={efetivo}
               onChange={mark(setEfetivo)}
               empty={EFETIVO_EMPTY}

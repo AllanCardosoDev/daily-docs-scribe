@@ -274,6 +274,83 @@ function parseNotesEnvelope(notes: unknown): Record<string, any> {
   try { return JSON.parse(s); } catch { return {}; }
 }
 
+async function fetchOperationalDonor(
+  supabase: SupabaseClient<any>,
+  dateIso: string,
+): Promise<{ efetivo: any[]; recursos: any[]; outras: any[]; header?: Record<string, any> } | null> {
+  // 1. Tentar encontrar o dia anterior mais recente que possua dados operacionais
+  const { data: prevRows } = await supabase
+    .from("daily_reports")
+    .select("report_date, shift, efetivo, recursos, outras, notes")
+    .lte("report_date", dateIso)
+    .not("efetivo", "is", null)
+    .order("report_date", { ascending: false })
+    .order("shift", { ascending: false })
+    .limit(10);
+
+  const validPrev = prevRows?.find(
+    (r: any) =>
+      Array.isArray(r.efetivo) &&
+      r.efetivo.length > 5 &&
+      Array.isArray(r.recursos) &&
+      r.recursos.length > 5,
+  );
+  if (validPrev) {
+    const notesEnv = parseNotesEnvelope(validPrev.notes);
+    return {
+      efetivo: validPrev.efetivo,
+      recursos: validPrev.recursos,
+      outras: validPrev.outras,
+      header: notesEnv.header,
+    };
+  }
+
+  // 2. Se não houver dia anterior (ex.: data muito antiga), buscar o dia posterior mais próximo
+  const { data: nextRows } = await supabase
+    .from("daily_reports")
+    .select("report_date, shift, efetivo, recursos, outras, notes")
+    .gte("report_date", dateIso)
+    .not("efetivo", "is", null)
+    .order("report_date", { ascending: true })
+    .order("shift", { ascending: false })
+    .limit(10);
+
+  const validNext = nextRows?.find(
+    (r: any) =>
+      Array.isArray(r.efetivo) &&
+      r.efetivo.length > 5 &&
+      Array.isArray(r.recursos) &&
+      r.recursos.length > 5,
+  );
+  if (validNext) {
+    const notesEnv = parseNotesEnvelope(validNext.notes);
+    return {
+      efetivo: validNext.efetivo,
+      recursos: validNext.recursos,
+      outras: validNext.outras,
+      header: notesEnv.header,
+    };
+  }
+
+  // 3. Fallback no report_data (ID 1)
+  const { data: rd } = await supabase
+    .from("report_data")
+    .select("data")
+    .eq("id", 1)
+    .maybeSingle();
+
+  if (rd?.data && Array.isArray(rd.data.efetivo) && Array.isArray(rd.data.recursos)) {
+    return {
+      efetivo: rd.data.efetivo,
+      recursos: rd.data.recursos,
+      outras: rd.data.outras_diarias,
+      header: rd.data.header,
+    };
+  }
+
+  return null;
+}
+
 export async function loadReportByDate(
   supabase: SupabaseClient<any>,
   dateIso: string,
@@ -291,15 +368,38 @@ export async function loadReportByDate(
   const dateStr = formatDateBR(dateIso);
   const acum = await fetchIncendiosAcumulado(supabase, dateIso);
 
-  const rawEfetivo = asRows(row?.efetivo).map((r) => {
+  let rawEfetivoRows = asRows(row?.efetivo);
+  let rawRecursosRows = asRows(row?.recursos);
+  let rawOutrasRows = asRows(row?.outras);
+
+  // Se o dia não possui efetivo ou recursos próprios gravados, herdamos da prontidão operacional mais próxima
+  let donor: Awaited<ReturnType<typeof fetchOperationalDonor>> = null;
+  if (rawEfetivoRows.length <= 1 || rawRecursosRows.length === 0) {
+    donor = await fetchOperationalDonor(supabase, dateIso);
+    if (donor) {
+      if (rawEfetivoRows.length <= 1 && donor.efetivo?.length) {
+        rawEfetivoRows = donor.efetivo;
+      }
+      if (rawRecursosRows.length === 0 && donor.recursos?.length) {
+        rawRecursosRows = donor.recursos;
+      }
+      if (rawOutrasRows.length === 0 && donor.outras?.length) {
+        rawOutrasRows = donor.outras;
+      }
+    }
+  }
+
+  const rawEfetivo = rawEfetivoRows.map((r: any) => {
     const mun = canonicalMunicipio(r.mun ?? r.municipio);
     const isItapiranga = mun.toLowerCase().includes("itapiranga");
+    const valCbmam = num(r.cbmam ?? r.ord ?? r.servico);
     return {
       mun,
-      ord: isItapiranga ? num(r.ord) || 6 : num(r.ord),
+      cbmam: isItapiranga ? valCbmam || 6 : valCbmam,
+      ord: isItapiranga ? num(r.ord) || valCbmam || 6 : valCbmam,
+      servico: isItapiranga ? num(r.servico) || valCbmam || 6 : valCbmam,
       seg: num(r.seg),
       brig: isItapiranga ? num(r.brig) || 12 : num(r.brig),
-      servico: num(r.servico ?? r.ord),
       opamv: num(r.opamv),
       opam_ref: num(r.opam_ref),
       inc1: num(r.inc1),
@@ -313,10 +413,10 @@ export async function loadReportByDate(
     };
   });
   if (!rawEfetivo.some((r) => r.mun.toLowerCase().includes("itapiranga"))) {
-    rawEfetivo.push({ mun: "Itapiranga", ord: 6, seg: 0, brig: 12, servico: 6, opamv: 0, opam_ref: 0, inc1: 0, inc2: 0, inc3: 0, cbmsp: 0, prevfogo: 0, fn: 0, brig_mun: 12, brig_semas: 0 });
+    rawEfetivo.push({ mun: "Itapiranga", cbmam: 6, ord: 6, seg: 0, brig: 12, servico: 6, opamv: 0, opam_ref: 0, inc1: 0, inc2: 0, inc3: 0, cbmsp: 0, prevfogo: 0, fn: 0, brig_mun: 12, brig_semas: 0 });
   }
 
-  const rawInc = asRows(row?.incendios).map((r) => ({
+  const rawInc = asRows(row?.incendios).map((r: any) => ({
     mun: canonicalMunicipio(r.mun ?? r.municipio),
     urb: num(r.urb),
     flor: num(r.flor),
@@ -324,7 +424,7 @@ export async function loadReportByDate(
     total_periodo: num(r.total_periodo),
   }));
 
-  const rawOutras = asRows(row?.outras).map((r) => ({
+  const rawOutras = rawOutrasRows.map((r: any) => ({
     mun: canonicalMunicipio(r.mun ?? r.municipio),
     salvamento: num(r.salvamento),
     acidentes: num(r.acidentes),
@@ -335,9 +435,10 @@ export async function loadReportByDate(
   }));
 
   const efetivoConsolidado = ensureAllMunicipios(
-    consolidateAndCanonicalizeRows(rawEfetivo, ["ord", "seg", "brig", "servico", "opamv", "opam_ref", "inc1", "inc2", "inc3", "cbmsp", "prevfogo", "fn", "brig_mun", "brig_semas"]),
+    consolidateAndCanonicalizeRows(rawEfetivo, ["cbmam", "ord", "seg", "brig", "servico", "opamv", "opam_ref", "inc1", "inc2", "inc3", "cbmsp", "prevfogo", "fn", "brig_mun", "brig_semas"]),
     (mun) => ({
       mun,
+      cbmam: mun.toLowerCase().includes("itapiranga") ? 6 : 0,
       ord: mun.toLowerCase().includes("itapiranga") ? 6 : 0,
       seg: 0,
       brig: mun.toLowerCase().includes("itapiranga") ? 12 : 0,
@@ -356,7 +457,7 @@ export async function loadReportByDate(
   );
 
   const recursosConsolidados = ensureAllMunicipios(
-    normaliseRecursos(asRows(row?.recursos)),
+    normaliseRecursos(rawRecursosRows),
     (mun) => ({
       mun,
       viaturas: 0,
@@ -401,6 +502,7 @@ export async function loadReportByDate(
     (notesEnv.header && typeof notesEnv.header === "object" ? notesEnv.header : null) ??
     ((row as any)?.dados_complementares?.header && typeof (row as any).dados_complementares.header === "object" ? (row as any).dados_complementares.header : null) ??
     ((row as any)?.header && typeof (row as any).header === "object" ? (row as any).header : null) ??
+    (donor?.header && typeof donor.header === "object" ? donor.header : null) ??
     {}
   ) as Record<string, string>;
 
@@ -473,7 +575,7 @@ export async function loadReportByDate(
     occurrences: dayOccurrences,
   };
 
-  return { data, found: isFound };
+  return { data, found: isFound || dayOccurrences.length > 0 || !!donor };
 }
 
 /**
@@ -553,10 +655,46 @@ export async function loadReportRange(
 
   // Efetivo e Recursos pegamos o snapshot do último dia do range
   const lastRow = validRows.length > 0 ? validRows[validRows.length - 1] : null;
-  const lastEfetivo = lastRow
-    ? (consolidateAndCanonicalizeRows(asRows(lastRow.efetivo), ["ord", "seg", "brig"]) as any)
+  let lastEfetivo = lastRow
+    ? (consolidateAndCanonicalizeRows(asRows(lastRow.efetivo), ["cbmam", "ord", "seg", "brig"]) as any)
     : [];
-  const lastRecursos = lastRow ? normaliseRecursos(asRows(lastRow.recursos)) : [];
+  let lastRecursos = lastRow ? normaliseRecursos(asRows(lastRow.recursos)) : [];
+
+  if (lastEfetivo.length === 0 || lastRecursos.length === 0) {
+    const donor = await fetchOperationalDonor(supabase, endIso);
+    if (donor) {
+      if (lastEfetivo.length === 0 && donor.efetivo?.length) {
+        lastEfetivo = consolidateAndCanonicalizeRows(asRows(donor.efetivo), ["cbmam", "ord", "seg", "brig"]);
+      }
+      if (lastRecursos.length === 0 && donor.recursos?.length) {
+        lastRecursos = normaliseRecursos(asRows(donor.recursos));
+      }
+    }
+  }
+
+  const efetivoConsolidado = ensureAllMunicipios(
+    lastEfetivo.map((r: any) => ({
+      ...r,
+      cbmam: num(r.cbmam ?? r.ord ?? r.servico),
+    })),
+    (mun) => ({
+      mun,
+      cbmam: 0,
+      ord: 0,
+      seg: 0,
+      brig: 0,
+    }),
+  );
+
+  const recursosConsolidados = ensureAllMunicipios(
+    lastRecursos,
+    (mun) => ({
+      mun,
+      viaturas: 0,
+      aeronaves: 0,
+      embarcacoes: 0,
+    }),
+  );
 
   return {
     header: {
@@ -566,8 +704,8 @@ export async function loadReportRange(
       coordSituacao: "CEL QOBM FERREIRA",
       coordenador: "CEL QOBM CRISTIANO BRAZ FERREIRA",
     },
-    efetivo: lastEfetivo,
-    recursos: lastRecursos,
+    efetivo: efetivoConsolidado,
+    recursos: recursosConsolidados,
     incendios_diario: aggregatedInc as any,
     incendios_acumulado: await fetchIncendiosAcumulado(supabase, endIso),
     outras_diarias: aggregatedOutras as any,
