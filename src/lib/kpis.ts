@@ -23,13 +23,6 @@ export function computeKpis(data: SheetsData, isRange?: boolean): Kpi[] {
   const totalEfetivo =
     sum(data.efetivo, "ord") + sum(data.efetivo, "seg") + sum(data.efetivo, "brig") + sum(data.efetivo, "brig_semas");
 
-  const totalOcorrencias =
-    sum(data.outras_diarias, "salvamento") +
-    sum(data.outras_diarias, "acidentes") +
-    sum(data.outras_diarias, "aph") +
-    sum(data.outras_diarias, "prevencao") +
-    sum(data.outras_diarias, "servicos");
-
   const totalRecursos =
     data.recursos?.reduce((acc, r) => {
       const keys = [
@@ -91,15 +84,6 @@ export function computeKpis(data: SheetsData, isRange?: boolean): Kpi[] {
       accent: "linear-gradient(to bottom right, #ef4444, #dc2626)",
       iconClass: "bg-red-500/10 text-red-600",
       ring: "ring-red-500/10",
-    },
-    {
-      label: rangeActive ? "Outras ocorrências (do período)" : "Outras ocorrências (do dia)",
-      value: NF.format(totalOcorrencias),
-      hint: rangeActive ? "Salvamento, APH e serviços no período" : "Salvamento, APH e serviços no dia",
-      Icon: ClipboardList,
-      accent: "linear-gradient(to bottom right, #f59e0b, #d97706)",
-      iconClass: "bg-amber-500/10 text-amber-600",
-      ring: "ring-amber-500/10",
     },
   ];
 }

@@ -23,7 +23,7 @@ describe("computeKpis", () => {
 
     const kpis = computeKpis(mockData as SheetsData);
 
-    expect(kpis).toHaveLength(4);
+    expect(kpis).toHaveLength(3);
 
     // Recursos em campo (2+1+3 = 6)
     expect(kpis[0].label).toBe("Recursos em campo");
@@ -36,10 +36,6 @@ describe("computeKpis", () => {
     // Incêndios (do dia) (urb: 2+1=3, flor: 3+0=3 => 6)
     expect(kpis[2].label).toBe("Incêndios (do dia)");
     expect(kpis[2].value).toBe("6");
-
-    // Outras ocorrências (do dia) (1+2+3+4+5 = 15)
-    expect(kpis[3].label).toBe("Outras ocorrências (do dia)");
-    expect(kpis[3].value).toBe("15");
   });
 
   it("deve retornar 0 para todos os KPIs quando a estrutura de dados for vazia", () => {
@@ -47,9 +43,9 @@ describe("computeKpis", () => {
 
     const kpis = computeKpis(mockData as SheetsData);
 
+    expect(kpis).toHaveLength(3);
     expect(kpis[0].value).toBe("0");
     expect(kpis[1].value).toBe("0");
     expect(kpis[2].value).toBe("0");
-    expect(kpis[3].value).toBe("0");
   });
 });

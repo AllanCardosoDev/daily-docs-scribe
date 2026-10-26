@@ -75,7 +75,6 @@ function countNegativeCells(data: SheetsData): number {
   scan(data.efetivo, ["ord", "seg", "brig", "servico", "opamv", "opam_ref", "inc1", "inc2", "inc3", "cbmsp", "prevfogo", "fn", "brig_mun", "brig_semas"]);
   scan(data.incendios_diario, ["urb", "flor", "focos"]);
   scan(data.incendios_acumulado, ["urb", "flor", "focos", "sat", "area"]);
-  scan(data.outras_diarias, ["salvamento", "acidentes", "aph", "prevencao", "servicos"]);
   scan(data.occurrences, ["focos", "area", "agua"]);
   return n;
 }

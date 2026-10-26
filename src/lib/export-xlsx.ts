@@ -47,7 +47,7 @@ export function exportSheetsToXlsx(
     name: string,
     columns: { key: string; label: string }[],
     rows: any[],
-    type?: "incendios" | "outras" | "efetivo" | "area"
+    type?: "incendios" | "efetivo" | "area"
   ) => {
     let finalCols = [...columns];
     let finalRows = rows.map(r => ({ ...r }));
@@ -69,10 +69,6 @@ export function exportSheetsToXlsx(
           const prev = comparisonData.dataA.incendios_diario.find(p => normalize(p.mun) === target);
           prevVal = (Number(prev?.urb) || 0) + (Number(prev?.flor) || 0);
           curVal = (Number(r.urb) || 0) + (Number(r.flor) || 0);
-        } else if (type === "outras") {
-          const prev = comparisonData.dataA.outras_diarias.find(p => normalize(p.mun) === target);
-          prevVal = (Number(prev?.salvamento) || 0) + (Number(prev?.acidentes) || 0) + (Number(prev?.aph) || 0) + (Number(prev?.prevencao) || 0) + (Number(prev?.servicos) || 0);
-          curVal = (Number(r.salvamento) || 0) + (Number(r.acidentes) || 0) + (Number(r.aph) || 0) + (Number(r.prevencao) || 0) + (Number(r.servicos) || 0);
         } else if (type === "efetivo") {
           const prev = comparisonData.dataA.efetivo.find(p => normalize(p.mun) === target);
           prevVal = (Number(prev?.ord) || 0) + (Number(prev?.seg) || 0) + (Number(prev?.brig) || 0);
@@ -111,7 +107,7 @@ export function exportSheetsToXlsx(
       { key: "ord", label: "Ordinário" },
       { key: "seg", label: "SEG" },
       { key: "brig", label: "Brigadistas" },
-      { key: "brig_semas", label: "Brigadistas SEMAS" },
+      { key: "brig_semas", label: "Brigadistas SEMA" },
     ],
     data.efetivo,
     "efetivo"
@@ -154,21 +150,6 @@ export function exportSheetsToXlsx(
   );
 
 
-  addSheet(
-    "Ocorrências (dia)",
-    [
-      { key: "mun", label: "Município" },
-      { key: "salvamento", label: "Salvamento" },
-      { key: "acidentes", label: "Acidentes" },
-      { key: "aph", label: "APH" },
-      { key: "prevencao", label: "Prevenção" },
-      { key: "servicos", label: "Serviços" },
-    ],
-    data.outras_diarias,
-    "outras"
-  );
-
-
   const { rows: occurrences } = filterOccurrencesByDate(data.occurrences, reportDate);
   addSheet(
     "Ocorrências detalhadas",
@@ -192,7 +173,6 @@ export function exportSheetsToXlsx(
 
 export function exportTotaisToXlsx(
   incendios: Array<Record<string, any>>,
-  outras: Array<Record<string, any>>,
   efetivo: Array<Record<string, any>>,
   recursos: Array<Record<string, any>>,
   periodoLabel: string,
@@ -223,15 +203,8 @@ export function exportTotaisToXlsx(
   );
 
   addSheet(
-    "Ocorrências",
-    ["Município", "Salvamento", "Acidentes", "APH", "Prevenção", "Serviços"],
-    ["salvamento", "acidentes", "aph", "prevencao", "servicos"],
-    outras,
-  );
-
-  addSheet(
     "Efetivo",
-    ["Município", "Ordinário", "SEG", "Brigada", "Brigada SEMAS"],
+    ["Município", "Ordinário", "SEG", "Brigada", "Brigada SEMA"],
     ["ord", "seg", "brig", "brig_semas"],
     efetivo,
   );

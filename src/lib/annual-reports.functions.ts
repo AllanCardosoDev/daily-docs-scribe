@@ -25,16 +25,6 @@ export type MonthlyTerritorialSummary = {
   rows: AnnualIncendioRow[];
 };
 
-export type AnnualOutrasRow = {
-  mun: string;
-  salvamento: number;
-  acidentes: number;
-  aph: number;
-  prevencao: number;
-  servicos: number;
-  total: number;
-};
-
 export type AnnualEfetivoRow = {
   mun: string;
   ord: number;
@@ -61,10 +51,6 @@ export type AnnualYearSummary = {
   incendios: {
     rows: AnnualIncendioRow[];
     totals: { urb: number; flor: number; focos: number; total: number };
-  };
-  outras: {
-    rows: AnnualOutrasRow[];
-    totals: { salvamento: number; acidentes: number; aph: number; prevencao: number; servicos: number; total: number };
   };
   efetivo: {
     rows: AnnualEfetivoRow[];
@@ -125,7 +111,6 @@ export const getAnnualIncendios = createServerFn({ method: "GET" })
         max: string | null;
         incMap: Map<string, AnnualIncendioRow>;
         monthIncMap: Map<number, Map<string, AnnualIncendioRow>>;
-        outMap: Map<string, AnnualOutrasRow>;
         efMap: Map<string, AnnualEfetivoRow>;
         recMap: Map<string, AnnualRecursosRow>;
       }
@@ -137,7 +122,6 @@ export const getAnnualIncendios = createServerFn({ method: "GET" })
         max: null,
         incMap: new Map(),
         monthIncMap: new Map(),
-        outMap: new Map(),
         efMap: new Map(),
         recMap: new Map(),
       });
@@ -150,12 +134,11 @@ export const getAnnualIncendios = createServerFn({ method: "GET" })
       if (!bucket) continue;
 
       const incItems: any[] = Array.isArray(r.incendios) ? r.incendios : [];
-      const outItems: any[] = Array.isArray(r.outras) ? r.outras : [];
       const efItems: any[] = Array.isArray(r.efetivo) ? r.efetivo : [];
       const recItems: any[] = Array.isArray(r.recursos) ? r.recursos : [];
 
       const hasData =
-        incItems.length > 0 || outItems.length > 0 || efItems.length > 0 || recItems.length > 0;
+        incItems.length > 0 || efItems.length > 0 || recItems.length > 0;
 
       if (hasData) {
         if (!bucket.min || r.report_date < bucket.min) bucket.min = r.report_date;
@@ -190,30 +173,6 @@ export const getAnnualIncendios = createServerFn({ method: "GET" })
           mCur.total = mCur.urb + mCur.flor;
           mSub.set(mun, mCur);
         }
-      }
-
-      // Ocorrências / Atendimentos Diversos
-      for (const item of outItems) {
-        const rawMun = item?.mun ?? item?.municipio;
-        if (!rawMun) continue;
-        const mun = canonicalMunicipio(rawMun);
-        if (mun === "—") continue;
-        const cur = bucket.outMap.get(mun) ?? {
-          mun,
-          salvamento: 0,
-          acidentes: 0,
-          aph: 0,
-          prevencao: 0,
-          servicos: 0,
-          total: 0,
-        };
-        cur.salvamento += Number(item?.salvamento) || 0;
-        cur.acidentes += Number(item?.acidentes) || 0;
-        cur.aph += Number(item?.aph) || 0;
-        cur.prevencao += Number(item?.prevencao) || 0;
-        cur.servicos += Number(item?.servicos) || 0;
-        cur.total = cur.salvamento + cur.acidentes + cur.aph + cur.prevencao + cur.servicos;
-        bucket.outMap.set(mun, cur);
       }
 
       // Efetivo (Snapshot mais recente do ano por município)
@@ -258,14 +217,6 @@ export const getAnnualIncendios = createServerFn({ method: "GET" })
           : b.total - a.total || a.mun.localeCompare(b.mun, "pt-BR"),
       );
 
-      const outRows = Array.from(bucket.outMap.values()).sort((a, b) =>
-        isManaus(a.mun) !== isManaus(b.mun)
-          ? isManaus(a.mun)
-            ? -1
-            : 1
-          : b.total - a.total || a.mun.localeCompare(b.mun, "pt-BR"),
-      );
-
       const efRows = Array.from(bucket.efMap.values()).sort((a, b) =>
         isManaus(a.mun) !== isManaus(b.mun)
           ? isManaus(a.mun)
@@ -290,18 +241,6 @@ export const getAnnualIncendios = createServerFn({ method: "GET" })
           total: acc.total + r.total,
         }),
         { urb: 0, flor: 0, focos: 0, total: 0 },
-      );
-
-      const outTotals = outRows.reduce(
-        (acc, r) => ({
-          salvamento: acc.salvamento + r.salvamento,
-          acidentes: acc.acidentes + r.acidentes,
-          aph: acc.aph + r.aph,
-          prevencao: acc.prevencao + r.prevencao,
-          servicos: acc.servicos + r.servicos,
-          total: acc.total + r.total,
-        }),
-        { salvamento: 0, acidentes: 0, aph: 0, prevencao: 0, servicos: 0, total: 0 },
       );
 
       const efTotals = efRows.reduce(
@@ -380,7 +319,6 @@ export const getAnnualIncendios = createServerFn({ method: "GET" })
         to: bucket.max,
         monthly,
         incendios: { rows: incRows, totals: incTotals },
-        outras: { rows: outRows, totals: outTotals },
         efetivo: { rows: efRows, totals: efTotals },
         recursos: { rows: recRows, totals: recTotals },
         rows: incRows,

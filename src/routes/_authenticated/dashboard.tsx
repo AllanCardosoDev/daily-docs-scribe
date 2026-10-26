@@ -52,7 +52,7 @@ function DashboardPage() {
   const [pdfQuality, setPdfQuality] = useState<"standard" | "high">("standard");
 
   const [filters, setFilters] = useState<DashboardFilterState>(() => {
-    const d = new Date(2026, 7, 30);
+    const d = new Date(2026, 9, 25);
     return {
       reportDate: d,
       endDate: d,
@@ -97,7 +97,6 @@ function DashboardPage() {
     const set = new Set<string>();
     (rawData.incendios_diario ?? []).forEach((r) => set.add(canonicalMunicipio(r.mun)));
     (rawData.efetivo ?? []).forEach((r) => set.add(canonicalMunicipio(r.mun)));
-    (rawData.outras_diarias ?? []).forEach((r) => set.add(canonicalMunicipio(r.mun)));
     return Array.from(set).filter((m) => m && m !== "—");
   }, [rawData]);
 
@@ -125,7 +124,7 @@ function DashboardPage() {
       header: rawData.header,
       incendios_diario: (rawData.incendios_diario ?? []).filter((r) => matchesFilter(r.mun)),
       incendios_acumulado: (rawData.incendios_acumulado ?? []).filter((r) => matchesFilter(r.mun)),
-      outras_diarias: (rawData.outras_diarias ?? []).filter((r) => matchesFilter(r.mun)),
+      outras_diarias: [],
       efetivo: (rawData.efetivo ?? []).filter((r) => matchesFilter(r.mun)),
       recursos: (rawData.recursos ?? []).filter((r) => matchesFilter(r.mun)),
       occurrences: (rawData.occurrences ?? []).filter((r) => matchesFilter(r.municipio)),
@@ -140,7 +139,6 @@ function DashboardPage() {
       tot: number;
       efetivo: number;
       viaturas: number;
-      outras: number;
       calha?: string;
     }>();
 
@@ -162,7 +160,6 @@ function DashboardPage() {
         tot: 0,
         efetivo: 0,
         viaturas: 0,
-        outras: 0,
         calha: getCalha(mun),
       };
       const f = Number(r.flor) || 0;
@@ -183,7 +180,6 @@ function DashboardPage() {
         tot: 0,
         efetivo: 0,
         viaturas: 0,
-        outras: 0,
         calha: getCalha(mun),
       };
       current.efetivo += (Number(r.ord) || 0) + (Number(r.seg) || 0) + (Number(r.brig) || 0);
@@ -200,32 +196,9 @@ function DashboardPage() {
         tot: 0,
         efetivo: 0,
         viaturas: 0,
-        outras: 0,
         calha: getCalha(mun),
       };
       current.viaturas += (Number(r.vtr) || 0) + (Number(r.emb) || 0) + (Number(r.aer) || 0);
-      map.set(mun, current);
-    });
-
-    // 4. Outras ocorrências
-    (filteredData.outras_diarias ?? []).forEach((r) => {
-      const mun = canonicalMunicipio(r.mun);
-      if (!mun || mun === "—") return;
-      const current = map.get(mun) ?? {
-        flor: 0,
-        urb: 0,
-        tot: 0,
-        efetivo: 0,
-        viaturas: 0,
-        outras: 0,
-        calha: getCalha(mun),
-      };
-      current.outras +=
-        (Number(r.salvamento) || 0) +
-        (Number(r.aph) || 0) +
-        (Number(r.prevencao) || 0) +
-        (Number(r.acidentes) || 0) +
-        (Number(r.servicos) || 0);
       map.set(mun, current);
     });
 
@@ -243,7 +216,6 @@ function DashboardPage() {
         totalIncendios: val.tot,
         efetivoTotal: val.efetivo,
         viaturasTotal: val.viaturas,
-        outrasOcorrencias: val.outras,
         severidade,
       };
     });

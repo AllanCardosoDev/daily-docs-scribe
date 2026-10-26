@@ -90,7 +90,7 @@ export function buildSheetsPdfDoc(
     doc.text(header.comandante || "CEL QOBM BORGES", 185, 16);
     doc.text(header.chefeCapital || "CEL QOBM MENEZES", 185, 26);
     doc.text(header.chefeInterior || "CEL QOBM MONTEIRO", 185, 36);
-    doc.text(header.coordSituacao || "TC QOBM FERREIRA", 185, 46);
+    doc.text((header.coordSituacao || "CEL QOBM FERREIRA").replace(/^TC\s+/i, "CEL "), 185, 46);
 
     // Cronograma & Período (Direita) - Alinhado à margem direita (pageW - 16)
     const rightMarginX = pageW - 16;
@@ -516,93 +516,25 @@ export function buildSheetsPdfDoc(
     headStyles: { fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b], textColor: 255, fontStyle: "bold", fontSize: 6, halign: "center" },
   });
 
-  // 4. OUTRAS OCORRÊNCIAS DIÁRIAS (Centro Esquerda)
-  const outrasList = data.outras_diarias ?? [];
-  const outrasBody = outrasList.map((r) => [
-    r.mun,
-    num(r.salvamento) || "",
-    num(r.acidentes) || "",
-    num(r.aph) || "",
-    num(r.prevencao) || "",
-    num(r.servicos) || "",
-  ]);
-
-  const totSalv = outrasList.reduce((s, r) => s + num(r.salvamento), 0);
-  const totAcid = outrasList.reduce((s, r) => s + num(r.acidentes), 0);
-  const totAph = outrasList.reduce((s, r) => s + num(r.aph), 0);
-  const totPrev = outrasList.reduce((s, r) => s + num(r.prevencao), 0);
-  const totServ = outrasList.reduce((s, r) => s + num(r.servicos), 0);
-
-  autoTable(doc, {
-    startY: 145,
-    margin: { left: 16 },
-    tableWidth: 400,
-    head: [
-      [{ content: `OUTRAS OCORRÊNCIAS DIÁRIAS EM ${opDateStr}`, colSpan: 6, styles: { fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b], textColor: 255, fontStyle: "bold", halign: "center" } }],
-      ["MUNICÍPIO", "SALVAMENTO", "ACIDENTES", "APH", "AÇÃO DE PREVENÇÃO", "SERVIÇOS"],
-    ],
-    body: [
-      ...outrasBody,
-      ["TOTAL", totSalv, totAcid, totAph, totPrev, totServ],
-    ],
-    styles: { fontSize: 6.5, cellPadding: 1.5, lineColor: BORDER_COLOR, lineWidth: 0.3 },
-    headStyles: { fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b], textColor: 255, fontStyle: "bold", fontSize: 6, halign: "center" },
-    columnStyles: { 0: { fontStyle: "bold", cellWidth: 100 }, 1: { halign: "center" }, 2: { halign: "center" }, 3: { halign: "center" }, 4: { halign: "center" }, 5: { halign: "center" } },
-  });
-
-  // 5. TOTAL GERAL DE OCORRÊNCIAS DIÁRIAS (Centro Direita)
-  const manausOutras = outrasList.find((r) => r.mun?.toLowerCase() === "manaus");
-  const interiorOutras = outrasList.filter((r) => r.mun?.toLowerCase() !== "manaus");
-
-  const capSalv = num(manausOutras?.salvamento);
-  const capAcid = num(manausOutras?.acidentes);
-  const capAph = num(manausOutras?.aph);
-  const capPrev = num(manausOutras?.prevencao);
-  const capServ = num(manausOutras?.servicos);
-
-  const intSalv = interiorOutras.reduce((s, r) => s + num(r.salvamento), 0);
-  const intAcid = interiorOutras.reduce((s, r) => s + num(r.acidentes), 0);
-  const intAph = interiorOutras.reduce((s, r) => s + num(r.aph), 0);
-  const intPrev = interiorOutras.reduce((s, r) => s + num(r.prevencao), 0);
-  const intServ = interiorOutras.reduce((s, r) => s + num(r.servicos), 0);
-
-  autoTable(doc, {
-    startY: 145,
-    margin: { left: 430 },
-    tableWidth: 395,
-    head: [
-      [{ content: "TOTAL GERAL DE OCORRÊNCIAS DIÁRIAS", colSpan: 6, styles: { fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b], textColor: 255, fontStyle: "bold", halign: "center" } }],
-      ["REGIÃO / TIPO DE OCORRÊNCIA", "SALVAMENTO", "ACIDENTES", "APH", "AÇÃO DE PREVENÇÃO", "SERVIÇOS"],
-    ],
-    body: [
-      ["CAPITAL", capSalv, capAcid, capAph, capPrev, capServ],
-      ["INTERIOR", intSalv, intAcid, intAph, intPrev, intServ],
-      ["TOTAL", capSalv + intSalv, capAcid + intAcid, capAph + intAph, capPrev + intPrev, capServ + intServ],
-    ],
-    styles: { fontSize: 6.5, cellPadding: 2.5, lineColor: BORDER_COLOR, lineWidth: 0.3 },
-    headStyles: { fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b], textColor: 255, fontStyle: "bold", fontSize: 6, halign: "center" },
-    columnStyles: { 0: { fontStyle: "bold", cellWidth: 120 }, 1: { halign: "center" }, 2: { halign: "center" }, 3: { halign: "center" }, 4: { halign: "center" }, 5: { halign: "center" } },
-  });
-
-  // 6. BLUDO DE ASSINATURAS (Rodapé Direita da Página 3)
-  const sigY = 410;
+  // 4. BLOCO DE ASSINATURAS (Página 3)
+  const sigY = 180;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(0, 0, 0);
 
   // Assinatura 1: Coordenador da Operação
-  doc.text("TC QOBM CRISTIANO BRAZ FERREIRA", pageW - 200, sigY, { align: "center" });
+  doc.text("CEL QOBM CRISTIANO BRAZ FERREIRA", pageW / 2 - 160, sigY, { align: "center" });
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
-  doc.text("Coordenador da Operação Amazonas + Verde", pageW - 200, sigY + 10, { align: "center" });
+  doc.text("Coordenador da Operação Amazonas + Verde", pageW / 2 - 160, sigY + 10, { align: "center" });
 
   // Assinatura 2: Subcomandante-Geral
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
-  doc.text("CEL QOBM HELYANTHUS FRANK DA SILVA BORGES", pageW - 200, sigY + 50, { align: "center" });
+  doc.text("CEL QOBM HELYANTHUS FRANK DA SILVA BORGES", pageW / 2 + 160, sigY, { align: "center" });
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
-  doc.text("Subcomandante-Geral do CBMAM", pageW - 200, sigY + 60, { align: "center" });
+  doc.text("Subcomandante-Geral do CBMAM", pageW / 2 + 160, sigY + 10, { align: "center" });
 
   drawPageFooter(3);
 

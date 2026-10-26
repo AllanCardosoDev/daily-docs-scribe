@@ -101,7 +101,7 @@ export const DashboardSections = memo(function DashboardSections({
         <SectionHeader
           index="03"
           title="Ocorrências diárias"
-          subtitle="Incêndios e atendimentos diversos"
+          subtitle="Combate a incêndios florestais e urbanos"
           icon={<Flame className="w-4 h-4" aria-hidden="true" />}
         />
         <div className="flex flex-col gap-6">
@@ -111,13 +111,6 @@ export const DashboardSections = memo(function DashboardSections({
             onRowsChange={savers.incendios_diario}
             columns={DASHBOARD_COLUMNS.incendios_diario}
             rows={data.incendios_diario}
-          />
-          <DataTable
-            title="Outras ocorrências do dia"
-            editable={canEdit}
-            onRowsChange={savers.outras_diarias}
-            columns={DASHBOARD_COLUMNS.outras_diarias}
-            rows={data.outras_diarias}
           />
         </div>
 

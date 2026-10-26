@@ -164,32 +164,20 @@ export const DashboardAnalytics = memo(function DashboardAnalytics({
       .slice(0, 10);
   }, [data.incendios_diario]);
 
-  // 2. Distribuição por Categoria de Ocorrência (Donut)
+  // 2. Distribuição por Categoria de Incêndio (Donut)
   const ocorrenciasDist = useMemo(() => {
-    const list = data.outras_diarias ?? [];
     const incList = data.incendios_diario ?? [];
 
     const totalFlorestal = incList.reduce((acc, r) => acc + (Number(r.flor) || 0), 0);
     const totalUrbano = incList.reduce((acc, r) => acc + (Number(r.urb) || 0), 0);
-
-    const totals = {
-      florestal: totalFlorestal,
-      urbano: totalUrbano,
-      salvamento: list.reduce((acc, r) => acc + (Number(r.salvamento) || 0), 0),
-      aph: list.reduce((acc, r) => acc + (Number(r.aph) || 0), 0),
-      prevencao: list.reduce((acc, r) => acc + (Number(r.prevencao) || 0), 0),
-      acidentes: list.reduce((acc, r) => acc + (Number(r.acidentes) || 0), 0),
-    };
+    const totalFocos = incList.reduce((acc, r) => acc + (Number(r.focos) || 0), 0);
 
     return [
-      { name: "Incêndio Florestal", value: totals.florestal, color: "#ef4444" },
-      { name: "Incêndio Urbano", value: totals.urbano, color: "#f59e0b" },
-      { name: "APH / Resgate", value: totals.aph, color: "#3b82f6" },
-      { name: "Salvamento", value: totals.salvamento, color: "#10b981" },
-      { name: "Ações Preventivas", value: totals.prevencao, color: "#06b6d4" },
-      { name: "Acidentes", value: totals.acidentes, color: "#8b5cf6" },
+      { name: "Incêndio Florestal", value: totalFlorestal, color: "#ef4444" },
+      { name: "Incêndio Urbano", value: totalUrbano, color: "#f59e0b" },
+      { name: "Focos Combatidos", value: totalFocos, color: "#8b5cf6" },
     ].filter((d) => d.value > 0);
-  }, [data.outras_diarias, data.incendios_diario]);
+  }, [data.incendios_diario]);
 
   // 3. Efetivo Mobilizado
   const efetivoInfo = useMemo(() => {

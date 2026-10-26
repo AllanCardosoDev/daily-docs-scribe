@@ -22,9 +22,12 @@ import {
   RefreshCw,
   Search,
   X,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { ReportShift } from "@/lib/report-shift";
 import { canonicalMunicipio } from "@/lib/municipio-order";
+import { ImportPlanilhaDialog } from "./ImportPlanilhaDialog";
 
 export interface DashboardFilterState {
   reportDate: Date | null;
@@ -108,9 +111,9 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
   }, [availableMunicipios]);
 
   // Aplica preset de data
-  const applyPreset = (preset: "today" | "7d" | "15d" | "jul2026" | "aug2026" | "all") => {
+  const applyPreset = (preset: "today" | "7d" | "15d" | "jul2026" | "aug2026" | "oct2026" | "all") => {
     // Usamos a data mais recente dos relatórios ou a data final selecionada como âncora
-    const anchor = filters.endDate ? new Date(filters.endDate) : new Date(2026, 7, 27);
+    const anchor = filters.endDate ? new Date(filters.endDate) : new Date(2026, 9, 25);
     switch (preset) {
       case "today":
         onChange({ reportDate: anchor, endDate: anchor });
@@ -139,13 +142,25 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
           endDate: new Date(2026, 7, 31),
         });
         break;
+      case "oct2026":
+        onChange({
+          reportDate: new Date(2026, 9, 1),
+          endDate: new Date(2026, 9, 31),
+        });
+        break;
       case "all":
         onChange({
           reportDate: new Date(2026, 6, 1),
-          endDate: new Date(2026, 7, 31),
+          endDate: new Date(2026, 9, 31),
         });
         break;
     }
+  };
+
+  const stepDay = (offset: number) => {
+    const cur = filters.reportDate ? new Date(filters.reportDate) : new Date(2026, 9, 25);
+    cur.setDate(cur.getDate() + offset);
+    onChange({ reportDate: cur, endDate: cur });
   };
 
   const toInputDate = (d: Date | null) => {
@@ -241,6 +256,15 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
             variant="outline"
             size="sm"
             className="h-7 text-xs font-medium px-2.5 rounded-lg hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200"
+            onClick={() => applyPreset("oct2026")}
+          >
+            Outubro / 2026
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs font-medium px-2.5 rounded-lg hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200"
             onClick={() => applyPreset("all")}
           >
             Geral Completo
@@ -250,11 +274,31 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
 
       {/* Linha 2: Controles Multidimensionais */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        {/* De (Data Início) */}
+        {/* De (Data Início) com navegação rápida de dia */}
         <div className="space-y-1.5">
-          <Label className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
-            <CalendarIcon className="w-3.5 h-3.5 text-emerald-600" /> Data Inicial (De)
-          </Label>
+          <div className="flex items-center justify-between">
+            <Label className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+              <CalendarIcon className="w-3.5 h-3.5 text-emerald-600" /> Data Inicial (De)
+            </Label>
+            <div className="flex items-center gap-0.5">
+              <button
+                type="button"
+                onClick={() => stepDay(-1)}
+                title="Dia anterior"
+                className="w-5 h-5 rounded hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => stepDay(1)}
+                title="Próximo dia"
+                className="w-5 h-5 rounded hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
           <Input
             type="date"
             className="h-9 text-xs"
@@ -453,6 +497,16 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
               Relatório PDF
             </Button>
           )}
+
+          <ImportPlanilhaDialog
+            onSuccess={(res) => {
+              if (res.latestDate) {
+                const [y, m, d] = res.latestDate.split("-").map(Number);
+                onChange({ reportDate: new Date(y, m - 1, d), endDate: new Date(y, m - 1, d) });
+              }
+              onRefresh?.();
+            }}
+          />
         </div>
       </div>
     </div>

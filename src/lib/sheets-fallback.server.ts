@@ -4,6 +4,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { EMPTY_SHEETS_DATA, type SheetsData } from "./sheets.types";
+import { getOccurrencesForDate, getOccurrencesForRange } from "./occurrences-store.server";
 
 export const num = (v: unknown) => {
   const n = Number(v ?? 0);
@@ -403,6 +404,51 @@ export async function loadReportByDate(
     {}
   ) as Record<string, string>;
 
+  const dayOccurrences =
+    Array.isArray(notesEnv.occurrences) && notesEnv.occurrences.length > 0
+      ? notesEnv.occurrences
+      : getOccurrencesForDate(dateIso);
+
+  // Se os incêndios diários estão zerados mas existem ocorrências de incêndio catalogadas no banco para o dia,
+  // sintetizamos os dados municipais a partir das ocorrências oficiais de incêndio:
+  const incTotal = incendiosConsolidados.reduce(
+    (sum, r) => sum + (r.urb || 0) + (r.flor || 0) + (r.total_periodo || 0),
+    0,
+  );
+  let finalIncendiosDiario = incendiosConsolidados;
+  if (incTotal === 0 && dayOccurrences.length > 0) {
+    const munMap = new Map<string, { urb: number; flor: number; focos: number; total_periodo: number }>();
+    for (const occ of dayOccurrences) {
+      const mun = canonicalMunicipio(occ.municipio);
+      if (!mun || mun === "—") continue;
+      const cur = munMap.get(mun) ?? { urb: 0, flor: 0, focos: 0, total_periodo: 0 };
+      const nat = String(occ.natureza || "").toLowerCase();
+      const isFlor =
+        nat.includes("florest") ||
+        nat.includes("vegeta") ||
+        nat.includes("mata") ||
+        nat.includes("pastag") ||
+        nat.includes("palha");
+      if (isFlor) {
+        cur.flor += 1;
+      } else {
+        cur.urb += 1;
+      }
+      cur.focos += Math.max(1, Number(occ.focos) || 1);
+      cur.total_periodo += 1;
+      munMap.set(mun, cur);
+    }
+    finalIncendiosDiario = ensureAllMunicipios(
+      Array.from(munMap.entries()).map(([mun, vals]) => ({ mun, ...vals })),
+      (mun) => ({ mun, urb: 0, flor: 0, focos: 0, total_periodo: 0 }),
+    );
+  }
+
+  const rawCoord = headerObj.coordSituacao ?? "CEL QOBM FERREIRA";
+  const safeCoordSituacao = rawCoord.replace(/^TC\s+/i, "CEL ");
+  const rawCoordenador = headerObj.coordenador ?? "CEL QOBM CRISTIANO BRAZ FERREIRA";
+  const safeCoordenador = rawCoordenador.replace(/^TC\s+/i, "CEL ");
+
   const data: SheetsData = {
     header: {
       titulo: headerObj.titulo ?? "Relatório Diário — Sala de Situação",
@@ -413,18 +459,18 @@ export async function loadReportByDate(
       comandante: headerObj.comandante ?? "CEL QOBM BORGES",
       chefeCapital: headerObj.chefeCapital ?? "CEL QOBM MENEZES",
       chefeInterior: headerObj.chefeInterior ?? "CEL QOBM MONTEIRO",
-      coordSituacao: headerObj.coordSituacao ?? "TC QOBM FERREIRA",
-      coordenador: headerObj.coordenador ?? "Coordenador Amazonas + Verde",
+      coordSituacao: safeCoordSituacao,
+      coordenador: safeCoordenador,
       subcomandante: headerObj.subcomandante ?? "Subcomandante-Geral do CBMAM",
     },
     efetivo: efetivoConsolidado,
     recursos: recursosConsolidados,
-    incendios_diario: incendiosConsolidados,
+    incendios_diario: finalIncendiosDiario,
     incendios_acumulado: Array.isArray(notesEnv.incendios_acumulado) && notesEnv.incendios_acumulado.length > 0
       ? notesEnv.incendios_acumulado
       : acum,
     outras_diarias: outrasConsolidadas,
-    occurrences: Array.isArray(notesEnv.occurrences) ? notesEnv.occurrences : [],
+    occurrences: dayOccurrences,
   };
 
   return { data, found: isFound };
@@ -438,6 +484,8 @@ export async function loadReportRange(
   startIso: string,
   endIso: string,
 ): Promise<SheetsData> {
+  const rangeOccurrences = getOccurrencesForRange(startIso, endIso);
+
   const { data: rows, error } = await supabase
     .from("daily_reports")
     .select("report_date, shift, efetivo, recursos, incendios, outras")
@@ -445,23 +493,58 @@ export async function loadReportRange(
     .lte("report_date", endIso)
     .order("report_date", { ascending: true });
 
-  if (error || !rows || !rows.length) return EMPTY_SHEETS_DATA;
-
-  // Deduplica: se houver 24h e Parcial no mesmo dia, pega o 24h
-  const byDate = new Map<string, any>();
-  for (const r of rows) {
-    const cur = byDate.get(r.report_date);
-    if (!cur || (r.shift === "noturno" && cur.shift !== "noturno")) {
-      byDate.set(r.report_date, r);
+  const validRows = (() => {
+    if (error || !rows || !rows.length) return [];
+    const byDate = new Map<string, any>();
+    for (const r of rows) {
+      const cur = byDate.get(r.report_date);
+      if (!cur || (r.shift === "noturno" && cur.shift !== "noturno")) {
+        byDate.set(r.report_date, r);
+      }
     }
-  }
+    return Array.from(byDate.values());
+  })();
 
-  const validRows = Array.from(byDate.values());
+  let aggregatedInc = validRows.length > 0
+    ? consolidateAndCanonicalizeRows(
+        validRows.flatMap((r) => asRows(r.incendios)),
+        ["urb", "flor", "focos", "total_periodo"],
+      )
+    : [];
 
-  const aggregatedInc = consolidateAndCanonicalizeRows(
-    validRows.flatMap((r) => asRows(r.incendios)),
-    ["urb", "flor", "focos", "total_periodo"],
+  const incRangeTotal = (aggregatedInc as any[]).reduce(
+    (sum, r) => sum + (Number(r.urb) || 0) + (Number(r.flor) || 0) + (Number(r.total_periodo) || 0),
+    0,
   );
+
+  // Se não há dados agregados do daily_reports mas há ocorrências catalogadas, agregamos das ocorrências:
+  if (incRangeTotal === 0 && rangeOccurrences.length > 0) {
+    const munMap = new Map<string, { urb: number; flor: number; focos: number; total_periodo: number }>();
+    for (const occ of rangeOccurrences) {
+      const mun = canonicalMunicipio(occ.municipio);
+      if (!mun || mun === "—") continue;
+      const cur = munMap.get(mun) ?? { urb: 0, flor: 0, focos: 0, total_periodo: 0 };
+      const nat = String(occ.natureza || "").toLowerCase();
+      const isFlor =
+        nat.includes("florest") ||
+        nat.includes("vegeta") ||
+        nat.includes("mata") ||
+        nat.includes("pastag") ||
+        nat.includes("palha");
+      if (isFlor) {
+        cur.flor += 1;
+      } else {
+        cur.urb += 1;
+      }
+      cur.focos += Math.max(1, Number(occ.focos) || 1);
+      cur.total_periodo += 1;
+      munMap.set(mun, cur);
+    }
+    aggregatedInc = ensureAllMunicipios(
+      Array.from(munMap.entries()).map(([mun, vals]) => ({ mun, ...vals })),
+      (mun) => ({ mun, urb: 0, flor: 0, focos: 0, total_periodo: 0 }),
+    );
+  }
 
   const aggregatedOutras = consolidateAndCanonicalizeRows(
     validRows.flatMap((r) => asRows(r.outras)),
@@ -469,26 +552,26 @@ export async function loadReportRange(
   );
 
   // Efetivo e Recursos pegamos o snapshot do último dia do range
-  const lastRow = validRows[validRows.length - 1];
-  const lastEfetivo = consolidateAndCanonicalizeRows(asRows(lastRow.efetivo), [
-    "ord",
-    "seg",
-    "brig",
-  ]) as any;
-  const lastRecursos = normaliseRecursos(asRows(lastRow.recursos));
+  const lastRow = validRows.length > 0 ? validRows[validRows.length - 1] : null;
+  const lastEfetivo = lastRow
+    ? (consolidateAndCanonicalizeRows(asRows(lastRow.efetivo), ["ord", "seg", "brig"]) as any)
+    : [];
+  const lastRecursos = lastRow ? normaliseRecursos(asRows(lastRow.recursos)) : [];
 
   return {
     header: {
       titulo: "Relatório Consolidado de Período",
       periodo: `${formatDateBR(startIso)} a ${formatDateBR(endIso)}`,
       comandante: "CEL QOBM BORGES",
+      coordSituacao: "CEL QOBM FERREIRA",
+      coordenador: "CEL QOBM CRISTIANO BRAZ FERREIRA",
     },
     efetivo: lastEfetivo,
     recursos: lastRecursos,
     incendios_diario: aggregatedInc as any,
     incendios_acumulado: await fetchIncendiosAcumulado(supabase, endIso),
     outras_diarias: aggregatedOutras as any,
-    occurrences: [],
+    occurrences: rangeOccurrences,
     isRange: true,
     startDate: startIso,
     endDate: endIso,

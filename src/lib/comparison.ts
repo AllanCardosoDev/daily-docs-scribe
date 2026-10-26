@@ -16,14 +16,6 @@ export interface ComparisonResult {
       focos: ComparisonDelta;
       total: ComparisonDelta;
     };
-    outras: {
-      salvamento: ComparisonDelta;
-      acidentes: ComparisonDelta;
-      aph: ComparisonDelta;
-      prevencao: ComparisonDelta;
-      servicos: ComparisonDelta;
-      total: ComparisonDelta;
-    };
     efetivo: {
       total: ComparisonDelta;
     };
@@ -61,24 +53,6 @@ export function calculateComparison(dataA: SheetsData, dataB: SheetsData): Compa
     total: sum(dataB.incendios_diario, ["urb", "flor"])
   };
 
-  const outrasA = {
-    salvamento: sum(dataA.outras_diarias, ["salvamento"]),
-    acidentes: sum(dataA.outras_diarias, ["acidentes"]),
-    aph: sum(dataA.outras_diarias, ["aph"]),
-    prevencao: sum(dataA.outras_diarias, ["prevencao"]),
-    servicos: sum(dataA.outras_diarias, ["servicos"]),
-    total: sum(dataA.outras_diarias, ["salvamento", "acidentes", "aph", "prevencao", "servicos"])
-  };
-
-  const outrasB = {
-    salvamento: sum(dataB.outras_diarias, ["salvamento"]),
-    acidentes: sum(dataB.outras_diarias, ["acidentes"]),
-    aph: sum(dataB.outras_diarias, ["aph"]),
-    prevencao: sum(dataB.outras_diarias, ["prevencao"]),
-    servicos: sum(dataB.outras_diarias, ["servicos"]),
-    total: sum(dataB.outras_diarias, ["salvamento", "acidentes", "aph", "prevencao", "servicos"])
-  };
-
   const efetivoA = sum(dataA.efetivo, ["ord", "seg", "brig", "brig_semas"]);
   const efetivoB = sum(dataB.efetivo, ["ord", "seg", "brig", "brig_semas"]);
 
@@ -94,14 +68,6 @@ export function calculateComparison(dataA: SheetsData, dataB: SheetsData): Compa
         flor: calcDelta(incA.flor, incB.flor),
         focos: calcDelta(incA.focos, incB.focos),
         total: calcDelta(incA.total, incB.total),
-      },
-      outras: {
-        salvamento: calcDelta(outrasA.salvamento, outrasB.salvamento),
-        acidentes: calcDelta(outrasA.acidentes, outrasB.acidentes),
-        aph: calcDelta(outrasA.aph, outrasB.aph),
-        prevencao: calcDelta(outrasA.prevencao, outrasB.prevencao),
-        servicos: calcDelta(outrasA.servicos, outrasB.servicos),
-        total: calcDelta(outrasA.total, outrasB.total),
       },
       efetivo: {
         total: calcDelta(efetivoA, efetivoB)

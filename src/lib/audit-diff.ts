@@ -30,17 +30,6 @@ const SECTIONS: { key: string; label: string; fields: Record<string, string> }[]
     label: "Incêndios",
     fields: { urb: "Urbanos", flor: "Florestais", focos: "Focos" },
   },
-  {
-    key: "outras",
-    label: "Ocorrências",
-    fields: {
-      salvamento: "Salvamento",
-      acidentes: "Acidentes",
-      aph: "APH",
-      prevencao: "Prevenção",
-      servicos: "Serviços",
-    },
-  },
 ];
 
 const str = (v: unknown) => (v === null || v === undefined || v === "" ? "0" : String(v));

@@ -47,6 +47,7 @@ function PainelPage() {
   const [reportDate, setReportDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [shift, setShift] = useState<ReportShift>("noturno");
+  const [pdfQuality, setPdfQuality] = useState<"standard" | "high">("standard");
   const getLatest = useServerFn(getLatestReportDate);
 
   useEffect(() => {
@@ -132,20 +133,10 @@ function PainelPage() {
         focos: 0,
         total_periodo: 0,
       });
-      const updatedOutras = appendRow(data.outras_diarias ?? [], {
-        mun: canonicalName,
-        salvamento: 0,
-        acidentes: 0,
-        aph: 0,
-        prevencao: 0,
-        servicos: 0,
-        total_periodo: 0,
-      });
 
       await savers.efetivo(updatedEfetivo);
       await savers.recursos(updatedRecursos);
       await savers.incendios_diario(updatedIncendios);
-      await savers.outras_diarias(updatedOutras);
       toast.success(`Município ${canonicalName} inserido no relatório!`);
     },
     [data, savers],

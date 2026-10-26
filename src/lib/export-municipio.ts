@@ -20,7 +20,7 @@ function getMunicipioSpecificData(data: SheetsData, municipioName: string): Shee
     recursos: data.recursos.filter((r) => normalize(r.mun || "") === target),
     incendios_diario: data.incendios_diario.filter((r) => normalize(r.mun || "") === target),
     incendios_acumulado: data.incendios_acumulado.filter((r) => normalize(r.mun || "") === target),
-    outras_diarias: data.outras_diarias.filter((r) => normalize(r.mun || "") === target),
+    outras_diarias: [],
     occurrences: data.occurrences.filter((r) => normalize(r.municipio || "") === target),
     isRange: data.isRange,
     startDate: data.startDate,
@@ -82,21 +82,6 @@ export function exportMunicipioToPdf(data: SheetsData, municipioName: string, re
     finalY = (doc as any).lastAutoTable.finalY + 30;
   }
 
-  // Outras Ocorrências
-  if (munData.outras_diarias.length > 0) {
-    doc.setFont("helvetica", "bold");
-    doc.text("OUTRAS NATUREZAS", 20, finalY);
-    autoTable(doc, {
-      startY: finalY + 10,
-      head: [["Salv.", "Acid.", "APH", "Prev.", "Serv.", "Total"]],
-      body: munData.outras_diarias.map(r => [r.salvamento, r.acidentes, r.aph, r.prevencao, r.servicos, 
-        Number(r.salvamento) + Number(r.acidentes) + Number(r.aph) + Number(r.prevencao) + Number(r.servicos)]),
-      theme: "striped",
-      headStyles: { fillColor: [28, 78, 128] }
-    });
-    finalY = (doc as any).lastAutoTable.finalY + 30;
-  }
-
   doc.save(`relatorio-${municipioName.toLowerCase()}-${opDateStr.replace(/\//g, "-")}.pdf`);
 }
 
@@ -123,14 +108,6 @@ export function exportMunicipioToCsv(data: SheetsData, municipioName: string, re
     flatData.push(["INCÊNDIO", "Urbano", String(r.urb)]);
     flatData.push(["INCÊNDIO", "Florestal", String(r.flor)]);
     flatData.push(["INCÊNDIO", "Focos", String(r.focos)]);
-  });
-
-  munData.outras_diarias.forEach(r => {
-    flatData.push(["OUTRAS", "Salvamento", String(r.salvamento)]);
-    flatData.push(["OUTRAS", "Acidentes", String(r.acidentes)]);
-    flatData.push(["OUTRAS", "APH", String(r.aph)]);
-    flatData.push(["OUTRAS", "Prevenção", String(r.prevencao)]);
-    flatData.push(["OUTRAS", "Serviços", String(r.servicos)]);
   });
 
   const ws = XLSX.utils.aoa_to_sheet(flatData);

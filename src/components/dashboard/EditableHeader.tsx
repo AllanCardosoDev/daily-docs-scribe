@@ -63,7 +63,7 @@ const GROUPS: FieldGroup[] = [
       {
         key: "coordSituacao",
         label: "Coordenador da Sala de Situação",
-        placeholder: "Ex.: TC QOBM FERREIRA",
+        placeholder: "Ex.: CEL QOBM FERREIRA",
       },
       {
         key: "coordenador",

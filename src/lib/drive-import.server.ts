@@ -322,7 +322,7 @@ function parseHeader(rows: any[][]): SheetsHeader {
     const row = rows[i] ?? [];
     for (const c of row) {
       const v = String(c ?? "").trim();
-      if (/CRISTIANO BRAZ/i.test(v)) header.coordenador = "TC QOBM CRISTIANO BRAZ FERREIRA";
+      if (/CRISTIANO BRAZ/i.test(v)) header.coordenador = "CEL QOBM CRISTIANO BRAZ FERREIRA";
       if (/HELYANTHUS/i.test(v)) header.subcomandante = "CEL QOBM HELYANTHUS FRANK DA SILVA BORGES";
     }
   }

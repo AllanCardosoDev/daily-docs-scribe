@@ -98,30 +98,47 @@ export const getLatestReportDate = createServerFn({ method: "GET" })
   .middleware([requireBackendAuth])
   .handler(async ({ context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { getLatestOccurrenceDate } = await import("./occurrences-store.server");
     const dbClient = supabaseAdmin ?? context.supabase;
-    const { data, error } = await dbClient
+    const { data } = await dbClient
       .from("daily_reports")
       .select("report_date")
       .order("report_date", { ascending: false })
       .order("shift", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (error) dbFail(error, "daily-reports");
-    return data?.report_date ?? null;
+
+    const latestOccDate = getLatestOccurrenceDate();
+    const reportDate = data?.report_date ?? null;
+
+    if (!reportDate) return latestOccDate;
+    if (latestOccDate && latestOccDate > reportDate) return latestOccDate;
+    return reportDate;
   });
 
 export const listAvailableReportDates = createServerFn({ method: "GET" })
   .middleware([requireBackendAuth])
   .handler(async ({ context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { getAvailableDates } = await import("./occurrences-store.server");
     const dbClient = supabaseAdmin ?? context.supabase;
-    const { data, error } = await dbClient
+    const { data } = await dbClient
       .from("daily_reports")
       .select("report_date, shift")
       .order("report_date", { ascending: false })
       .limit(300);
-    if (error) dbFail(error, "daily-reports");
-    return data ?? [];
+
+    const map = new Map<string, { report_date: string; shift?: string }>();
+    for (const d of getAvailableDates()) {
+      map.set(d, { report_date: d, shift: "noturno" });
+    }
+    for (const row of (data ?? [])) {
+      if (row.report_date) {
+        map.set(row.report_date, row);
+      }
+    }
+
+    return Array.from(map.values()).sort((a, b) => b.report_date.localeCompare(a.report_date));
   });
 
 export const getDailyReport = createServerFn({ method: "GET" })

@@ -32,13 +32,12 @@ export type ComparisonExportParams = {
   year2: number;
   startMonth: number;
   endMonth: number;
-  activeTab: "incendios" | "outras" | "efetivo" | "recursos";
+  activeTab: "incendios" | "efetivo" | "recursos";
   totals1: {
     incendios: number;
     flor: number;
     urb: number;
     focos: number;
-    outras: number;
     efetivo: number;
     dias: number;
   };
@@ -47,7 +46,6 @@ export type ComparisonExportParams = {
     flor: number;
     urb: number;
     focos: number;
-    outras: number;
     efetivo: number;
     dias: number;
   };
@@ -157,7 +155,6 @@ export function exportComparisonPdf(params: ComparisonExportParams) {
         "INC. FLORESTAIS",
         "INC. URBANOS",
         "FOCOS COMBATIDOS",
-        "OCORRÊNCIAS DIVERSAS",
         "EFETIVO MOBILIZADO",
       ],
     ],
@@ -170,7 +167,6 @@ export function exportComparisonPdf(params: ComparisonExportParams) {
         NF.format(totals1.flor),
         NF.format(totals1.urb),
         NF.format(totals1.focos),
-        NF.format(totals1.outras),
         NF.format(totals1.efetivo),
       ],
       [
@@ -181,7 +177,6 @@ export function exportComparisonPdf(params: ComparisonExportParams) {
         NF.format(totals2.flor),
         NF.format(totals2.urb),
         NF.format(totals2.focos),
-        NF.format(totals2.outras),
         NF.format(totals2.efetivo),
       ],
     ],
@@ -332,114 +327,6 @@ export function exportComparisonPdf(params: ComparisonExportParams) {
         1: { halign: "left", cellWidth: 140 },
         8: { fontStyle: "bold" },
         9: { fontStyle: "bold" },
-      },
-      alternateRowStyles: { fillColor: [ROW_ALT.r, ROW_ALT.g, ROW_ALT.b] },
-      margin: { left: 24, right: 24, top: 78, bottom: 32 },
-    });
-  } else if (activeTab === "outras") {
-    let totSal1 = 0, totAci1 = 0, totAph1 = 0, totPre1 = 0, totSer1 = 0, totOut1 = 0;
-    let totSal2 = 0, totAci2 = 0, totAph2 = 0, totPre2 = 0, totSer2 = 0, totOut2 = 0;
-
-    const tableBody = sortedMuns.map((mun, idx) => {
-      const d1 = map1.get(mun) || {};
-      const d2 = map2.get(mun) || {};
-
-      const sal1 = Number(d1.salvamento) || 0;
-      const aci1 = Number(d1.acidentes) || 0;
-      const aph1 = Number(d1.aph) || 0;
-      const pre1 = Number(d1.prevencao) || 0;
-      const ser1 = Number(d1.servicos) || 0;
-      const t1 = sal1 + aci1 + aph1 + pre1 + ser1;
-
-      const sal2 = Number(d2.salvamento) || 0;
-      const aci2 = Number(d2.acidentes) || 0;
-      const aph2 = Number(d2.aph) || 0;
-      const pre2 = Number(d2.prevencao) || 0;
-      const ser2 = Number(d2.servicos) || 0;
-      const t2 = sal2 + aci2 + aph2 + pre2 + ser2;
-
-      totSal1 += sal1; totAci1 += aci1; totAph1 += aph1; totPre1 += pre1; totSer1 += ser1; totOut1 += t1;
-      totSal2 += sal2; totAci2 += aci2; totAph2 += aph2; totPre2 += pre2; totSer2 += ser2; totOut2 += t2;
-
-      return [
-        String(idx + 1),
-        mun,
-        NF.format(sal1),
-        NF.format(sal2),
-        NF.format(aci1),
-        NF.format(aci2),
-        NF.format(aph1),
-        NF.format(aph2),
-        NF.format(pre1),
-        NF.format(pre2),
-        NF.format(ser1),
-        NF.format(ser2),
-        NF.format(t1),
-        NF.format(t2),
-      ];
-    });
-
-    autoTable(doc, {
-      startY,
-      head: [
-        [
-          { content: "Nº", rowSpan: 2, styles: { valign: "middle", halign: "center" } },
-          { content: "MUNICÍPIO", rowSpan: 2, styles: { valign: "middle", halign: "left" } },
-          { content: "SALVAMENTO", colSpan: 2, styles: { halign: "center" } },
-          { content: "ACIDENTES", colSpan: 2, styles: { halign: "center" } },
-          { content: "APH / RESGATE", colSpan: 2, styles: { halign: "center" } },
-          { content: "PREVENÇÃO", colSpan: 2, styles: { halign: "center" } },
-          { content: "SERVIÇOS", colSpan: 2, styles: { halign: "center" } },
-          { content: "TOTAL", colSpan: 2, styles: { halign: "center" } },
-        ],
-        [
-          String(year1), String(year2),
-          String(year1), String(year2),
-          String(year1), String(year2),
-          String(year1), String(year2),
-          String(year1), String(year2),
-          String(year1), String(year2),
-        ],
-      ],
-      body: tableBody,
-      foot: [
-        [
-          "",
-          "TOTAL GERAL",
-          NF.format(totSal1), NF.format(totSal2),
-          NF.format(totAci1), NF.format(totAci2),
-          NF.format(totAph1), NF.format(totAph2),
-          NF.format(totPre1), NF.format(totPre2),
-          NF.format(totSer1), NF.format(totSer2),
-          NF.format(totOut1), NF.format(totOut2),
-        ],
-      ],
-      styles: {
-        fontSize: 7,
-        cellPadding: 2.5,
-        lineColor: [220, 226, 222],
-        lineWidth: 0.25,
-        valign: "middle",
-      },
-      headStyles: {
-        fillColor: [BRAND_LIGHT.r, BRAND_LIGHT.g, BRAND_LIGHT.b],
-        textColor: 255,
-        fontStyle: "bold",
-        fontSize: 6.5,
-        halign: "center",
-      },
-      footStyles: {
-        fillColor: [BRAND.r, BRAND.g, BRAND.b],
-        textColor: 255,
-        fontStyle: "bold",
-        halign: "right",
-      },
-      bodyStyles: { textColor: [INK.r, INK.g, INK.b], halign: "right" },
-      columnStyles: {
-        0: { halign: "center", cellWidth: 20 },
-        1: { halign: "left", cellWidth: 120 },
-        12: { fontStyle: "bold" },
-        13: { fontStyle: "bold" },
       },
       alternateRowStyles: { fillColor: [ROW_ALT.r, ROW_ALT.g, ROW_ALT.b] },
       margin: { left: 24, right: 24, top: 78, bottom: 32 },

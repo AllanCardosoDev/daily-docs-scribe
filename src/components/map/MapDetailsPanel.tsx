@@ -26,7 +26,6 @@ export function MapDetailsPanel({ isOpen, onClose, municipioName, onMunicipioSel
     const names = new Set<string>();
     data.incendios_diario?.forEach(r => r.mun && names.add(r.mun));
     data.efetivo?.forEach(r => r.mun && names.add(r.mun));
-    data.outras_diarias?.forEach(r => r.mun && names.add(r.mun));
     data.recursos?.forEach(r => r.mun && names.add(r.mun));
     return Array.from(names).sort((a, b) => a.localeCompare(b));
   }, [data]);
@@ -49,7 +48,6 @@ export function MapDetailsPanel({ isOpen, onClose, municipioName, onMunicipioSel
 
     const incendios = data.incendios_diario?.find((r) => normalize(r.mun || "") === target);
     const efetivo = data.efetivo?.find((r) => normalize(r.mun || "") === target);
-    const outras = data.outras_diarias?.find((r) => normalize(r.mun || "") === target);
     const recursos = data.recursos?.find((r) => normalize(r.mun || "") === target);
 
     return {
@@ -65,19 +63,6 @@ export function MapDetailsPanel({ isOpen, onClose, municipioName, onMunicipioSel
         seg: Number(efetivo?.seg || 0),
         brig: Number(efetivo?.brig || 0),
         total: Number(efetivo?.ord || 0) + Number(efetivo?.seg || 0) + Number(efetivo?.brig || 0),
-      },
-      outras: {
-        salvamento: Number(outras?.salvamento || 0),
-        acidentes: Number(outras?.acidentes || 0),
-        aph: Number(outras?.aph || 0),
-        prevencao: Number(outras?.prevencao || 0),
-        servicos: Number(outras?.servicos || 0),
-        total:
-          Number(outras?.salvamento || 0) +
-          Number(outras?.acidentes || 0) +
-          Number(outras?.aph || 0) +
-          Number(outras?.prevencao || 0) +
-          Number(outras?.servicos || 0),
       },
       recursos: recursos ? Object.entries(recursos)
         .filter(([k, v]) => k !== "mun" && Number(v) > 0)
@@ -240,35 +225,6 @@ export function MapDetailsPanel({ isOpen, onClose, municipioName, onMunicipioSel
                           <span className="text-sm font-medium text-muted-foreground">{item.label}</span>
                         </div>
                         <span className="font-display font-bold text-foreground">{item.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-
-                <Separator className="opacity-50" />
-
-                {/* Seção de Ocorrências Diversas */}
-                <section>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
-                      <AlertTriangle className="w-5 h-5" />
-                      <h3 className="font-display font-bold uppercase tracking-wider text-sm">Outras Naturezas</h3>
-                    </div>
-                    <Badge variant="outline" className="font-black text-sm border-blue-200 text-blue-600">
-                      {details.outras.total} TOTAL
-                    </Badge>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { label: "Salvamento", val: details.outras.salvamento },
-                      { label: "Acidentes", val: details.outras.acidentes },
-                      { label: "APH", val: details.outras.aph },
-                      { label: "Prevenção", val: details.outras.prevencao },
-                      { label: "Serviços", val: details.outras.servicos }
-                    ].map((occ) => (
-                      <div key={occ.label} className="flex items-center justify-between p-2 px-3 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
-                        <span className="text-[11px] font-bold text-slate-500 uppercase">{occ.label}</span>
-                        <span className="text-sm font-display font-black text-slate-700 dark:text-slate-300">{occ.val}</span>
                       </div>
                     ))}
                   </div>

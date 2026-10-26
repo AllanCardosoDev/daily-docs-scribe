@@ -1,7 +1,7 @@
 import type { Column } from "@/components/dashboard/DataTable";
 
 export type EditableSection =
-  "efetivo" | "recursos" | "incendios_diario" | "incendios_acumulado" | "outras_diarias";
+  "efetivo" | "recursos" | "incendios_diario" | "incendios_acumulado";
 
 export const DASHBOARD_COLUMNS = {
   efetivo: [
@@ -18,7 +18,7 @@ export const DASHBOARD_COLUMNS = {
     { key: "fn", label: "FN", numeric: true, editable: true },
     { key: "seg", label: "SEG", numeric: true, editable: true },
     { key: "brig_mun", label: "Brig. Mun", numeric: true, editable: true },
-    { key: "brig_semas", label: "Brig. SEMAS", numeric: true, editable: true },
+    { key: "brig_semas", label: "Brig. SEMA", numeric: true, editable: true },
     { key: "brig", label: "Brig. Total", numeric: true, editable: true },
     { key: "total", label: "Total", numeric: true, editable: false },
   ],
@@ -36,15 +36,6 @@ export const DASHBOARD_COLUMNS = {
     { key: "focos", label: "Focos combatidos", numeric: true, editable: true },
     { key: "sat", label: "Focos satélite", numeric: true, editable: true },
     { key: "area", label: "Área (m²)", numeric: true, editable: true },
-  ],
-  outras_diarias: [
-    { key: "mun", label: "Município", editable: true },
-    { key: "salvamento", label: "Salvamento", numeric: true, editable: true },
-    { key: "acidentes", label: "Acidentes", numeric: true, editable: true },
-    { key: "aph", label: "APH", numeric: true, editable: true },
-    { key: "prevencao", label: "Ação Prevenção", numeric: true, editable: true },
-    { key: "servicos", label: "Serviços", numeric: true, editable: true },
-    { key: "total", label: "Total do dia", numeric: true, editable: false },
   ],
   recursos: [
     { key: "mun", label: "Município", editable: true },

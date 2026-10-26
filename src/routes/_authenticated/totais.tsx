@@ -214,7 +214,7 @@ function TotaisPage() {
 
   const [scope, setScope] = useState<"periodo" | "geral">("periodo");
   const [shift, setShift] = useState<ReportShift | "ambos">("ambos");
-  const [activeTab, setActiveTab] = useState<"incendios" | "outras" | "efetivo" | "recursos">("incendios");
+  const [activeTab, setActiveTab] = useState<"incendios" | "efetivo" | "recursos">("incendios");
   const [isAnnualComparison, setIsAnnualComparison] = useState(false);
 
   const [compYear1, setCompYear1] = useState<number>(2025);
@@ -363,18 +363,11 @@ function TotaisPage() {
     [rows],
   );
   
-  const outrasFull = useMemo(
-    () => aggregateSum(rows, "outras", ["salvamento", "acidentes", "aph", "prevencao", "servicos"]),
-    [rows],
-  );
-
   const incendiosComp1 = useMemo(() => aggregateSum(rowsComp1, "incendios", ["urb", "flor", "focos", "focos_combatidos", "focos_atendidos", "sat"]), [rowsComp1]);
-  const outrasComp1 = useMemo(() => aggregateSum(rowsComp1, "outras", ["salvamento", "acidentes", "aph", "prevencao", "servicos"]), [rowsComp1]);
   const efetivoComp1 = useMemo(() => aggregateSnapshot(rowsComp1, "efetivo", ["ord", "seg", "brig", "brig_semas"]), [rowsComp1]);
   const recursosComp1 = useMemo(() => aggregateSnapshot(rowsComp1, "recursos", ["abt", "at", "aem", "atp", "ata", "abf", "atf", "abs", "pipa", "dosa", "crs", "ar", "ur", "gse", "mt", "ta", "quadriciclo", "embarcacao", "picape_fn", "picape_muni", "autoarp", "picape_esfron", "helicoptero", "aviao", "jetski"]), [rowsComp1]);
 
   const incendiosComp2 = useMemo(() => aggregateSum(rowsComp2, "incendios", ["urb", "flor", "focos", "focos_combatidos", "focos_atendidos", "sat"]), [rowsComp2]);
-  const outrasComp2 = useMemo(() => aggregateSum(rowsComp2, "outras", ["salvamento", "acidentes", "aph", "prevencao", "servicos"]), [rowsComp2]);
   const efetivoComp2 = useMemo(() => aggregateSnapshot(rowsComp2, "efetivo", ["ord", "seg", "brig", "brig_semas"]), [rowsComp2]);
   const recursosComp2 = useMemo(() => aggregateSnapshot(rowsComp2, "recursos", ["abt", "at", "aem", "atp", "ata", "abf", "atf", "abs", "pipa", "dosa", "crs", "ar", "ur", "gse", "mt", "ta", "quadriciclo", "embarcacao", "picape_fn", "picape_muni", "autoarp", "picape_esfron", "helicoptero", "aviao", "jetski"]), [rowsComp2]);
 
@@ -386,14 +379,11 @@ function TotaisPage() {
   };
 
   const incendios = useMemo(() => filterBySearch(incendiosFull), [incendiosFull, searchMun]);
-  const outras = useMemo(() => filterBySearch(outrasFull), [outrasFull, searchMun]);
   const efetivo = useMemo(() => filterBySearch(efetivoFull), [efetivoFull, searchMun]);
   const recursos = useMemo(() => filterBySearch(recursosFull), [recursosFull, searchMun]);
 
   const incendiosFiltered1 = useMemo(() => filterBySearch(incendiosComp1), [incendiosComp1, searchMun]);
   const incendiosFiltered2 = useMemo(() => filterBySearch(incendiosComp2), [incendiosComp2, searchMun]);
-  const outrasFiltered1 = useMemo(() => filterBySearch(outrasComp1), [outrasComp1, searchMun]);
-  const outrasFiltered2 = useMemo(() => filterBySearch(outrasComp2), [outrasComp2, searchMun]);
   const efetivoFiltered1 = useMemo(() => filterBySearch(efetivoComp1), [efetivoComp1, searchMun]);
   const efetivoFiltered2 = useMemo(() => filterBySearch(efetivoComp2), [efetivoComp2, searchMun]);
   const recursosFiltered1 = useMemo(() => filterBySearch(recursosComp1), [recursosComp1, searchMun]);
@@ -406,10 +396,9 @@ function TotaisPage() {
       dias: rows.length,
       incendios: sum(incendiosFull, ["urb", "flor"]),
       focos: sum(incendiosFull, ["focos", "focos_combatidos", "focos_atendidos", "sat"]),
-      outras: sum(outrasFull, ["salvamento", "acidentes", "aph", "prevencao", "servicos"]),
       efetivo: sum(efetivoFull, ["ord", "seg", "brig", "brig_semas"]),
     };
-  }, [rows, incendiosFull, outrasFull, efetivoFull]);
+  }, [rows, incendiosFull, efetivoFull]);
 
   const compTotals1 = useMemo(() => {
     const sum = (list: AnyRow[], keys: string[]) =>
@@ -420,10 +409,9 @@ function TotaisPage() {
       flor: sum(incendiosComp1, ["flor"]),
       urb: sum(incendiosComp1, ["urb"]),
       focos: sum(incendiosComp1, ["focos", "focos_combatidos", "focos_atendidos", "sat"]),
-      outras: sum(outrasComp1, ["salvamento", "acidentes", "aph", "prevencao", "servicos"]),
       efetivo: sum(efetivoComp1, ["ord", "seg", "brig", "brig_semas"]),
     };
-  }, [rowsComp1, incendiosComp1, outrasComp1, efetivoComp1]);
+  }, [rowsComp1, incendiosComp1, efetivoComp1]);
 
   const compTotals2 = useMemo(() => {
     const sum = (list: AnyRow[], keys: string[]) =>
@@ -434,10 +422,9 @@ function TotaisPage() {
       flor: sum(incendiosComp2, ["flor"]),
       urb: sum(incendiosComp2, ["urb"]),
       focos: sum(incendiosComp2, ["focos", "focos_combatidos", "focos_atendidos", "sat"]),
-      outras: sum(outrasComp2, ["salvamento", "acidentes", "aph", "prevencao", "servicos"]),
       efetivo: sum(efetivoComp2, ["ord", "seg", "brig", "brig_semas"]),
     };
-  }, [rowsComp2, incendiosComp2, outrasComp2, efetivoComp2]);
+  }, [rowsComp2, incendiosComp2, efetivoComp2]);
 
 
   // Atalhos Rápidos de Período
@@ -521,61 +508,6 @@ function TotaisPage() {
     };
   }, [incendiosFull]);
 
-  // 2. Outras Ocorrências Analytics
-  const outrasStats = useMemo(() => {
-    let salvTotal = 0;
-    let acidTotal = 0;
-    let aphTotal = 0;
-    let prevTotal = 0;
-    let servTotal = 0;
-    let topMun = { mun: "—", total: 0 };
-    const munSet = new Set<string>();
-
-    for (const item of outrasFull) {
-      const r = item as Record<string, any>;
-      const salv = Number(r.salvamento) || 0;
-      const acid = Number(r.acidentes) || 0;
-      const aph = Number(r.aph) || 0;
-      const prev = Number(r.prevencao) || 0;
-      const serv = Number(r.servicos) || 0;
-      salvTotal += salv;
-      acidTotal += acid;
-      aphTotal += aph;
-      prevTotal += prev;
-      servTotal += serv;
-      const total = salv + acid + aph + prev + serv;
-      if (total > 0) {
-        munSet.add(r.mun);
-        if (total > topMun.total) {
-          topMun = { mun: r.mun, total };
-        }
-      }
-    }
-
-    const totalOutras = salvTotal + acidTotal + aphTotal + prevTotal + servTotal;
-    const salvPct = totalOutras > 0 ? ((salvTotal / totalOutras) * 100).toFixed(1) : "0.0";
-    const acidPct = totalOutras > 0 ? ((acidTotal / totalOutras) * 100).toFixed(1) : "0.0";
-    const aphPct = totalOutras > 0 ? ((aphTotal / totalOutras) * 100).toFixed(1) : "0.0";
-    const prevPct = totalOutras > 0 ? ((prevTotal / totalOutras) * 100).toFixed(1) : "0.0";
-    const servPct = totalOutras > 0 ? ((servTotal / totalOutras) * 100).toFixed(1) : "0.0";
-
-    return {
-      total: totalOutras,
-      salvamento: salvTotal,
-      salvamentoPct: salvPct,
-      acidentes: acidTotal,
-      acidentesPct: acidPct,
-      aph: aphTotal,
-      aphPct: aphPct,
-      prevencao: prevTotal,
-      prevencaoPct: prevPct,
-      servicos: servTotal,
-      servicosPct: servPct,
-      munsAfetados: munSet.size,
-      topMun,
-    };
-  }, [outrasFull]);
-
   // Gerador de Resumo para WhatsApp / Boletim Informativo
   const copyWhatsAppSummary = () => {
     const periodoStr = !isAnnualComparison
@@ -600,7 +532,6 @@ function TotaisPage() {
  • *Relatórios computados:* ${!isAnnualComparison ? totals.dias : `${compTotals1.dias} (${compYear1}) / ${compTotals2.dias} (${compYear2})`}
  • *Combate a Incêndios:* ${!isAnnualComparison ? totals.incendios : `${compTotals1.incendios} vs ${compTotals2.incendios}`} ocorrências
  • *Focos de Queimadas:* ${!isAnnualComparison ? totals.focos : `${compTotals1.focos} vs ${compTotals2.focos}`} focos
- • *Atendimentos Diversos:* ${!isAnnualComparison ? totals.outras : `${compTotals1.outras} vs ${compTotals2.outras}`} chamados
  • *Efetivo Mobilizado:* ${!isAnnualComparison ? totals.efetivo : `${compTotals1.efetivo} vs ${compTotals2.efetivo}`} militares/brigadistas
 
 ───────────────
@@ -622,7 +553,6 @@ ${topIncendios || "  Nenhum registro no período."}
       : `comparativo-${compYear1}-vs-${compYear2}-${MONTH_NAMES[compStartMonth]}-${MONTH_NAMES[compEndMonth]}`;
     exportTotaisToXlsx(
       !isAnnualComparison ? incendiosFull : incendiosComp2,
-      !isAnnualComparison ? outrasFull : outrasComp2,
       !isAnnualComparison ? efetivoFull : efetivoComp2,
       !isAnnualComparison ? recursosFull : recursosComp2,
       label
@@ -637,22 +567,18 @@ ${topIncendios || "  Nenhum registro no período."}
         year2: compYear2,
         startMonth: compStartMonth,
         endMonth: compEndMonth,
-        activeTab,
+        activeTab: activeTab as any,
         totals1: compTotals1,
         totals2: compTotals2,
         rows1:
           activeTab === "incendios"
             ? incendiosFiltered1
-            : activeTab === "outras"
-            ? outrasFiltered1
             : activeTab === "efetivo"
             ? efetivoFiltered1
             : recursosFiltered1,
         rows2:
           activeTab === "incendios"
             ? incendiosFiltered2
-            : activeTab === "outras"
-            ? outrasFiltered2
             : activeTab === "efetivo"
             ? efetivoFiltered2
             : recursosFiltered2,
@@ -751,11 +677,9 @@ ${topIncendios || "  Nenhum registro no período."}
         {!isAnnualComparison ? (
           <>
             {/* KPIs gerais */}
-            <section className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-5 gap-3">
-              <Kpi label="Relatórios no filtro" value={totals.dias} />
+            <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Kpi label="Incêndios (total)" value={totals.incendios} />
               <Kpi label="Focos de Queimada" value={totals.focos} />
-              <Kpi label="Ocorrências" value={totals.outras} />
               <Kpi label="Efetivo empenhado" value={totals.efetivo} />
             </section>
 
@@ -913,138 +837,6 @@ ${topIncendios || "  Nenhum registro no período."}
               </div>
             </section>
 
-            {/* Quadro 2: Painel Executivo de Ocorrências e Resgates */}
-            <section className="rounded-2xl bg-card border border-border p-4 sm:p-5 shadow-elevated space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-border/60">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center font-bold">
-                    <ShieldAlert className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h2 className="font-bold text-base text-foreground tracking-tight flex items-center gap-2">
-                      Painel de Ocorrências & Resgates (Por Categoria)
-                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400">
-                        Atendimentos
-                      </span>
-                    </h2>
-                    <p className="text-xs text-muted-foreground">
-                      Distribuição detalhada de Salvamentos, Acidentes, APH, Ações Preventivas e Serviços
-                    </p>
-                  </div>
-                </div>
-                <div className="text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-500/10 px-3 py-1 rounded-md self-start sm:self-auto">
-                  Total: {NF.format(outrasStats.total)} chamados
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
-                {/* Salvamento */}
-                <div className="p-3.5 rounded-xl border border-cyan-500/30 bg-cyan-500/[0.04] relative overflow-hidden group hover:border-cyan-500/50 transition-all">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-700 dark:text-cyan-400">
-                        Salvamento
-                      </span>
-                      <div className="mt-1 text-2xl font-extrabold text-cyan-600 dark:text-cyan-400 tabular-nums">
-                        {NF.format(outrasStats.salvamento)}
-                      </div>
-                    </div>
-                    <div className="w-8 h-8 rounded-lg bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 flex items-center justify-center">
-                      <LifeBuoy className="w-4 h-4" />
-                    </div>
-                  </div>
-                  <div className="mt-2 text-xs flex items-center justify-between text-muted-foreground">
-                    <span>Resgates</span>
-                    <span className="font-semibold text-cyan-700 dark:text-cyan-400">{outrasStats.salvamentoPct}%</span>
-                  </div>
-                </div>
-
-                {/* Acidentes */}
-                <div className="p-3.5 rounded-xl border border-rose-500/30 bg-rose-500/[0.04] relative overflow-hidden group hover:border-rose-500/50 transition-all">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400">
-                        Acidentes
-                      </span>
-                      <div className="mt-1 text-2xl font-extrabold text-rose-600 dark:text-rose-400 tabular-nums">
-                        {NF.format(outrasStats.acidentes)}
-                      </div>
-                    </div>
-                    <div className="w-8 h-8 rounded-lg bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center">
-                      <AlertTriangle className="w-4 h-4" />
-                    </div>
-                  </div>
-                  <div className="mt-2 text-xs flex items-center justify-between text-muted-foreground">
-                    <span>Trânsito / Outros</span>
-                    <span className="font-semibold text-rose-700 dark:text-rose-400">{outrasStats.acidentesPct}%</span>
-                  </div>
-                </div>
-
-                {/* APH */}
-                <div className="p-3.5 rounded-xl border border-purple-500/30 bg-purple-500/[0.04] relative overflow-hidden group hover:border-purple-500/50 transition-all">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-purple-700 dark:text-purple-400">
-                        APH
-                      </span>
-                      <div className="mt-1 text-2xl font-extrabold text-purple-600 dark:text-purple-400 tabular-nums">
-                        {NF.format(outrasStats.aph)}
-                      </div>
-                    </div>
-                    <div className="w-8 h-8 rounded-lg bg-purple-500/15 text-purple-600 dark:text-purple-400 flex items-center justify-center">
-                      <HeartPulse className="w-4 h-4" />
-                    </div>
-                  </div>
-                  <div className="mt-2 text-xs flex items-center justify-between text-muted-foreground">
-                    <span>Pré-Hospitalar</span>
-                    <span className="font-semibold text-purple-700 dark:text-purple-400">{outrasStats.aphPct}%</span>
-                  </div>
-                </div>
-
-                {/* Prevenção */}
-                <div className="p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-500/[0.04] relative overflow-hidden group hover:border-emerald-500/50 transition-all">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-                        Prevenção
-                      </span>
-                      <div className="mt-1 text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                        {NF.format(outrasStats.prevencao)}
-                      </div>
-                    </div>
-                    <div className="w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                      <Shield className="w-4 h-4" />
-                    </div>
-                  </div>
-                  <div className="mt-2 text-xs flex items-center justify-between text-muted-foreground">
-                    <span>Ações Preventivas</span>
-                    <span className="font-semibold text-emerald-700 dark:text-emerald-400">{outrasStats.prevencaoPct}%</span>
-                  </div>
-                </div>
-
-                {/* Serviços */}
-                <div className="p-3.5 rounded-xl border border-blue-500/30 bg-blue-500/[0.04] relative overflow-hidden group hover:border-blue-500/50 transition-all">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400">
-                        Serviços
-                      </span>
-                      <div className="mt-1 text-2xl font-extrabold text-blue-600 dark:text-blue-400 tabular-nums">
-                        {NF.format(outrasStats.servicos)}
-                      </div>
-                    </div>
-                    <div className="w-8 h-8 rounded-lg bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                      <Wrench className="w-4 h-4" />
-                    </div>
-                  </div>
-                  <div className="mt-2 text-xs flex items-center justify-between text-muted-foreground">
-                    <span>Apoios Gerais</span>
-                    <span className="font-semibold text-blue-700 dark:text-blue-400">{outrasStats.servicosPct}%</span>
-                  </div>
-                </div>
-              </div>
-            </section>
-
             {/* Filtro principal de datas */}
             <section className="rounded-xl bg-card shadow-elevated p-4 sm:p-5 space-y-4">
               <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
@@ -1147,9 +939,6 @@ ${topIncendios || "  Nenhum registro no período."}
                     <TabsTrigger value="incendios" className="gap-1.5">
                       <Flame className="w-4 h-4 text-amber-600" /> Incêndios
                     </TabsTrigger>
-                    <TabsTrigger value="outras" className="gap-1.5">
-                      <ShieldAlert className="w-4 h-4 text-blue-600" /> Ocorrências
-                    </TabsTrigger>
                     <TabsTrigger value="efetivo" className="gap-1.5">
                       <Users className="w-4 h-4 text-emerald-600" /> Efetivo
                     </TabsTrigger>
@@ -1180,26 +969,10 @@ ${topIncendios || "  Nenhum registro no período."}
                     sumKeys={["urb", "flor"]}
                   />
                 </TabsContent>
-                <TabsContent value="outras">
-                  <AggTable
-                    title="Ocorrências por município"
-                    headers={[
-                      "Município",
-                      "Salvamento",
-                      "Acidentes",
-                      "APH",
-                      "Prevenção",
-                      "Serviços",
-                      "Total",
-                    ]}
-                    rows={outras}
-                    keys={["salvamento", "acidentes", "aph", "prevencao", "servicos"]}
-                  />
-                </TabsContent>
                 <TabsContent value="efetivo">
                   <AggTable
                     title="Efetivo por município"
-                    headers={["Município", "Ordinário", "SEG", "Brigadista", "Brigadista SEMAS", "Total"]}
+                    headers={["Município", "Ordinário", "SEG", "Brigadista", "Brigadista SEMA", "Total"]}
                     rows={efetivo}
                     keys={["ord", "seg", "brig", "brig_semas"]}
                   />
@@ -1411,7 +1184,7 @@ ${topIncendios || "  Nenhum registro no período."}
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                   <div className="p-2.5 rounded-lg bg-muted/30 border border-border/50">
                     <span className="text-[10px] uppercase font-bold text-muted-foreground block">Incêndios</span>
                     <span className="text-xl font-extrabold text-foreground tabular-nums block mt-0.5">
@@ -1428,14 +1201,6 @@ ${topIncendios || "  Nenhum registro no período."}
                       {NF.format(compTotals1.focos)}
                     </span>
                     <span className="text-[10px] text-muted-foreground">Combatidos</span>
-                  </div>
-
-                  <div className="p-2.5 rounded-lg bg-muted/30 border border-border/50">
-                    <span className="text-[10px] uppercase font-bold text-muted-foreground block">Ocorrências</span>
-                    <span className="text-xl font-extrabold text-foreground tabular-nums block mt-0.5">
-                      {NF.format(compTotals1.outras)}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground">Atendimentos</span>
                   </div>
 
                   <div className="p-2.5 rounded-lg bg-muted/30 border border-border/50">
@@ -1462,7 +1227,7 @@ ${topIncendios || "  Nenhum registro no período."}
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                   <div className="p-2.5 rounded-lg bg-primary/[0.05] border border-primary/20">
                     <span className="text-[10px] uppercase font-bold text-primary block">Incêndios</span>
                     <span className="text-xl font-extrabold text-primary tabular-nums block mt-0.5">
@@ -1479,14 +1244,6 @@ ${topIncendios || "  Nenhum registro no período."}
                       {NF.format(compTotals2.focos)}
                     </span>
                     <span className="text-[10px] text-muted-foreground">Combatidos</span>
-                  </div>
-
-                  <div className="p-2.5 rounded-lg bg-primary/[0.05] border border-primary/20">
-                    <span className="text-[10px] uppercase font-bold text-primary block">Ocorrências</span>
-                    <span className="text-xl font-extrabold text-primary tabular-nums block mt-0.5">
-                      {NF.format(compTotals2.outras)}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground">Atendimentos</span>
                   </div>
 
                   <div className="p-2.5 rounded-lg bg-primary/[0.05] border border-primary/20">
@@ -1507,9 +1264,6 @@ ${topIncendios || "  Nenhum registro no período."}
                   <TabsList className="flex-wrap w-full sm:w-auto">
                     <TabsTrigger value="incendios" className="gap-1.5">
                       <Flame className="w-4 h-4 text-amber-600" /> Incêndios
-                    </TabsTrigger>
-                    <TabsTrigger value="outras" className="gap-1.5">
-                      <ShieldAlert className="w-4 h-4 text-blue-600" /> Ocorrências
                     </TabsTrigger>
                     <TabsTrigger value="efetivo" className="gap-1.5">
                       <Users className="w-4 h-4 text-emerald-600" /> Efetivo
@@ -1554,18 +1308,10 @@ ${topIncendios || "  Nenhum registro no período."}
                         sumKeys={["urb", "flor"]}
                       />
                     )}
-                    {activeTab === "outras" && (
-                      <AggTable
-                        title={`Ocorrências em ${compYear1}`}
-                        headers={["Município", "Salvamento", "Acidentes", "APH", "Prevenção", "Serviços", "Total"]}
-                        rows={outrasFiltered1}
-                        keys={["salvamento", "acidentes", "aph", "prevencao", "servicos"]}
-                      />
-                    )}
                     {activeTab === "efetivo" && (
                       <AggTable
                         title={`Efetivo em ${compYear1}`}
-                        headers={["Município", "Ordinário", "SEG", "Brigadista", "Brigadista SEMAS", "Total"]}
+                        headers={["Município", "Ordinário", "SEG", "Brigadista", "Brigadista SEMA", "Total"]}
                         rows={efetivoFiltered1}
                         keys={["ord", "seg", "brig", "brig_semas"]}
                       />
@@ -1604,18 +1350,10 @@ ${topIncendios || "  Nenhum registro no período."}
                         sumKeys={["urb", "flor"]}
                       />
                     )}
-                    {activeTab === "outras" && (
-                      <AggTable
-                        title={`Ocorrências em ${compYear2}`}
-                        headers={["Município", "Salvamento", "Acidentes", "APH", "Prevenção", "Serviços", "Total"]}
-                        rows={outrasFiltered2}
-                        keys={["salvamento", "acidentes", "aph", "prevencao", "servicos"]}
-                      />
-                    )}
                     {activeTab === "efetivo" && (
                       <AggTable
                         title={`Efetivo em ${compYear2}`}
-                        headers={["Município", "Ordinário", "SEG", "Brigadista", "Brigadista SEMAS", "Total"]}
+                        headers={["Município", "Ordinário", "SEG", "Brigadista", "Brigadista SEMA", "Total"]}
                         rows={efetivoFiltered2}
                         keys={["ord", "seg", "brig", "brig_semas"]}
                       />
@@ -1649,23 +1387,6 @@ ${topIncendios || "  Nenhum registro no período."}
                       sumKeys={["urb", "flor"]}
                     />
                   )}
-                  {activeTab === "outras" && (
-                    <UnifiedComparisonTable
-                      title="Ocorrências"
-                      year1={compYear1}
-                      year2={compYear2}
-                      rows1={outrasFiltered1}
-                      rows2={outrasFiltered2}
-                      keys={["salvamento", "acidentes", "aph", "prevencao", "servicos"]}
-                      keyLabels={{
-                        salvamento: "Salvamento",
-                        acidentes: "Acidentes",
-                        aph: "APH",
-                        prevencao: "Prevenção",
-                        servicos: "Serviços",
-                      }}
-                    />
-                  )}
                   {activeTab === "efetivo" && (
                     <UnifiedComparisonTable
                       title="Efetivo"
@@ -1674,7 +1395,7 @@ ${topIncendios || "  Nenhum registro no período."}
                       rows1={efetivoFiltered1}
                       rows2={efetivoFiltered2}
                       keys={["ord", "seg", "brig", "brig_semas"]}
-                      keyLabels={{ ord: "Ordinário", seg: "SEG", brig: "Brigadista", brig_semas: "Brigadista SEMAS" }}
+                      keyLabels={{ ord: "Ordinário", seg: "SEG", brig: "Brigadista", brig_semas: "Brigadista SEMA" }}
                     />
                   )}
                   {activeTab === "recursos" && (
@@ -1711,7 +1432,7 @@ function AnnualReportsCard({
   activeTab,
   years,
 }: {
-  activeTab: "incendios" | "outras" | "efetivo" | "recursos";
+  activeTab: "incendios" | "efetivo" | "recursos";
   years?: number[];
 }) {
   const currentYear = new Date().getFullYear();
@@ -1724,7 +1445,6 @@ function AnnualReportsCard({
 
   const TAB_LABELS: Record<string, string> = {
     incendios: "Incêndios",
-    outras: "Ocorrências",
     efetivo: "Efetivo",
     recursos: "Recursos",
   };

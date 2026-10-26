@@ -4,7 +4,7 @@ import type { AnnualYearSummary } from "./annual-reports.functions";
 import { NF } from "./formatters";
 import { CBMAM_LOGO_BASE64 } from "./cbmam-logo";
 
-export type ExportCategory = "todos" | "incendios" | "outras" | "efetivo" | "recursos";
+export type ExportCategory = "todos" | "incendios" | "efetivo" | "recursos";
 
 const BRAND = { r: 8, g: 46, b: 31 };
 const BRAND_LIGHT = { r: 24, g: 96, b: 54 };
@@ -72,7 +72,6 @@ function drawFooter(doc: jsPDF, label: string) {
 const CATEGORY_NAMES: Record<ExportCategory, string> = {
   todos: "GERAL COMPLETO (TODAS AS SEÇÕES)",
   incendios: "INCÊNDIOS (URBANO, FLORESTAL E FOCOS)",
-  outras: "ATENDIMENTOS E OCORRÊNCIAS DIVERSAS",
   efetivo: "EFETIVO OPERACIONAL EMPREGADO",
   recursos: "RECURSOS OPERACIONAIS EMPREGADOS",
 };
@@ -171,99 +170,7 @@ export function buildAnnualIncendiosDoc(
       startY = (doc as any).lastAutoTable.finalY + 18;
     }
 
-    // --- SEÇÃO 2: ATENDIMENTOS DIVERSOS ---
-    if (category === "todos" || category === "outras") {
-      if (category === "todos" && startY > 700) {
-        doc.addPage();
-        startY = 80;
-      }
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      doc.setTextColor(BRAND.r, BRAND.g, BRAND.b);
-      doc.text(
-        category === "todos"
-          ? `2. ATENDIMENTOS E OCORRÊNCIAS DIVERSAS`
-          : `ATENDIMENTOS E OCORRÊNCIAS DIVERSAS (${periodLabel(y)})`,
-        40,
-        startY,
-      );
-
-      autoTable(doc, {
-        startY: startY + 8,
-        head: [
-          [
-            "Nº",
-            "MUNICÍPIO",
-            "SALVAMENTO",
-            "ACIDENTES",
-            "APH",
-            "PREVENÇÃO",
-            "SERVIÇOS",
-            "TOTAL OCORRÊNCIAS",
-          ],
-        ],
-        body: (y.outras?.rows ?? []).map((r, i) => [
-          String(i + 1),
-          r.mun,
-          NF.format(r.salvamento),
-          NF.format(r.acidentes),
-          NF.format(r.aph),
-          NF.format(r.prevencao),
-          NF.format(r.servicos),
-          NF.format(r.total),
-        ]),
-        foot: [
-          [
-            "",
-            "TOTAL OCORRÊNCIAS",
-            NF.format(y.outras?.totals?.salvamento ?? 0),
-            NF.format(y.outras?.totals?.acidentes ?? 0),
-            NF.format(y.outras?.totals?.aph ?? 0),
-            NF.format(y.outras?.totals?.prevencao ?? 0),
-            NF.format(y.outras?.totals?.servicos ?? 0),
-            NF.format(y.outras?.totals?.total ?? 0),
-          ],
-        ],
-        styles: {
-          fontSize: 7.5,
-          cellPadding: 3,
-          lineColor: [220, 226, 222],
-          lineWidth: 0.25,
-          valign: "middle",
-        },
-        headStyles: {
-          fillColor: [BRAND_LIGHT.r, BRAND_LIGHT.g, BRAND_LIGHT.b],
-          textColor: 255,
-          fontStyle: "bold",
-          fontSize: 7,
-          halign: "center",
-        },
-        footStyles: {
-          fillColor: [BRAND.r, BRAND.g, BRAND.b],
-          textColor: 255,
-          fontStyle: "bold",
-          halign: "right",
-        },
-        bodyStyles: { textColor: [INK.r, INK.g, INK.b] },
-        alternateRowStyles: { fillColor: [ROW_ALT.r, ROW_ALT.g, ROW_ALT.b] },
-        columnStyles: {
-          0: { halign: "center", cellWidth: 24 },
-          1: { cellWidth: 120 },
-          2: { halign: "right" },
-          3: { halign: "right" },
-          4: { halign: "right" },
-          5: { halign: "right" },
-          6: { halign: "right" },
-          7: { halign: "right", fontStyle: "bold" },
-        },
-        margin: { left: 40, right: 40, top: 85, bottom: 44 },
-      });
-
-      startY = (doc as any).lastAutoTable.finalY + 18;
-    }
-
-    // --- SEÇÃO 3: EFETIVO EMPREGADO ---
+    // --- SEÇÃO 2: EFETIVO EMPREGADO ---
     if (category === "todos" || category === "efetivo") {
       if (category === "todos" && startY > 700) {
         doc.addPage();
@@ -275,7 +182,7 @@ export function buildAnnualIncendiosDoc(
       doc.setTextColor(BRAND.r, BRAND.g, BRAND.b);
       doc.text(
         category === "todos"
-          ? `3. EFETIVO OPERACIONAL EMPREGADO POR MUNICÍPIO`
+          ? `2. EFETIVO OPERACIONAL EMPREGADO POR MUNICÍPIO`
           : `EFETIVO OPERACIONAL EMPREGADO (${periodLabel(y)})`,
         40,
         startY,
@@ -338,7 +245,7 @@ export function buildAnnualIncendiosDoc(
       startY = (doc as any).lastAutoTable.finalY + 18;
     }
 
-    // --- SEÇÃO 4: RECURSOS EMPREGADOS ---
+    // --- SEÇÃO 3: RECURSOS EMPREGADOS ---
     if (category === "todos" || category === "recursos") {
       if (category === "todos" && startY > 700) {
         doc.addPage();
@@ -350,7 +257,7 @@ export function buildAnnualIncendiosDoc(
       doc.setTextColor(BRAND.r, BRAND.g, BRAND.b);
       doc.text(
         category === "todos"
-          ? `4. RECURSOS OPERACIONAIS EMPREGADOS POR MUNICÍPIO`
+          ? `3. RECURSOS OPERACIONAIS EMPREGADOS POR MUNICÍPIO`
           : `RECURSOS OPERACIONAIS EMPREGADOS (${periodLabel(y)})`,
         40,
         startY,
@@ -445,18 +352,6 @@ export function buildConsolidatedIncendiosDoc(
     { urb: 0, flor: 0, focos: 0, total: 0 },
   );
 
-  const grandOut = years.reduce(
-    (acc, y) => ({
-      salvamento: acc.salvamento + (y.outras?.totals?.salvamento ?? 0),
-      acidentes: acc.acidentes + (y.outras?.totals?.acidentes ?? 0),
-      aph: acc.aph + (y.outras?.totals?.aph ?? 0),
-      prevencao: acc.prevencao + (y.outras?.totals?.prevencao ?? 0),
-      servicos: acc.servicos + (y.outras?.totals?.servicos ?? 0),
-      total: acc.total + (y.outras?.totals?.total ?? 0),
-    }),
-    { salvamento: 0, acidentes: 0, aph: 0, prevencao: 0, servicos: 0, total: 0 },
-  );
-
   const grandEf = years.reduce(
     (acc, y) => ({
       ord: acc.ord + (y.efetivo?.totals?.ord ?? 0),
@@ -535,70 +430,14 @@ export function buildConsolidatedIncendiosDoc(
     currentY = (doc as any).lastAutoTable.finalY + 18;
   }
 
-  // Tabela 2: Atendimentos Diversos
-  if (category === "todos" || category === "outras") {
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.setTextColor(BRAND.r, BRAND.g, BRAND.b);
-    doc.text(
-      category === "todos"
-        ? "2. SÍNTESE ACUMULADA DE ATENDIMENTOS E OCORRÊNCIAS DIVERSAS"
-        : "SÍNTESE ACUMULADA DE ATENDIMENTOS E OCORRÊNCIAS DIVERSAS",
-      40,
-      currentY,
-    );
-
-    autoTable(doc, {
-      startY: currentY + 8,
-      head: [["ANO", "SALVAMENTO", "ACIDENTES", "APH", "PREVENÇÃO", "SERVIÇOS", "TOTAL ATENDIMENTOS"]],
-      body: years.map((y) => [
-        String(y.year),
-        NF.format(y.outras?.totals?.salvamento ?? 0),
-        NF.format(y.outras?.totals?.acidentes ?? 0),
-        NF.format(y.outras?.totals?.aph ?? 0),
-        NF.format(y.outras?.totals?.prevencao ?? 0),
-        NF.format(y.outras?.totals?.servicos ?? 0),
-        NF.format(y.outras?.totals?.total ?? 0),
-      ]),
-      foot: [
-        [
-          "TOTAL ACUMULADO",
-          NF.format(grandOut.salvamento),
-          NF.format(grandOut.acidentes),
-          NF.format(grandOut.aph),
-          NF.format(grandOut.prevencao),
-          NF.format(grandOut.servicos),
-          NF.format(grandOut.total),
-        ],
-      ],
-      styles: { fontSize: 8.5, cellPadding: 5, lineColor: [220, 226, 222], lineWidth: 0.25, valign: "middle" },
-      headStyles: { fillColor: [BRAND_LIGHT.r, BRAND_LIGHT.g, BRAND_LIGHT.b], textColor: 255, fontStyle: "bold", fontSize: 8, halign: "center" },
-      footStyles: { fillColor: [BRAND.r, BRAND.g, BRAND.b], textColor: 255, fontStyle: "bold", halign: "right" },
-      bodyStyles: { textColor: [INK.r, INK.g, INK.b] },
-      alternateRowStyles: { fillColor: [ROW_ALT.r, ROW_ALT.g, ROW_ALT.b] },
-      columnStyles: {
-        0: { halign: "center", fontStyle: "bold", cellWidth: 50 },
-        1: { halign: "right" },
-        2: { halign: "right" },
-        3: { halign: "right" },
-        4: { halign: "right" },
-        5: { halign: "right" },
-        6: { halign: "right", fontStyle: "bold" },
-      },
-      margin: { left: 40, right: 40, top: 85, bottom: 44 },
-    });
-
-    currentY = (doc as any).lastAutoTable.finalY + 18;
-  }
-
-  // Tabela 3: Efetivo e Recursos
+  // Tabela 2: Efetivo e Recursos
   if (category === "todos" || category === "efetivo" || category === "recursos") {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     doc.setTextColor(BRAND.r, BRAND.g, BRAND.b);
     doc.text(
       category === "todos"
-        ? "3. MOBILIZAÇÃO OPERACIONAL: EFETIVO E RECURSOS EMPREGADOS"
+        ? "2. MOBILIZAÇÃO OPERACIONAL: EFETIVO E RECURSOS EMPREGADOS"
         : category === "efetivo"
         ? "SÍNTESE ACUMULADA DE EFETIVO OPERACIONAL EMPREGADO"
         : "SÍNTESE ACUMULADA DE RECURSOS OPERACIONAIS EMPREGADOS",
@@ -654,12 +493,11 @@ export function buildConsolidatedIncendiosDoc(
 
   // Grande Total Consolidado
   if (category === "todos") {
-    const grandTotalAll = grandInc.total + grandOut.total;
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
     doc.setTextColor(BRAND.r, BRAND.g, BRAND.b);
     doc.text(
-      `GRANDE TOTAL OPERACIONAL ACUMULADO (INCÊNDIOS + OCORRÊNCIAS): ${NF.format(grandTotalAll)} INTERVENÇÕES`,
+      `GRANDE TOTAL OPERACIONAL ACUMULADO (INCÊNDIOS): ${NF.format(grandInc.total)} COMBATES`,
       40,
       currentY,
     );

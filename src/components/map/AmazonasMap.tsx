@@ -52,14 +52,12 @@ export function AmazonasMap({ data, onExportPdf, onExportCsv }: AmazonasMapProps
 
     const incendios = data.incendios_diario?.find(r => normalize(r.mun || "") === target);
     const efetivo = data.efetivo?.find(r => normalize(r.mun || "") === target);
-    const outras = data.outras_diarias?.find(r => normalize(r.mun || "") === target);
 
     return {
       name: munName,
       incendios: incendios ? (Number(incendios.urb || 0) + Number(incendios.flor || 0)) : 0,
       focos: incendios ? Number(incendios.focos || 0) : 0,
       efetivo: efetivo ? (Number(efetivo.ord || 0) + Number(efetivo.seg || 0) + Number(efetivo.brig || 0)) : 0,
-      outras: outras ? (Number(outras.salvamento || 0) + Number(outras.acidentes || 0) + Number(outras.aph || 0) + Number(outras.prevencao || 0) + Number(outras.servicos || 0)) : 0,
     };
   }, [selectedMun, data]);
 

@@ -29,7 +29,6 @@ export interface MunicipioRowData {
   totalIncendios: number;
   efetivoTotal: number;
   viaturasTotal: number;
-  outrasOcorrencias: number;
   severidade: "critico" | "alto" | "moderado" | "estavel";
 }
 
@@ -44,8 +43,7 @@ type SortField =
   | "incendiosUrbanos"
   | "totalIncendios"
   | "efetivoTotal"
-  | "viaturasTotal"
-  | "outrasOcorrencias";
+  | "viaturasTotal";
 
 export const MunicipiosAnalyticsTable = memo(function MunicipiosAnalyticsTable({
   rows,
@@ -92,9 +90,8 @@ export const MunicipiosAnalyticsTable = memo(function MunicipiosAnalyticsTable({
         total: acc.total + r.totalIncendios,
         efetivo: acc.efetivo + r.efetivoTotal,
         viaturas: acc.viaturas + r.viaturasTotal,
-        outras: acc.outras + r.outrasOcorrencias,
       }),
-      { florestal: 0, urbano: 0, total: 0, efetivo: 0, viaturas: 0, outras: 0 }
+      { florestal: 0, urbano: 0, total: 0, efetivo: 0, viaturas: 0 }
     );
   }, [rows]);
 
@@ -107,7 +104,6 @@ export const MunicipiosAnalyticsTable = memo(function MunicipiosAnalyticsTable({
       "Total Incêndios",
       "Efetivo Mobilizado",
       "Viaturas/Recursos",
-      "Outras Ocorrências",
       "Nível de Criticidade",
     ];
 
@@ -119,7 +115,6 @@ export const MunicipiosAnalyticsTable = memo(function MunicipiosAnalyticsTable({
       r.totalIncendios,
       r.efetivoTotal,
       r.viaturasTotal,
-      r.outrasOcorrencias,
       `"${r.severidade.toUpperCase()}"`,
     ]);
 
@@ -228,16 +223,6 @@ export const MunicipiosAnalyticsTable = memo(function MunicipiosAnalyticsTable({
                 </div>
               </th>
 
-              <th
-                onClick={() => handleSort("outrasOcorrencias")}
-                className="py-3 px-3 font-semibold text-right cursor-pointer hover:text-foreground transition-colors"
-              >
-                <div className="flex items-center justify-end gap-1">
-                  Outras Ocorr.
-                  <ArrowUpDown className="w-3 h-3" />
-                </div>
-              </th>
-
               <th className="py-3 px-4 font-semibold text-center">Criticidade</th>
             </tr>
           </thead>
@@ -245,7 +230,7 @@ export const MunicipiosAnalyticsTable = memo(function MunicipiosAnalyticsTable({
           <tbody className="divide-y divide-border/60">
             {sortedRows.length === 0 ? (
               <tr>
-                <td colSpan={8} className="text-center py-8 text-muted-foreground">
+                <td colSpan={7} className="text-center py-8 text-muted-foreground">
                   Nenhum município encontrado com os filtros selecionados.
                 </td>
               </tr>
@@ -314,10 +299,6 @@ export const MunicipiosAnalyticsTable = memo(function MunicipiosAnalyticsTable({
                       {NF.format(r.viaturasTotal)}
                     </td>
 
-                    <td className="py-2.5 px-3 text-right font-mono text-foreground">
-                      {NF.format(r.outrasOcorrencias)}
-                    </td>
-
                     <td className="py-2.5 px-4 text-center">
                       <Badge
                         variant="outline"
@@ -360,9 +341,6 @@ export const MunicipiosAnalyticsTable = memo(function MunicipiosAnalyticsTable({
                 </td>
                 <td className="py-3 px-3 text-right font-mono text-blue-600">
                   {NF.format(totals.viaturas)}
-                </td>
-                <td className="py-3 px-3 text-right font-mono text-purple-600">
-                  {NF.format(totals.outras)}
                 </td>
                 <td className="py-3 px-4 text-center">
                   <Badge variant="secondary" className="text-[10px]">

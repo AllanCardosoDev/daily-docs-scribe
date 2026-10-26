@@ -41,7 +41,6 @@ const CANONICAL_MUNICIPIOS: Record<string, string> = {
   "boa vista do ramos": "Boa Vista do Ramos",
   "caapiranga": "Caapiranga",
   "careiro castanho": "Careiro Castanho",
-  "careiro da varzea": "Careiro da Várzea",
   "atalaiado norte": "Atalaia do Norte",
   "atalaia do norte": "Atalaia do Norte",
   "envira": "Envira",
