@@ -209,15 +209,27 @@ export function searchOccurrences(filters: {
 }
 
 function toOccurrenceRow(item: StoredOccurrence): OccurrenceRow {
+  const rawMun = item.municipio || (item as any).mun;
+  const mun = rawMun && String(rawMun).trim() !== "" ? canonicalMunicipio(rawMun) : "Manaus";
+  const rawDate = item.dataBr || item.data || "";
+  let dateFormatted = String(rawDate);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateFormatted)) {
+    const [y, m, d] = dateFormatted.split("-");
+    dateFormatted = `${d}/${m}/${y}`;
+  }
+  const end = item.endereco && item.endereco !== "—" && item.endereco !== "-" && item.endereco !== "0"
+    ? item.endereco
+    : item.bairro ? `${item.bairro}, ${mun}` : mun;
+
   return {
-    data: item.dataBr || item.data,
-    municipio: canonicalMunicipio(item.municipio),
-    horario: item.horario || "—",
-    natureza: item.natureza,
-    focos: item.focos || 0,
-    coordenadas: item.coordenadas || "—",
-    endereco: item.endereco || "—",
-    area: item.area || 0,
-    agua: item.agua || 0,
+    data: dateFormatted && dateFormatted !== "0" ? dateFormatted : "—",
+    municipio: mun,
+    horario: item.horario && item.horario !== "0" ? item.horario : "—",
+    natureza: item.natureza && item.natureza !== "0" ? item.natureza : "Incêndio em Vegetação",
+    focos: Number(item.focos) || 0,
+    coordenadas: item.coordenadas && item.coordenadas !== "0" ? item.coordenadas : "—",
+    endereco: end || "—",
+    area: Number(item.area) || 0,
+    agua: Number(item.agua) || 0,
   };
 }

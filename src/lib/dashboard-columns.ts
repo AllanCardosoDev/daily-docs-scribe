@@ -73,6 +73,7 @@ export const DASHBOARD_COLUMNS = {
     { key: "horario", label: "Horário", editable: true },
     { key: "natureza", label: "Natureza", editable: true },
     { key: "endereco", label: "Endereço", editable: true },
+    { key: "focos", label: "Focos", numeric: true, editable: true },
     { key: "area", label: "Área (m²)", numeric: true, editable: true },
     { key: "agua", label: "Água (L)", numeric: true, editable: true },
   ],

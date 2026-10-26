@@ -23,6 +23,17 @@ export interface Column {
 
 type Row = Record<string, any>;
 
+function getColumnWidthCls(c: Column, isFirst: boolean): string {
+  if (c.key === "endereco") return "min-w-[280px]";
+  if (c.key === "natureza") return "min-w-[190px]";
+  if (c.key === "municipio" || c.key === "mun") return "min-w-[150px]";
+  if (c.key === "data") return "min-w-[110px]";
+  if (c.key === "horario") return "min-w-[90px]";
+  if (isFirst) return "min-w-[160px]";
+  if (c.numeric) return "min-w-[92px]";
+  return "min-w-[140px]";
+}
+
 interface Props {
   title: string;
   columns: Column[];
@@ -111,12 +122,7 @@ export const DataTable = memo(function DataTable({
             <TableHeader>
               <TableRow className="bg-muted/40 hover:bg-muted/40">
                 {columns.map((c, idx) => {
-                  const widthCls =
-                    idx === 0
-                      ? "min-w-[160px]"
-                      : c.numeric
-                        ? "min-w-[92px]"
-                        : "min-w-[140px]";
+                  const widthCls = getColumnWidthCls(c, idx === 0);
                   return (
                     <TableHead
                       key={c.key}
@@ -176,11 +182,7 @@ export const DataTable = memo(function DataTable({
                   <TableRow className="bg-muted/70 font-bold border-t-2 border-border/80">
                     {columns.map((c, idx) => {
                       const isFirst = idx === 0;
-                      const widthCls = isFirst
-                        ? "min-w-[160px]"
-                        : c.numeric
-                          ? "min-w-[92px]"
-                          : "min-w-[140px]";
+                      const widthCls = getColumnWidthCls(c, isFirst);
 
                       if (isFirst) {
                         return (
@@ -254,7 +256,7 @@ function DataCell({
   isFirst: boolean;
   onChange: (next: string) => void;
 }) {
-  const widthCls = isFirst ? "min-w-[160px]" : column.numeric ? "min-w-[92px]" : "min-w-[140px]";
+  const widthCls = getColumnWidthCls(column, isFirst);
 
   if (editable) {
     const isNum = column.numeric;

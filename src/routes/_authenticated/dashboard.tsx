@@ -127,7 +127,7 @@ function DashboardPage() {
       outras_diarias: [],
       efetivo: (rawData.efetivo ?? []).filter((r) => matchesFilter(r.mun)),
       recursos: (rawData.recursos ?? []).filter((r) => matchesFilter(r.mun)),
-      occurrences: (rawData.occurrences ?? []).filter((r) => matchesFilter(r.municipio)),
+      occurrences: (rawData.occurrences ?? []).filter((r) => matchesFilter(r.municipio || (r as any).mun)),
     };
   }, [rawData, filters]);
 

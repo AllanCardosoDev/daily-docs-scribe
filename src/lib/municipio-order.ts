@@ -126,7 +126,6 @@ export function manausFirst<T extends Record<string, any>>(rows: T[]): T[] {
   return deduplicateAndOrderMunicipios(rows);
 }
 
-/** Reordena e desduplica todas as seções municipais de um SheetsData, com Manaus no topo. */
 export function manausFirstSheets<T extends Record<string, any>>(data: T): T {
   const sections = [
     "efetivo",
@@ -134,11 +133,43 @@ export function manausFirstSheets<T extends Record<string, any>>(data: T): T {
     "incendios_diario",
     "incendios_acumulado",
     "outras_diarias",
-    "occurrences",
   ] as const;
   const out: Record<string, any> = { ...data };
   for (const s of sections) {
     if (Array.isArray(out[s])) out[s] = deduplicateAndOrderMunicipios(out[s]);
   }
+
+  // Ocorrências detalhadas são eventos individuais do CAD — NUNCA fundir/desduplicar!
+  // Garantir que cada ocorrência preserve Município, Endereço, Data, Horário e Natureza.
+  if (Array.isArray(out.occurrences)) {
+    out.occurrences = out.occurrences.map((occ: any) => {
+      const rawMun = occ?.municipio || occ?.mun;
+      const mun = rawMun && String(rawMun).trim() !== "" ? canonicalMunicipio(rawMun) : "Manaus";
+      const rawDate = occ?.dataBr || occ?.data || "";
+      let formattedDate = String(rawDate);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(formattedDate)) {
+        const [y, m, d] = formattedDate.split("-");
+        formattedDate = `${d}/${m}/${y}`;
+      }
+      const rawEnd = occ?.endereco && occ?.endereco !== "—" && occ?.endereco !== "-" && occ?.endereco !== "0"
+        ? String(occ.endereco)
+        : occ?.bairro ? `${occ.bairro}, ${mun}` : mun;
+
+      return {
+        ...occ,
+        data: formattedDate && formattedDate !== "0" ? formattedDate : "—",
+        municipio: mun,
+        mun,
+        horario: occ?.horario && occ?.horario !== "0" ? String(occ.horario) : "—",
+        natureza: occ?.natureza && occ?.natureza !== "0" ? String(occ.natureza) : "Incêndio em Vegetação",
+        endereco: rawEnd || "—",
+        focos: Number(occ?.focos) || 0,
+        area: Number(occ?.area) || 0,
+        agua: Number(occ?.agua) || 0,
+        coordenadas: occ?.coordenadas && occ?.coordenadas !== "0" ? String(occ.coordenadas) : "—",
+      };
+    });
+  }
+
   return out as T;
 }
