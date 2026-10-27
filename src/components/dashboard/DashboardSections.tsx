@@ -1,4 +1,4 @@
-import { memo, type ReactNode } from "react";
+import { memo, useState, type ReactNode } from "react";
 import { DataTable } from "@/components/dashboard/DataTable";
 import { DASHBOARD_COLUMNS, OCCURRENCES_PREVIEW_LIMIT } from "@/lib/dashboard-columns";
 import type { SheetsData } from "@/lib/sheets.types";
@@ -60,7 +60,10 @@ export const DashboardSections = memo(function DashboardSections({
 }: Props) {
   // Manaus (capital) sempre na primeira linha de todas as tabelas.
   const data = manausFirstSheets(rawData);
-  const occurrencesPreview = data.occurrences.slice(0, OCCURRENCES_PREVIEW_LIMIT);
+  const [showAllOccurrences, setShowAllOccurrences] = useState(false);
+  const displayedOccurrences = showAllOccurrences
+    ? data.occurrences
+    : data.occurrences.slice(0, OCCURRENCES_PREVIEW_LIMIT);
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -138,23 +141,35 @@ export const DashboardSections = memo(function DashboardSections({
       <section className="space-y-3">
         <SectionHeader
           index="04"
-          title="Ocorrências detalhadas"
+          title="Ocorrências detalhadas de incêndio"
           subtitle={`${NF.format(data.occurrences.length)} registro(s)`}
           icon={<ClipboardList className="w-4 h-4" aria-hidden="true" />}
         />
         <DataTable
-          title="Últimas ocorrências"
+          title="Ocorrências de Incêndio"
           editable={canEdit}
           onRowsChange={savers.occurrences}
           columns={DASHBOARD_COLUMNS.occurrences}
-          rows={occurrencesPreview}
+          rows={displayedOccurrences}
           emptyMessage="Sem ocorrências registradas."
         />
         {data.occurrences.length > OCCURRENCES_PREVIEW_LIMIT && (
-          <p className="text-xs text-muted-foreground text-center">
-            Mostrando {OCCURRENCES_PREVIEW_LIMIT} de {NF.format(data.occurrences.length)}{" "}
-            ocorrências.
-          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 bg-card border border-border rounded-xl">
+            <p className="text-xs text-muted-foreground">
+              Mostrando <strong className="text-foreground">{displayedOccurrences.length}</strong> de{" "}
+              <strong className="text-foreground">{NF.format(data.occurrences.length)}</strong> ocorrências de incêndio.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAllOccurrences((prev) => !prev)}
+              className="text-xs font-semibold hover:bg-primary/5 hover:text-primary"
+            >
+              {showAllOccurrences
+                ? `Recolher (mostrar primeiras ${OCCURRENCES_PREVIEW_LIMIT})`
+                : `Ver todas as ${NF.format(data.occurrences.length)} ocorrências`}
+            </Button>
+          </div>
         )}
       </section>
     </div>
