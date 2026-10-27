@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { canonicalMunicipio, manausFirst, harmonizeMunicipalitySections } from "../src/lib/municipio-order";
+import { isFlorestalAmbiental } from "../src/lib/fire-classification";
 import fs from "fs";
 
 const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
@@ -57,7 +58,7 @@ async function fixDay26() {
       continue;
     }
 
-    const isFlor = nat.includes("florest") || nat.includes("vegeta") || nat.includes("mata") || nat.includes("pastag");
+    const isFlor = isFlorestalAmbiental(occ.natureza);
     if (isFlor) {
       cur.flor += 1;
     } else {
@@ -184,7 +185,7 @@ async function fixDay26() {
     const cur = munParcialMap.get(mun) || { urb: 0, flor: 0, focos: 0, total_periodo: 0 };
     const nat = String(occ.natureza || "").toLowerCase();
     if (nat.includes("apoio") && !nat.includes("incêndio") && !nat.includes("fogo")) continue;
-    const isFlor = nat.includes("florest") || nat.includes("vegeta") || nat.includes("mata") || nat.includes("pastag");
+    const isFlor = isFlorestalAmbiental(occ.natureza);
     if (isFlor) cur.flor += 1;
     else cur.urb += 1;
     cur.focos += Math.max(1, Number(occ.focos) || 1);

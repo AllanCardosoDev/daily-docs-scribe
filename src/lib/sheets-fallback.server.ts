@@ -69,6 +69,7 @@ function normaliseRecursos(
 }
 
 import { compareMunicipios, canonicalMunicipio, harmonizeMunicipalitySections } from "./municipio-order";
+import { isFlorestalAmbiental } from "./fire-classification";
 
 export const OFFICIAL_CUMULATIVE_04_08_2026 = [
   { mun: "Manaus", urb: 267, flor: 178, focos: 338, sat: 5, area: 37546 },
@@ -570,13 +571,7 @@ export async function loadReportByDate(
       const mun = canonicalMunicipio(occ.municipio);
       if (!mun || mun === "—") continue;
       const cur = munMap.get(mun) ?? { urb: 0, flor: 0, focos: 0, total_periodo: 0 };
-      const nat = String(occ.natureza || "").toLowerCase();
-      const isFlor =
-        nat.includes("florest") ||
-        nat.includes("vegeta") ||
-        nat.includes("mata") ||
-        nat.includes("pastag") ||
-        nat.includes("palha");
+      const isFlor = isFlorestalAmbiental(occ.natureza);
       if (isFlor) {
         cur.flor += 1;
       } else {
@@ -709,13 +704,7 @@ export async function loadReportRange(
       const mun = canonicalMunicipio(occ.municipio);
       if (!mun || mun === "—") continue;
       const cur = munMap.get(mun) ?? { urb: 0, flor: 0, focos: 0, total_periodo: 0 };
-      const nat = String(occ.natureza || "").toLowerCase();
-      const isFlor =
-        nat.includes("florest") ||
-        nat.includes("vegeta") ||
-        nat.includes("mata") ||
-        nat.includes("pastag") ||
-        nat.includes("palha");
+      const isFlor = isFlorestalAmbiental(occ.natureza);
       if (isFlor) {
         cur.flor += 1;
       } else {

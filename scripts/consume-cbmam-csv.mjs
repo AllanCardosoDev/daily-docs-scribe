@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { canonicalMunicipio, manausFirst, harmonizeMunicipalitySections } from "../src/lib/municipio-order.ts";
+import { isFlorestalAmbiental } from "../src/lib/fire-classification.ts";
 import { createClient } from "@supabase/supabase-js";
 
 function ensureAllMunicipios(rows, defaultFactory) {
@@ -436,8 +437,7 @@ async function run() {
         for (const occ of dayOccs) {
           const mun = canonicalMunicipio(occ.municipio);
           const cur = munMap.get(mun) || { urb: 0, flor: 0, focos: 0, total_periodo: 0 };
-          const nat = String(occ.natureza || "").toLowerCase();
-          const isFlor = nat.includes("florest") || nat.includes("vegeta") || nat.includes("mata") || nat.includes("pastag") || nat.includes("palha");
+          const isFlor = isFlorestalAmbiental(occ.natureza);
           if (isFlor) cur.flor += 1;
           else cur.urb += 1;
           cur.focos += Math.max(1, Number(occ.focos) || 1);
