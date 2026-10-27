@@ -1,7 +1,8 @@
 import { memo, useState, type ReactNode } from "react";
 import { DataTable } from "@/components/dashboard/DataTable";
+import { OccurrenceDetailDialog } from "@/components/dashboard/OccurrenceDetailDialog";
 import { DASHBOARD_COLUMNS, OCCURRENCES_PREVIEW_LIMIT } from "@/lib/dashboard-columns";
-import type { SheetsData } from "@/lib/sheets.types";
+import type { OccurrenceRow, SheetsData } from "@/lib/sheets.types";
 import type { SectionSavers } from "@/hooks/use-sheets";
 import { manausFirstSheets } from "@/lib/municipio-order";
 import { Link } from "@tanstack/react-router";
@@ -61,6 +62,7 @@ export const DashboardSections = memo(function DashboardSections({
   // Manaus (capital) sempre na primeira linha de todas as tabelas.
   const data = manausFirstSheets(rawData);
   const [showAllOccurrences, setShowAllOccurrences] = useState(false);
+  const [selectedOccurrence, setSelectedOccurrence] = useState<OccurrenceRow | null>(null);
   const displayedOccurrences = showAllOccurrences
     ? data.occurrences
     : data.occurrences.slice(0, OCCURRENCES_PREVIEW_LIMIT);
@@ -152,6 +154,7 @@ export const DashboardSections = memo(function DashboardSections({
           columns={DASHBOARD_COLUMNS.occurrences}
           rows={displayedOccurrences}
           emptyMessage="Sem ocorrências registradas."
+          onRowClick={(row) => setSelectedOccurrence(row as OccurrenceRow)}
         />
         {data.occurrences.length > OCCURRENCES_PREVIEW_LIMIT && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 bg-card border border-border rounded-xl">
@@ -171,6 +174,11 @@ export const DashboardSections = memo(function DashboardSections({
             </Button>
           </div>
         )}
+        <OccurrenceDetailDialog
+          occurrence={selectedOccurrence}
+          open={!!selectedOccurrence}
+          onOpenChange={(open) => !open && setSelectedOccurrence(null)}
+        />
       </section>
     </div>
   );

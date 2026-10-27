@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Plus, Trash2, CalendarDays, Lock, CheckCircle2, Clock, Info, Check, Loader2, RotateCcw, SlidersHorizontal, Upload } from "lucide-react";
+import { ArrowLeft, Save, Plus, Trash2, CalendarDays, Lock, CheckCircle2, Clock, Info, Check, Loader2, RotateCcw, SlidersHorizontal, Upload, Flame } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,7 +31,10 @@ import {
   type DadosComplementaresState,
 } from "@/components/dashboard/DadosComplementaresForm";
 import { EfetivoColumnsDialog } from "@/components/dashboard/EfetivoColumnsDialog";
-import { getStoredEfetivoColumns, saveStoredEfetivoColumns, type Column } from "@/lib/dashboard-columns";
+import { DataTable } from "@/components/dashboard/DataTable";
+import { OccurrenceDetailDialog } from "@/components/dashboard/OccurrenceDetailDialog";
+import { DASHBOARD_COLUMNS, getStoredEfetivoColumns, saveStoredEfetivoColumns, type Column } from "@/lib/dashboard-columns";
+import type { OccurrenceRow } from "@/lib/sheets.types";
 
 export const Route = createFileRoute("/_authenticated/registro")({
   head: () => ({
@@ -101,6 +104,10 @@ function RegistroPage() {
   const [incendios, setIncendios] = useState<IncendioRow[]>([]);
   const [dadosComplementares, setDadosComplementares] = useState<DadosComplementaresState>({});
   const [notes, setNotes] = useState<string>("");
+  const [selectedOccurrence, setSelectedOccurrence] = useState<OccurrenceRow | null>(null);
+  const cadOccurrences = useMemo(() => {
+    return ((q.data as any)?.occurrences ?? []) as OccurrenceRow[];
+  }, [q.data]);
 
   function handleSaveColumns(newCols: Column[]) {
     setEfetivoColumns(newCols);
@@ -690,6 +697,14 @@ function RegistroPage() {
             <TabsTrigger value="efetivo">Efetivo</TabsTrigger>
             <TabsTrigger value="recursos">Recursos</TabsTrigger>
             <TabsTrigger value="incendios">Incêndios</TabsTrigger>
+            <TabsTrigger value="ocorrencias" className="gap-1.5">
+              <span>Ocorrências (CAD)</span>
+              {cadOccurrences.length > 0 && (
+                <Badge variant="secondary" className="px-1.5 py-0 text-[10px] font-bold">
+                  {cadOccurrences.length}
+                </Badge>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="complementares">Dados Complementares (API)</TabsTrigger>
             <TabsTrigger value="notas">Observações</TabsTrigger>
           </TabsList>
@@ -867,6 +882,34 @@ function RegistroPage() {
             />
           </TabsContent>
 
+          <TabsContent value="ocorrencias" className="space-y-4">
+            <div className="rounded-xl bg-card shadow-elevated p-4 sm:p-5 space-y-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
+                <div>
+                  <h3 className="font-bold text-base text-foreground flex items-center gap-2">
+                    <Flame className="w-4 h-4 text-primary" />
+                    Ocorrências Oficiais de Incêndio (CAD)
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Ocorrências catalogadas pelo CBMAM para o dia {date.split("-").reverse().join("/")}. Clique em qualquer ocorrência para inspecionar todos os dados operacionais (equipes, narrativa, relato do CAD, viatura e mapa).
+                  </p>
+                </div>
+                <Badge variant="outline" className="font-bold text-xs bg-muted/60 shrink-0">
+                  {cadOccurrences.length} registro(s)
+                </Badge>
+              </div>
+
+              <DataTable
+                title="Ocorrências do CAD"
+                editable={false}
+                columns={DASHBOARD_COLUMNS.occurrences}
+                rows={cadOccurrences}
+                emptyMessage={`Sem ocorrências de incêndio catalogadas no CAD para ${date.split("-").reverse().join("/")}.`}
+                onRowClick={(row) => setSelectedOccurrence(row as OccurrenceRow)}
+              />
+            </div>
+          </TabsContent>
+
           <TabsContent value="complementares">
             <DadosComplementaresForm
               value={dadosComplementares}
@@ -898,6 +941,12 @@ function RegistroPage() {
           onOpenChange={setColumnsDialogOpen}
           columns={efetivoColumns}
           onSave={handleSaveColumns}
+        />
+
+        <OccurrenceDetailDialog
+          occurrence={selectedOccurrence}
+          open={!!selectedOccurrence}
+          onOpenChange={(open) => !open && setSelectedOccurrence(null)}
         />
       </main>
     </div>

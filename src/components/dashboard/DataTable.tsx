@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, SlidersHorizontal } from "lucide-react";
+import { AlertCircle, Eye, SlidersHorizontal } from "lucide-react";
 import { NF } from "@/lib/formatters";
 import { useAutosave } from "@/hooks/use-autosave";
 import { SaveStatusBadge } from "./SaveStatusBadge";
@@ -46,6 +46,7 @@ interface Props {
   allowManageColumns?: boolean;
   onColumnsChange?: (columns: Column[]) => void;
   onRowsChange?: (rows: Row[]) => Promise<void> | void;
+  onRowClick?: (row: Row) => void;
   className?: string;
 }
 
@@ -58,6 +59,7 @@ export const DataTable = memo(function DataTable({
   allowManageColumns,
   onColumnsChange,
   onRowsChange,
+  onRowClick,
   className,
 }: Props) {
   const [activeColumns, setActiveColumns] = useState<Column[]>(() => [...columns]);
@@ -198,11 +200,18 @@ export const DataTable = memo(function DataTable({
                     </TableHead>
                   );
                 })}
+                {onRowClick && (
+                  <TableHead className="w-[80px] text-center p-1 text-[11px] uppercase tracking-wide font-bold text-foreground">
+                    <div className="h-9 w-full flex items-center justify-center">
+                      Detalhes
+                    </div>
+                  </TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
               {local.length === 0 ? (
-                <EmptyRow colSpan={activeColumns.length} message={emptyMessage} />
+                <EmptyRow colSpan={activeColumns.length + (onRowClick ? 1 : 0)} message={emptyMessage} />
               ) : (
                 <>
                   {local.map((row, i) => {
@@ -221,9 +230,10 @@ export const DataTable = memo(function DataTable({
                     return (
                       <TableRow
                         key={i}
-                        className={`transition-colors hover:bg-primary/5 ${
-                          i % 2 === 1 ? "bg-muted/30" : ""
-                        }`}
+                        onClick={() => onRowClick?.(rowWithTotal)}
+                        className={`transition-colors ${
+                          onRowClick ? "cursor-pointer hover:bg-primary/10" : "hover:bg-primary/5"
+                        } ${i % 2 === 1 ? "bg-muted/30" : ""}`}
                       >
                         {activeColumns.map((c, idx) => (
                           <DataCell
@@ -235,6 +245,24 @@ export const DataTable = memo(function DataTable({
                             onChange={(v) => updateCell(i, c.key, v, c.numeric)}
                           />
                         ))}
+                        {onRowClick && (
+                          <TableCell className="p-1 align-middle text-center w-[80px]">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-xs font-semibold text-primary hover:text-primary hover:bg-primary/15 gap-1"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onRowClick(rowWithTotal);
+                              }}
+                              title="Visualizar relato completo da ocorrência"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              Ver
+                            </Button>
+                          </TableCell>
+                        )}
                       </TableRow>
                     );
                   })}
@@ -279,6 +307,11 @@ export const DataTable = memo(function DataTable({
                         </TableCell>
                       );
                     })}
+                    {onRowClick && (
+                      <TableCell key="total-action" className="p-1 align-middle text-center w-[80px]">
+                        <div className="h-9 w-full" />
+                      </TableCell>
+                    )}
                   </TableRow>
                 </>
               )}

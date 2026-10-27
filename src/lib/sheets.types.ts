@@ -59,6 +59,8 @@ export interface OutrasDiariasRow {
   total_periodo?: number;
 }
 export interface OccurrenceRow {
+  id?: string;
+  protocolo?: string;
   data: string;
   municipio: string;
   horario: string;
@@ -68,6 +70,14 @@ export interface OccurrenceRow {
   endereco: string;
   area: number;
   agua: number;
+  bairro?: string;
+  grupoNatureza?: string;
+  situacao?: string;
+  motivoFinalizacao?: string;
+  unidade?: string;
+  equipes?: string;
+  narrativa?: string;
+  relato?: string;
 }
 
 export interface SheetsData {

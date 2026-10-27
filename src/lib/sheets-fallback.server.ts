@@ -3,7 +3,7 @@
  * do Google Drive (`daily_reports`). Server-only.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { EMPTY_SHEETS_DATA, type SheetsData } from "./sheets.types";
+import { EMPTY_SHEETS_DATA, type SheetsData, type OccurrenceRow } from "./sheets.types";
 import { getOccurrencesForDate, getOccurrencesForRange } from "./occurrences-store.server";
 
 export const num = (v: unknown) => {
@@ -532,10 +532,31 @@ export async function loadReportByDate(
     {}
   ) as Record<string, string>;
 
-  const dayOccurrences =
-    Array.isArray(notesEnv.occurrences) && notesEnv.occurrences.length > 0
-      ? notesEnv.occurrences
-      : getOccurrencesForDate(dateIso);
+  const officialOccurrences = getOccurrencesForDate(dateIso);
+  let dayOccurrences = officialOccurrences;
+  if (Array.isArray(notesEnv.occurrences) && notesEnv.occurrences.length > 0) {
+    const officialMap = new Map<string, OccurrenceRow>();
+    for (const o of officialOccurrences) {
+      const k = (o.protocolo && o.protocolo !== "-" ? o.protocolo : "") || `${o.horario}|${o.municipio}|${o.endereco}`;
+      officialMap.set(k, o);
+    }
+    dayOccurrences = notesEnv.occurrences.map((saved: any) => {
+      const k = (saved.protocolo && saved.protocolo !== "-" ? saved.protocolo : "") || `${saved.horario}|${saved.municipio}|${saved.endereco}`;
+      const match = officialMap.get(k);
+      return match ? { ...match, ...saved } : saved;
+    });
+    const savedKeys = new Set(
+      notesEnv.occurrences.map((s: any) =>
+        (s.protocolo && s.protocolo !== "-" ? s.protocolo : "") || `${s.horario}|${s.municipio}|${s.endereco}`
+      )
+    );
+    for (const o of officialOccurrences) {
+      const k = (o.protocolo && o.protocolo !== "-" ? o.protocolo : "") || `${o.horario}|${o.municipio}|${o.endereco}`;
+      if (!savedKeys.has(k)) {
+        dayOccurrences.push(o);
+      }
+    }
+  }
 
   // Se os incêndios diários estão zerados mas existem ocorrências de incêndio catalogadas no banco para o dia,
   // sintetizamos os dados municipais a partir das ocorrências oficiais de incêndio:

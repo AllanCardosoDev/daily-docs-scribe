@@ -250,11 +250,13 @@ export const getDailyReport = createServerFn({ method: "GET" })
     const isAdmin = roles.has("admin");
     const isEditor = roles.has("editor");
     const scheduled = (scheduledRes.data?.length ?? 0) > 0;
-
     const canEdit =
       isAdmin || (isEditor && (!row || (row as any).created_by === context.userId || scheduled));
 
-    return { row: row ?? null, canEdit, isAdmin };
+    const { getOccurrencesForDate } = await import("./occurrences-store.server");
+    const occurrences = getOccurrencesForDate(data.date);
+
+    return { row: row ?? null, canEdit, isAdmin, occurrences };
   });
 
 // ---------- Save (upsert) ----------

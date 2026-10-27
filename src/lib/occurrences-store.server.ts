@@ -21,6 +21,9 @@ export type StoredOccurrence = {
   bairro?: string;
   endereco: string;
   natureza: string;
+  grupoNatureza?: string;
+  situacao?: string;
+  motivoFinalizacao?: string;
   focos: number;
   area: number;
   agua: number;
@@ -222,6 +225,8 @@ function toOccurrenceRow(item: StoredOccurrence): OccurrenceRow {
     : item.bairro ? `${item.bairro}, ${mun}` : mun;
 
   return {
+    id: item.id,
+    protocolo: item.protocolo && item.protocolo !== "-" ? item.protocolo : undefined,
     data: dateFormatted && dateFormatted !== "0" ? dateFormatted : "—",
     municipio: mun,
     horario: item.horario && item.horario !== "0" ? item.horario : "—",
@@ -231,5 +236,13 @@ function toOccurrenceRow(item: StoredOccurrence): OccurrenceRow {
     endereco: end || "—",
     area: Number(item.area) || 0,
     agua: Number(item.agua) || 0,
+    bairro: item.bairro,
+    grupoNatureza: item.grupoNatureza,
+    situacao: item.situacao,
+    motivoFinalizacao: item.motivoFinalizacao,
+    unidade: item.unidade,
+    equipes: item.equipes,
+    narrativa: item.narrativa,
+    relato: item.relato,
   };
 }

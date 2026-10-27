@@ -40,3 +40,6 @@ dist-ssr
 
 # Supabase temp
 supabase/.temp/
+
+# Large raw data files
+*.csv
