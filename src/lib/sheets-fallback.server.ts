@@ -381,13 +381,12 @@ export async function loadReportByDate(
   supabase: SupabaseClient<any>,
   dateIso: string,
 ): Promise<{ data: SheetsData; found: boolean }> {
-  const { data: row, error } = await supabase
+  const { data: rows, error } = await supabase
     .from("daily_reports")
     .select("report_date, shift, efetivo, recursos, incendios, outras, notes, updated_at")
-    .eq("report_date", dateIso)
-    .order("shift", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .eq("report_date", dateIso);
+
+  const row = (rows || []).find((r: any) => r.shift === "noturno") || (rows || [])[0] || null;
 
   const isFound = !error && !!row;
   const shiftLabel = row?.shift === "parcial" ? "Parcial (07:00–18:30)" : "24h (18:30–07:00)";
