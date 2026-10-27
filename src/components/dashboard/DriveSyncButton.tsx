@@ -48,7 +48,8 @@ export function DriveSyncButton({
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["daily-report"] }),
         qc.invalidateQueries({ queryKey: ["daily-reports"] }),
-        qc.invalidateQueries({ queryKey: ["sheets"] }),
+        qc.invalidateQueries({ queryKey: ["sheets-data"] }),
+        qc.invalidateQueries({ queryKey: ["available-report-dates"] }),
       ]);
       onSynced?.();
       toast.success(

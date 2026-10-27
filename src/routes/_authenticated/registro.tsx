@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Plus, Trash2, CalendarDays, Lock, CheckCircle2, Clock, Info, Check, Loader2, RotateCcw, SlidersHorizontal } from "lucide-react";
+import { ArrowLeft, Save, Plus, Trash2, CalendarDays, Lock, CheckCircle2, Clock, Info, Check, Loader2, RotateCcw, SlidersHorizontal, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,7 @@ import { getDailyReport, saveDailyReport, listAvailableReportDates } from "@/lib
 import { SHIFTS, SHIFT_LABEL, SHIFT_TAB, type ReportShift } from "@/lib/report-shift";
 import { DailyReportAuditDialog } from "@/components/dashboard/DailyReportAuditDialog";
 import { DriveImportDialog } from "@/components/dashboard/DriveImportDialog";
+import { ImportPlanilhaDialog } from "@/components/dashboard/ImportPlanilhaDialog";
 import { MunicipioPicker } from "@/components/dashboard/MunicipiosDialog";
 import {
   DadosComplementaresForm,
@@ -522,6 +523,32 @@ function RegistroPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2 [&>*]:flex-1 [&>*]:min-w-[10rem] sm:[&>*]:flex-none">
+              <DriveImportDialog
+                disabled={!canEdit}
+                onImported={(importedDate, importedShift) => {
+                  dirtyRef.current = false;
+                  setDate(importedDate);
+                  setShift(importedShift);
+                }}
+              />
+
+              <ImportPlanilhaDialog
+                triggerButton={
+                  <Button variant="outline" size="sm" disabled={!canEdit} className="gap-2 min-h-10">
+                    <Upload className="size-4" />
+                    <span className="hidden sm:inline">Importar Planilha</span>
+                    <span className="sm:hidden">Planilha</span>
+                  </Button>
+                }
+                onSuccess={(res) => {
+                  if (res.latestDate) {
+                    dirtyRef.current = false;
+                    setDate(res.latestDate);
+                    if (res.shift) setShift(res.shift as ReportShift);
+                  }
+                }}
+              />
+
               {q.data?.isAdmin && <DailyReportAuditDialog date={date} shift={shift} />}
 
               {!canEdit && (

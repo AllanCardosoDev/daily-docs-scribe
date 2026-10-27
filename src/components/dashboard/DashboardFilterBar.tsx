@@ -28,6 +28,7 @@ import {
 import { ReportShift } from "@/lib/report-shift";
 import { canonicalMunicipio } from "@/lib/municipio-order";
 import { ImportPlanilhaDialog } from "./ImportPlanilhaDialog";
+import { DriveImportDialog } from "./DriveImportDialog";
 
 export interface DashboardFilterState {
   reportDate: Date | null;
@@ -497,6 +498,14 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
               Relatório PDF
             </Button>
           )}
+
+          <DriveImportDialog
+            onImported={(importedDate) => {
+              const [y, m, d] = importedDate.split("-").map(Number);
+              onChange({ reportDate: new Date(y, m - 1, d), endDate: new Date(y, m - 1, d) });
+              onRefresh?.();
+            }}
+          />
 
           <ImportPlanilhaDialog
             onSuccess={(res) => {

@@ -50,7 +50,10 @@ export const importDriveReport = createServerFn({ method: "POST" })
   .middleware([requireBackendAuth])
   .inputValidator((raw: unknown) => ImportSchema.parse(raw))
   .handler(async ({ data, context }) => {
-    const { data: roles } = await context.supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const dbClient = supabaseAdmin ?? context.supabase;
+
+    const { data: roles } = await dbClient
       .from("user_roles")
       .select("role")
       .eq("user_id", context.userId);
@@ -58,20 +61,37 @@ export const importDriveReport = createServerFn({ method: "POST" })
     if (!allowed) throw new Error("Sem permissão para importar relatórios.");
 
     const { downloadSheetMatrix, parseDailyReportSheet } = await import("./drive-import.server");
+    const { harmonizeMunicipalitySections } = await import("./municipio-order");
+
     const matrix = await downloadSheetMatrix(data.fileId);
     const parsed = parseDailyReportSheet(matrix);
+
+    const harmonized = harmonizeMunicipalitySections(
+      parsed.efetivo as any,
+      parsed.recursos as any,
+      parsed.incendios as any,
+      (mun) => ({ mun, ord: 0, cbmam: 0, seg: 0, brig: 0 }),
+      (mun) => ({ mun, viaturas: 0, aeronaves: 0, embarcacoes: 0 }),
+      (mun) => ({ mun, urb: 0, flor: 0, focos: 0, total_periodo: 0 }),
+    );
+
+    const notesJson = JSON.stringify({
+      header: parsed.header,
+      incendios_acumulado: manausFirst(parsed.incendios_acumulado),
+    });
 
     const payload = {
       report_date: data.reportDate,
       shift: data.shift,
-      efetivo: manausFirst(parsed.efetivo) as any,
-      recursos: manausFirst(parsed.recursos) as any,
-      incendios: manausFirst(parsed.incendios) as any,
+      efetivo: manausFirst(harmonized.efetivo) as any,
+      recursos: manausFirst(harmonized.recursos) as any,
+      incendios: manausFirst(harmonized.incendios) as any,
       outras: manausFirst(parsed.outras) as any,
+      notes: notesJson,
       updated_by: context.userId,
     };
 
-    const { data: existing, error: readErr } = await context.supabase
+    const { data: existing, error: readErr } = await dbClient
       .from("daily_reports")
       .select("id")
       .eq("report_date", data.reportDate)
@@ -80,13 +100,13 @@ export const importDriveReport = createServerFn({ method: "POST" })
     if (readErr) dbFail(readErr, "drive-import");
 
     if (existing) {
-      const { error } = await context.supabase
+      const { error } = await dbClient
         .from("daily_reports")
         .update(payload)
         .eq("id", existing.id);
       if (error) dbFail(error, "drive-import");
     } else {
-      const { error } = await context.supabase
+      const { error } = await dbClient
         .from("daily_reports")
         .insert({ ...payload, created_by: context.userId });
       if (error) dbFail(error, "drive-import");
@@ -96,9 +116,9 @@ export const importDriveReport = createServerFn({ method: "POST" })
       ok: true as const,
       created: !existing,
       counts: {
-        efetivo: parsed.efetivo.length,
-        recursos: parsed.recursos.length,
-        incendios: parsed.incendios.length,
+        efetivo: harmonized.efetivo.length,
+        recursos: harmonized.recursos.length,
+        incendios: harmonized.incendios.length,
         outras: parsed.outras.length,
       },
     };

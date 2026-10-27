@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -48,6 +49,7 @@ export function ImportPlanilhaDialog({
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<ImportSpreadsheetResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const qc = useQueryClient();
 
   const importFn = useServerFn(importSpreadsheetOccurrences);
 
@@ -113,7 +115,16 @@ export function ImportPlanilhaDialog({
       setResult(res);
 
       if (res.success) {
-        if (res.insertedCount > 0) {
+        await Promise.all([
+          qc.invalidateQueries({ queryKey: ["daily-report"] }),
+          qc.invalidateQueries({ queryKey: ["daily-reports"] }),
+          qc.invalidateQueries({ queryKey: ["sheets-data"] }),
+          qc.invalidateQueries({ queryKey: ["available-report-dates"] }),
+        ]);
+
+        if (res.isDailyReport) {
+          toast.success(res.message);
+        } else if (res.insertedCount > 0) {
           toast.success(
             `Sucesso! ${res.insertedCount} nova(s) ocorrência(s) de incêndio salva(s) no banco.`,
           );
@@ -168,14 +179,13 @@ export function ImportPlanilhaDialog({
         <DialogHeader>
           <DialogTitle className="text-base sm:text-lg flex items-center gap-2 text-foreground font-bold">
             <div className="w-7 h-7 rounded-lg bg-red-500/10 text-red-600 flex items-center justify-center">
-              <Flame className="w-4 h-4" />
+              <FileSpreadsheet className="w-4 h-4" />
             </div>
-            Importar Planilha de Ocorrências (Incêndios)
+            Importar Planilha (Relatório Diário ou CAD)
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground pt-1">
-            Envie a planilha do dia ou do período (<strong>CSV</strong> ou <strong>XLSX</strong>).
-            O sistema filtra estritamente <strong>somente INCÊNDIOS</strong> e salva apenas os
-            registros inéditos no banco de dados, <strong>nunca duplicando</strong> ocorrências já existentes.
+            Envie a planilha oficial do <strong>Relatório Diário</strong> (<strong>.XLSX</strong>) ou a planilha de ocorrências CAD (<strong>CSV / XLSX</strong>).
+            O sistema detecta o tipo de planilha automaticamente, harmoniza os municípios e grava no banco de dados.
           </DialogDescription>
         </DialogHeader>
 
@@ -251,7 +261,45 @@ export function ImportPlanilhaDialog({
                 <span className="text-xs font-bold text-foreground">{result.message}</span>
               </div>
 
-              {result.success && (
+              {result.success && result.isDailyReport && result.dailyReport ? (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-border/60">
+                  <div className="p-2 rounded-lg bg-blue-500/10 text-center">
+                    <span className="text-[10px] uppercase font-bold text-blue-600 dark:text-blue-400 block">
+                      Efetivo
+                    </span>
+                    <span className="text-base font-extrabold text-blue-600 dark:text-blue-400 tabular-nums">
+                      {result.dailyReport.counts.efetivo} mun.
+                    </span>
+                  </div>
+
+                  <div className="p-2 rounded-lg bg-red-500/10 text-center">
+                    <span className="text-[10px] uppercase font-bold text-red-600 dark:text-red-400 block">
+                      Incêndios
+                    </span>
+                    <span className="text-base font-extrabold text-red-600 dark:text-red-400 tabular-nums">
+                      {result.dailyReport.counts.incendios} mun.
+                    </span>
+                  </div>
+
+                  <div className="p-2 rounded-lg bg-amber-500/10 text-center">
+                    <span className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400 block">
+                      Recursos
+                    </span>
+                    <span className="text-base font-extrabold text-amber-600 dark:text-amber-400 tabular-nums">
+                      {result.dailyReport.counts.recursos} mun.
+                    </span>
+                  </div>
+
+                  <div className="p-2 rounded-lg bg-emerald-500/10 text-center">
+                    <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 block">
+                      Outras Ocorr.
+                    </span>
+                    <span className="text-base font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                      {result.dailyReport.counts.outras} mun.
+                    </span>
+                  </div>
+                </div>
+              ) : result.success ? (
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-border/60">
                   <div className="p-2 rounded-lg bg-muted/40 text-center">
                     <span className="text-[10px] uppercase font-bold text-muted-foreground block">
@@ -289,7 +337,7 @@ export function ImportPlanilhaDialog({
                     </span>
                   </div>
                 </div>
-              )}
+              ) : null}
 
               {result.datesAffected.length > 0 && (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1">

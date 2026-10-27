@@ -56,6 +56,8 @@ export function DriveImportDialog(props: {
       );
       qc.invalidateQueries({ queryKey: ["daily-report"] });
       qc.invalidateQueries({ queryKey: ["daily-reports"] });
+      qc.invalidateQueries({ queryKey: ["sheets-data"] });
+      qc.invalidateQueries({ queryKey: ["available-report-dates"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Falha na sincronização."),
   });
@@ -83,6 +85,8 @@ export function DriveImportDialog(props: {
       );
       qc.invalidateQueries({ queryKey: ["daily-report"] });
       qc.invalidateQueries({ queryKey: ["daily-reports"] });
+      qc.invalidateQueries({ queryKey: ["sheets-data"] });
+      qc.invalidateQueries({ queryKey: ["available-report-dates"] });
       props.onImported?.(vars.reportDate, vars.shift);
     },
     onError: (e: any) => toast.error(e?.message ?? "Falha ao importar a planilha."),

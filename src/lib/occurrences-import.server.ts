@@ -21,6 +21,18 @@ export interface ImportSpreadsheetResult {
   duplicatesSkipped: number;
   datesAffected: string[];
   latestDate?: string;
+  shift?: string;
+  isDailyReport?: boolean;
+  dailyReport?: {
+    reportDate: string;
+    shift: string;
+    counts: {
+      efetivo: number;
+      recursos: number;
+      incendios: number;
+      outras: number;
+    };
+  };
   message: string;
   sampleImported?: {
     municipio: string;
@@ -207,7 +219,10 @@ export async function processSpreadsheetBuffer(
   } else {
     // XLSX ou XLS
     const workbook = XLSX.read(buffer, { type: "buffer" });
-    const sheetName = workbook.SheetNames[0];
+    const sheetName =
+      workbook.SheetNames.find((n) =>
+        /^relatorio/i.test(n.normalize("NFD").replace(/\p{Diacritic}/gu, "")),
+      ) ?? workbook.SheetNames[0];
     if (!sheetName) {
       return {
         success: false,
@@ -220,7 +235,7 @@ export async function processSpreadsheetBuffer(
       };
     }
     const worksheet = workbook.Sheets[sheetName];
-    rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" }) as any[][];
+    rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: true, defval: null }) as any[][];
   }
 
   if (rawRows.length < 2) {
@@ -233,6 +248,117 @@ export async function processSpreadsheetBuffer(
       datesAffected: [],
       message: "O arquivo possui menos de 2 linhas e não contém dados suficientes.",
     };
+  }
+
+  // Detectar se é uma planilha de Relatório Diário Oficial (com seções Efetivo, Incêndios, Recursos, etc.)
+  const isDailyReport = rawRows.some((r) =>
+    (r ?? []).some((c) => {
+      const str = String(c ?? "").normalize("NFD").replace(/\p{Diacritic}/gu, "").toUpperCase();
+      return (
+        str.includes("SALA DE SITUACAO") ||
+        (str.includes("EFETIVO") && r.some((x: any) => String(x ?? "").toUpperCase().includes("MUNICIPIO"))) ||
+        str.includes("AMAZONAS + VERDE") ||
+        (str.includes("RELATORIO DIARIO") && !str.includes("CAD"))
+      );
+    }),
+  );
+
+  if (isDailyReport) {
+    try {
+      const { parseDailyReportSheet, parseFileName } = await import("./drive-import.server");
+      const { manausFirst, harmonizeMunicipalitySections } = await import("./municipio-order");
+
+      let fileInfo = parseFileName(fileName);
+      let reportDate = fileInfo.reportDate;
+      let shift = fileInfo.shift;
+
+      if (!reportDate) {
+        for (let i = 0; i < Math.min(25, rawRows.length); i++) {
+          const rowText = (rawRows[i] ?? []).map((x) => String(x ?? "")).join(" ");
+          const dMatch = rowText.match(/(\d{2})[.\-/](\d{2})[.\-/](\d{4})/);
+          if (dMatch) {
+            reportDate = `${dMatch[3]}-${dMatch[2]}-${dMatch[1]}`;
+            if (rowText.toLowerCase().includes("parcial")) shift = "parcial";
+            break;
+          }
+        }
+      }
+
+      if (reportDate) {
+        const parsed = parseDailyReportSheet(rawRows);
+        const harmonized = harmonizeMunicipalitySections(
+          parsed.efetivo as any,
+          parsed.recursos as any,
+          parsed.incendios as any,
+          (mun) => ({ mun, ord: 0, cbmam: 0, seg: 0, brig: 0 }),
+          (mun) => ({ mun, viaturas: 0, aeronaves: 0, embarcacoes: 0 }),
+          (mun) => ({ mun, urb: 0, flor: 0, focos: 0, total_periodo: 0 }),
+        );
+
+        const notesJson = JSON.stringify({
+          header: parsed.header,
+          incendios_acumulado: manausFirst(parsed.incendios_acumulado),
+        });
+
+        const payload: Record<string, any> = {
+          report_date: reportDate,
+          shift,
+          efetivo: manausFirst(harmonized.efetivo) as any,
+          recursos: manausFirst(harmonized.recursos) as any,
+          incendios: manausFirst(harmonized.incendios) as any,
+          outras: manausFirst(parsed.outras) as any,
+          notes: notesJson,
+        };
+
+        const db = supabaseClient;
+        if (db) {
+          const { data: existing } = await db
+            .from("daily_reports")
+            .select("id")
+            .eq("report_date", reportDate)
+            .eq("shift", shift)
+            .maybeSingle();
+
+          if (existing) {
+            await db.from("daily_reports").update(payload).eq("id", existing.id);
+          } else {
+            await db.from("daily_reports").insert(payload);
+          }
+        }
+
+        const dateBr = reportDate.split("-").reverse().join("/");
+        return {
+          success: true,
+          isDailyReport: true,
+          totalRows: rawRows.length,
+          fireRows: harmonized.incendios.length,
+          insertedCount: harmonized.incendios.length,
+          duplicatesSkipped: 0,
+          datesAffected: [reportDate],
+          latestDate: reportDate,
+          shift,
+          dailyReport: {
+            reportDate,
+            shift,
+            counts: {
+              efetivo: harmonized.efetivo.length,
+              recursos: harmonized.recursos.length,
+              incendios: harmonized.incendios.length,
+              outras: parsed.outras.length,
+            },
+          },
+          message: `Relatório Diário Oficial (${shift === "parcial" ? "Parcial" : "24 Horas"}) de ${dateBr} importado e salvo com sucesso no banco de dados! (${harmonized.efetivo.length} municípios em Efetivo, ${harmonized.incendios.length} em Incêndios, ${harmonized.recursos.length} em Recursos).`,
+          sampleImported: harmonized.incendios.slice(0, 3).map((r) => ({
+            municipio: r.mun,
+            natureza: `Incêndios: ${r.urb} urbano(s) · ${r.flor} florestal(is) · ${r.focos} foco(s)`,
+            data: dateBr,
+            endereco: r.mun,
+          })),
+        };
+      }
+    } catch (reportErr) {
+      console.warn("[occurrences-import] Processamento como Relatório Diário retornou:", reportErr);
+    }
   }
 
   // Mapear cabeçalho

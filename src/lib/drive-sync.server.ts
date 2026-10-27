@@ -67,6 +67,11 @@ export async function syncDriveFolder(opts: {
   for (const file of targets) {
     try {
       const parsed = parseDailyReportSheet(await downloadSheetMatrix(file.id));
+      const notesJson = JSON.stringify({
+        header: parsed.header,
+        incendios_acumulado: manausFirst(parsed.incendios_acumulado),
+      });
+
       const payload: Record<string, any> = {
         report_date: file.reportDate!,
         shift: file.shift as ReportShift,
@@ -74,16 +79,13 @@ export async function syncDriveFolder(opts: {
         recursos: manausFirst(parsed.recursos) as any,
         incendios: manausFirst(parsed.incendios) as any,
         outras: manausFirst(parsed.outras) as any,
-        dados_complementares: {
-          header: parsed.header,
-          incendios_acumulado: manausFirst(parsed.incendios_acumulado) as any,
-        } as any,
+        notes: notesJson,
         updated_by: opts.actorId ?? null,
       };
 
       const { data: existing } = await supabase
         .from("daily_reports")
-        .select("id, efetivo, recursos, incendios, outras, dados_complementares")
+        .select("id, efetivo, recursos, incendios, outras, notes")
         .eq("report_date", payload.report_date)
         .eq("shift", payload.shift)
         .maybeSingle();
@@ -95,9 +97,9 @@ export async function syncDriveFolder(opts: {
             existing.recursos,
             existing.incendios,
             existing.outras,
-            (existing as any).dados_complementares,
+            existing.notes,
           ]) ===
-          JSON.stringify([payload.efetivo, payload.recursos, payload.incendios, payload.outras, payload.dados_complementares]);
+          JSON.stringify([payload.efetivo, payload.recursos, payload.incendios, payload.outras, payload.notes]);
         if (same) {
           result.skipped += 1;
           continue;

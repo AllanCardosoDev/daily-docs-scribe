@@ -23,6 +23,7 @@ import { ReportHistoryDialog } from "./ReportHistoryDialog";
 import { AddMunicipioDialog } from "./AddMunicipioDialog";
 import { AddOutroEfetivoDialog } from "./AddOutroEfetivoDialog";
 import { ImportPlanilhaDialog } from "./ImportPlanilhaDialog";
+import { DriveImportDialog } from "./DriveImportDialog";
 import { cn } from "@/lib/utils";
 
 import { ReportShift } from "@/lib/report-shift";
@@ -169,6 +170,14 @@ export const PainelToolbar = memo(function PainelToolbar({
             )}
 
             <ReportHistoryDialog reportDate={reportDate} />
+
+            <DriveImportDialog
+              disabled={!canEdit}
+              onImported={(importedDate) => {
+                const [y, m, d] = importedDate.split("-").map(Number);
+                onReportDateChange(new Date(y, m - 1, d));
+              }}
+            />
 
             <ImportPlanilhaDialog
               onSuccess={(res) => {
