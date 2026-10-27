@@ -6,56 +6,117 @@
 
 const CANONICAL_MUNICIPIOS: Record<string, string> = {
   "manaus": "Manaus",
+  "alvaraes": "Alvarães",
+  "amatura": "Amaturá",
+  "anama": "Anamã",
+  "anamã": "Anamã",
+  "anori": "Anori",
   "apui": "Apuí",
-  "boca do acre": "Boca do Acre",
-  "humaita": "Humaitá",
-  "labrea": "Lábrea",
-  "parintins": "Parintins",
-  "itacoatiara": "Itacoatiara",
-  "manacapuru": "Manacapuru",
-  "iranduba": "Iranduba",
-  "borba": "Borba",
-  "manicore": "Manicoré",
-  "novo airao": "Novo Airão",
-  "novo aripuana": "Novo Aripuanã",
-  "presidente figueiredo": "Presidente Figueiredo",
-  "rio preto da eva": "Rio Preto da Eva",
-  "tabatinga": "Tabatinga",
-  "tefe": "Tefé",
+  "apuí": "Apuí",
+  "atalaia do norte": "Atalaia do Norte",
+  "atalaiado norte": "Atalaia do Norte",
   "autazes": "Autazes",
-  "canutama": "Canutama",
-  "careiro": "Careiro",
-  "careiro da varzea": "Careiro da Várzea",
-  "nhamunda": "Nhamundá",
-  "urucurituba": "Urucurituba",
+  "autazes posto km 53": "Autazes Posto Km 53",
+  "barcelos": "Barcelos",
+  "barreirinha": "Barreirinha",
   "benjamim constant": "Benjamin Constant",
   "benjamin constant": "Benjamin Constant",
-  "sao gabriel da cachoeira": "São Gabriel da Cachoeira",
-  "sao paulo de olivenca": "São Paulo de Olivença",
-  "santo antonio do ica": "Santo Antônio do Içá",
-  "santa isabel do rio negro": "Santa Isabel do Rio Negro",
-  // Bases temporárias / postos avançados
-  "autazes posto km 53": "Autazes Posto Km 53",
-  "anamã": "Anamã",
-  "anama": "Anamã",
+  "beruri": "Beruri",
   "boa vista do ramos": "Boa Vista do Ramos",
+  "boca do acre": "Boca do Acre",
+  "borba": "Borba",
   "caapiranga": "Caapiranga",
+  "canutama": "Canutama",
+  "carauari": "Carauari",
+  "careiro": "Careiro",
   "careiro castanho": "Careiro Castanho",
-  "atalaiado norte": "Atalaia do Norte",
-  "atalaia do norte": "Atalaia do Norte",
-  "envira": "Envira",
-  "itapiranga": "Itapiranga",
-  "jutai": "Jutaí",
-  "manaquiri": "Manaquiri",
-  "maues": "Maués",
-  "barcelos": "Barcelos",
+  "careiro da varzea": "Careiro da Várzea",
+  "careiro da várzea": "Careiro da Várzea",
   "coari": "Coari",
+  "codajas": "Codajás",
+  "eirunepe": "Eirunepé",
+  "envira": "Envira",
+  "fonte boa": "Fonte Boa",
+  "guajara": "Guajará",
+  "humaita": "Humaitá",
+  "humaitá": "Humaitá",
+  "ipixuna": "Ipixuna",
+  "iranduba": "Iranduba",
+  "itacoatiara": "Itacoatiara",
+  "itamarati": "Itamarati",
+  "itapiranga": "Itapiranga",
+  "japura": "Japurá",
+  "jurua": "Juruá",
+  "jutai": "Jutaí",
+  "jutaí": "Jutaí",
+  "labrea": "Lábrea",
+  "lábrea": "Lábrea",
+  "manacapuru": "Manacapuru",
+  "manaquiri": "Manaquiri",
+  "manicore": "Manicoré",
+  "manicoré": "Manicoré",
+  "maraa": "Maraã",
+  "maues": "Maués",
+  "maués": "Maués",
+  "nhamunda": "Nhamundá",
+  "nhamundá": "Nhamundá",
+  "nova olinda do norte": "Nova Olinda do Norte",
+  "novo airao": "Novo Airão",
+  "novo airão": "Novo Airão",
+  "novo aripuana": "Novo Aripuanã",
+  "novo aripuanã": "Novo Aripuanã",
+  "parintins": "Parintins",
+  "pauini": "Pauini",
+  "presidente figueiredo": "Presidente Figueiredo",
+  "rio preto da eva": "Rio Preto da Eva",
+  "santa isabel do rio negro": "Santa Isabel do Rio Negro",
+  "santo antonio do ica": "Santo Antônio do Içá",
+  "santo antônio do içá": "Santo Antônio do Içá",
+  "sao gabriel da cachoeira": "São Gabriel da Cachoeira",
+  "são gabriel da cachoeira": "São Gabriel da Cachoeira",
+  "sao paulo de olivenca": "São Paulo de Olivença",
+  "são paulo de olivença": "São Paulo de Olivença",
+  "sao sebastiao do uatuma": "São Sebastião do Uatumã",
+  "são sebastião do uatumã": "São Sebastião do Uatumã",
+  "silves": "Silves",
+  "tabatinga": "Tabatinga",
+  "tapaua": "Tapauá",
+  "tapauá": "Tapauá",
+  "tefe": "Tefé",
+  "tefé": "Tefé",
+  "tonantins": "Tonantins",
+  "uarini": "Uarini",
+  "urucara": "Urucará",
+  "urucurituba": "Urucurituba",
 };
 
 export function canonicalMunicipio(mun: unknown): string {
-  const raw = String(mun ?? "").trim();
+  let raw = String(mun ?? "").trim();
   if (!raw) return "—";
-  const normKey = raw.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+
+  // Corrige padrões comuns corrompidos com ?? (encoding ANSI / pipe)
+  raw = raw
+    .replace(/Anam\?\?/gi, "Anamã")
+    .replace(/Apu\?\?/gi, "Apuí")
+    .replace(/Humait\?\?/gi, "Humaitá")
+    .replace(/Juta\?\?/gi, "Jutaí")
+    .replace(/L\?\?brea/gi, "Lábrea")
+    .replace(/Manicor\?\?/gi, "Manicoré")
+    .replace(/Mau\?\?s/gi, "Maués")
+    .replace(/Nhamund\?\?/gi, "Nhamundá")
+    .replace(/Novo Air\?\?o/gi, "Novo Airão")
+    .replace(/Novo Aripuan\?\?/gi, "Novo Aripuanã")
+    .replace(/Tef\?\?/gi, "Tefé")
+    .replace(/V\?\?rzea/gi, "Várzea")
+    .replace(/S\?\?o Sebasti\?\?o do Uatum\?\?/gi, "São Sebastião do Uatumã")
+    .replace(/S\?\?o Gabriel/gi, "São Gabriel")
+    .replace(/S\?\?o Paulo de Oliven\?\?a/gi, "São Paulo de Olivença")
+    .replace(/Santo Ant\?\?nio do I\?\?\?\?/gi, "Santo Antônio do Içá")
+    .replace(/Tapau\?\?/gi, "Tapauá")
+    .replace(/Guajar\?\?/gi, "Guajará")
+    .replace(/Eirunep\?\?/gi, "Eirunepé");
+
+  const normKey = raw.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
   if (CANONICAL_MUNICIPIOS[normKey]) return CANONICAL_MUNICIPIOS[normKey];
   return raw.charAt(0).toUpperCase() + raw.slice(1);
 }
