@@ -68,7 +68,7 @@ function normaliseRecursos(
   });
 }
 
-import { compareMunicipios, canonicalMunicipio } from "./municipio-order";
+import { compareMunicipios, canonicalMunicipio, harmonizeMunicipalitySections } from "./municipio-order";
 
 export const OFFICIAL_CUMULATIVE_04_08_2026 = [
   { mun: "Manaus", urb: 267, flor: 178, focos: 338, sat: 5, area: 37546 },
@@ -577,6 +577,43 @@ export async function loadReportByDate(
   const rawCoordenador = headerObj.coordenador ?? "CEL QOBM CRISTIANO BRAZ FERREIRA";
   const safeCoordenador = rawCoordenador.replace(/^TC\s+/i, "CEL ");
 
+  const harmonizedSections = harmonizeMunicipalitySections(
+    efetivoConsolidado,
+    recursosConsolidados,
+    finalIncendiosDiario,
+    (mun) => ({
+      mun,
+      cbmam: mun.toLowerCase().includes("itapiranga") ? 6 : 0,
+      ord: mun.toLowerCase().includes("itapiranga") ? 6 : 0,
+      seg: 0,
+      brig: mun.toLowerCase().includes("itapiranga") ? 12 : 0,
+      servico: mun.toLowerCase().includes("itapiranga") ? 6 : 0,
+      opamv: 0,
+      opam_ref: 0,
+      inc1: 0,
+      inc2: 0,
+      inc3: 0,
+      cbmsp: 0,
+      prevfogo: 0,
+      fn: 0,
+      brig_mun: mun.toLowerCase().includes("itapiranga") ? 12 : 0,
+      brig_semas: 0,
+    }),
+    (mun) => ({
+      mun,
+      viaturas: 0,
+      aeronaves: 0,
+      embarcacoes: 0,
+    }),
+    (mun) => ({
+      mun,
+      urb: 0,
+      flor: 0,
+      focos: 0,
+      total_periodo: 0,
+    }),
+  );
+
   const data: SheetsData = {
     header: {
       titulo: headerObj.titulo ?? "Relatório Diário — Sala de Situação",
@@ -591,9 +628,9 @@ export async function loadReportByDate(
       coordenador: safeCoordenador,
       subcomandante: headerObj.subcomandante ?? "Subcomandante-Geral do CBMAM",
     },
-    efetivo: efetivoConsolidado,
-    recursos: recursosConsolidados,
-    incendios_diario: finalIncendiosDiario,
+    efetivo: harmonizedSections.efetivo,
+    recursos: harmonizedSections.recursos,
+    incendios_diario: harmonizedSections.incendios,
     incendios_acumulado: Array.isArray(notesEnv.incendios_acumulado) && notesEnv.incendios_acumulado.length > 0
       ? notesEnv.incendios_acumulado
       : acum,

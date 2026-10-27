@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { manausFirst, canonicalMunicipio } from "@/lib/municipio-order";
+import { manausFirst, canonicalMunicipio, harmonizeMunicipalitySections } from "@/lib/municipio-order";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -227,9 +227,19 @@ function RegistroPage() {
       setEfetivoColumns(row.dados_complementares.efetivo_columns);
     }
 
-    setEfetivo(manausFirst(loadedEfetivo));
-    setRecursos(manausFirst(loadedRecursos));
-    setIncendios(manausFirst(initialInc));
+    // Harmoniza as seções para que todas possuam a mesma lista de municípios
+    const harmonized = harmonizeMunicipalitySections(
+      loadedEfetivo,
+      loadedRecursos,
+      initialInc,
+      (mun) => ({ ...EFETIVO_EMPTY, mun }),
+      (mun) => ({ ...RECURSO_EMPTY, mun }),
+      (mun) => ({ ...INCENDIO_EMPTY, mun }),
+    );
+
+    setEfetivo(harmonized.efetivo);
+    setRecursos(harmonized.recursos);
+    setIncendios(harmonized.incendios);
     setDadosComplementares((row?.dados_complementares as DadosComplementaresState) ?? {});
     setNotes(row?.notes ?? "");
     loadedKeyRef.current = key;
@@ -277,15 +287,69 @@ function RegistroPage() {
     );
   }
 
+  function renameMunicipio(oldMun: string, newMun: string) {
+    dirtyRef.current = true;
+    const oldNorm = canonicalMunicipio(oldMun).toLowerCase();
+    setEfetivo((prev) =>
+      prev.map((r) => (canonicalMunicipio(r.mun).toLowerCase() === oldNorm ? { ...r, mun: newMun } : r)),
+    );
+    setRecursos((prev) =>
+      prev.map((r) => (canonicalMunicipio(r.mun).toLowerCase() === oldNorm ? { ...r, mun: newMun } : r)),
+    );
+    setIncendios((prev) =>
+      prev.map((r) => (canonicalMunicipio(r.mun).toLowerCase() === oldNorm ? { ...r, mun: newMun } : r)),
+    );
+  }
+
+  function removeMunicipioRow(munToRemove: string) {
+    dirtyRef.current = true;
+    const norm = canonicalMunicipio(munToRemove).toLowerCase();
+    setEfetivo((prev) => prev.filter((r) => canonicalMunicipio(r.mun).toLowerCase() !== norm));
+    setRecursos((prev) => prev.filter((r) => canonicalMunicipio(r.mun).toLowerCase() !== norm));
+    setIncendios((prev) => prev.filter((r) => canonicalMunicipio(r.mun).toLowerCase() !== norm));
+    toast.success(`Município "${munToRemove}" removido de Efetivo, Recursos e Incêndios.`);
+  }
+
+  function handleAddEmptyRow() {
+    dirtyRef.current = true;
+    setEfetivo((prev) => [...prev, { ...EFETIVO_EMPTY }]);
+    setRecursos((prev) => [...prev, { ...RECURSO_EMPTY }]);
+    setIncendios((prev) => [...prev, { ...INCENDIO_EMPTY }]);
+  }
+
+  function handleSyncAllSections() {
+    const harmonized = harmonizeMunicipalitySections(
+      efetivo,
+      recursos,
+      incendios,
+      (mun) => ({ ...EFETIVO_EMPTY, mun }),
+      (mun) => ({ ...RECURSO_EMPTY, mun }),
+      (mun) => ({ ...INCENDIO_EMPTY, mun }),
+    );
+    setEfetivo(harmonized.efetivo);
+    setRecursos(harmonized.recursos);
+    setIncendios(harmonized.incendios);
+    dirtyRef.current = true;
+    toast.success(`Todas as 3 seções sincronizadas com ${harmonized.efetivo.length} municípios idênticos!`);
+  }
+
   const save = useMutation({
-    mutationFn: () =>
-      saveFn({
+    mutationFn: () => {
+      const harmonized = harmonizeMunicipalitySections(
+        efetivo,
+        recursos,
+        incendios,
+        (mun) => ({ ...EFETIVO_EMPTY, mun }),
+        (mun) => ({ ...RECURSO_EMPTY, mun }),
+        (mun) => ({ ...INCENDIO_EMPTY, mun }),
+      );
+      return saveFn({
         data: {
           report_date: date,
           shift,
-          efetivo,
-          recursos: recursos as any,
-          incendios,
+          efetivo: harmonized.efetivo,
+          recursos: harmonized.recursos as any,
+          incendios: harmonized.incendios,
           outras: [],
           dados_complementares: {
             ...dadosComplementares,
@@ -293,7 +357,8 @@ function RegistroPage() {
           } as any,
           notes,
         },
-      }),
+      });
+    },
     onSuccess: () => {
       dirtyRef.current = false;
       toast.success("Registro salvo com sucesso no banco de dados.");
@@ -559,16 +624,31 @@ function RegistroPage() {
             )}
           </div>
 
-          <div className="mt-4 pt-4 border-t border-border">
-            <MunicipioPicker
-              isAdmin={!!q.data?.isAdmin}
-              disabled={!canEdit}
-              existing={municipiosNoRegistro}
-              onAdd={addMunicipio}
-            />
-            <p className="text-xs text-muted-foreground mt-2">
-              Ao incluir, o município é adicionado em Efetivo, Recursos e Incêndios para preenchimento dos dados.
-            </p>
+          <div className="mt-4 pt-4 border-t border-border flex flex-wrap items-center justify-between gap-3">
+            <div className="flex-1 min-w-[280px]">
+              <MunicipioPicker
+                isAdmin={!!q.data?.isAdmin}
+                disabled={!canEdit}
+                existing={municipiosNoRegistro}
+                onAdd={addMunicipio}
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Ao incluir, o município é adicionado simultaneamente em Efetivo, Recursos e Incêndios.
+              </p>
+            </div>
+            {canEdit && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleSyncAllSections}
+                className="gap-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50/60 border-emerald-300 hover:bg-emerald-100 shrink-0"
+                title="Garante que Efetivo, Recursos e Incêndios possuam rigorosamente a mesma lista de municípios"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Sincronizar Municípios (3 Seções)</span>
+              </Button>
+            )}
           </div>
 
           {!canEdit && q.data?.row && (
@@ -597,6 +677,8 @@ function RegistroPage() {
               ]}
               rows={efetivo}
               onChange={mark(setEfetivo)}
+              onAddRow={handleAddEmptyRow}
+              onRemoveRow={(r) => removeMunicipioRow(r.mun)}
               empty={EFETIVO_EMPTY}
               canEdit={canEdit}
               extraActions={
@@ -619,7 +701,7 @@ function RegistroPage() {
                     <TableCell>
                       <Input
                         value={r.mun}
-                        onChange={(e) => patch({ mun: e.target.value })}
+                        onChange={(e) => renameMunicipio(r.mun, e.target.value)}
                         disabled={!canEdit}
                       />
                     </TableCell>
@@ -643,6 +725,8 @@ function RegistroPage() {
               headers={["Município", "Viaturas", "Aeronaves", "Embarcações", ""]}
               rows={recursos}
               onChange={mark(setRecursos)}
+              onAddRow={handleAddEmptyRow}
+              onRemoveRow={(r) => removeMunicipioRow(r.mun)}
               empty={RECURSO_EMPTY}
               canEdit={canEdit}
               renderCells={(r, patch) => (
@@ -650,7 +734,7 @@ function RegistroPage() {
                   <TableCell>
                     <Input
                       value={r.mun}
-                      onChange={(e) => patch({ mun: e.target.value })}
+                      onChange={(e) => renameMunicipio(r.mun, e.target.value)}
                       disabled={!canEdit}
                     />
                   </TableCell>
@@ -676,6 +760,8 @@ function RegistroPage() {
               headers={["Município", "Urbano", "Florestal", "Focos", ""]}
               rows={incendios}
               onChange={mark(setIncendios)}
+              onAddRow={handleAddEmptyRow}
+              onRemoveRow={(r) => removeMunicipioRow(r.mun)}
               empty={INCENDIO_EMPTY}
               canEdit={canEdit}
               onReset={() => {
@@ -717,7 +803,7 @@ function RegistroPage() {
                     <TableCell>
                       <Input
                         value={r.mun}
-                        onChange={(e) => patch({ mun: e.target.value })}
+                        onChange={(e) => renameMunicipio(r.mun, e.target.value)}
                         disabled={!canEdit}
                       />
                     </TableCell>
@@ -794,10 +880,12 @@ function SectionTable<T extends { mun: string }>(props: {
   empty: T;
   canEdit: boolean;
   onReset?: () => void;
+  onAddRow?: () => void;
+  onRemoveRow?: (row: T, idx: number) => void;
   extraActions?: React.ReactNode;
   renderCells: (row: T, patch: (p: Partial<T>) => void) => React.ReactNode;
 }) {
-  const { title, headers, rows, onChange, empty, canEdit, onReset, extraActions, renderCells } = props;
+  const { title, headers, rows, onChange, empty, canEdit, onReset, onAddRow, onRemoveRow, extraActions, renderCells } = props;
   return (
     <div className="rounded-xl bg-card shadow-elevated p-4 sm:p-5 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -819,7 +907,7 @@ function SectionTable<T extends { mun: string }>(props: {
             size="sm"
             variant="outline"
             disabled={!canEdit}
-            onClick={() => onChange([...rows, { ...empty }])}
+            onClick={onAddRow ? onAddRow : () => onChange([...rows, { ...empty }])}
             className="gap-1.5 shrink-0"
           >
             <Plus className="w-4 h-4" /> <span className="hidden xs:inline">Adicionar linha</span>
@@ -864,7 +952,9 @@ function SectionTable<T extends { mun: string }>(props: {
                         size="icon"
                         variant="ghost"
                         disabled={!canEdit}
-                        onClick={() => onChange(rows.filter((_, i) => i !== idx))}
+                        onClick={() =>
+                          onRemoveRow ? onRemoveRow(r, idx) : onChange(rows.filter((_, i) => i !== idx))
+                        }
                         aria-label="Remover linha"
                       >
                         <Trash2 className="w-4 h-4 text-red-600" />

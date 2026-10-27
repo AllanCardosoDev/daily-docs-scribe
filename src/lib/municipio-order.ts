@@ -173,3 +173,72 @@ export function manausFirstSheets<T extends Record<string, any>>(data: T): T {
 
   return out as T;
 }
+
+/**
+ * Unifica a lista de municípios entre as seções (Efetivo, Recursos, Incêndios, etc.),
+ * garantindo que todos os municípios presentes em qualquer seção estejam presentes
+ * em todas as outras seções na exata mesma ordem institucional (Manaus primeiro).
+ */
+export function harmonizeMunicipalitySections<
+  E extends { mun: string },
+  R extends { mun: string },
+  I extends { mun: string },
+>(
+  efetivo: E[],
+  recursos: R[],
+  incendios: I[],
+  defaultEfetivo: (mun: string) => E,
+  defaultRecursos: (mun: string) => R,
+  defaultIncendios: (mun: string) => I,
+): { efetivo: E[]; recursos: R[]; incendios: I[] } {
+  const munSet = new Set<string>();
+
+  for (const r of efetivo ?? []) {
+    if (r?.mun && r.mun !== "—") munSet.add(canonicalMunicipio(r.mun));
+  }
+  for (const r of recursos ?? []) {
+    if (r?.mun && r.mun !== "—") munSet.add(canonicalMunicipio(r.mun));
+  }
+  for (const r of incendios ?? []) {
+    if (r?.mun && r.mun !== "—") munSet.add(canonicalMunicipio(r.mun));
+  }
+
+  // Ordena a lista unificada com Manaus em primeiro lugar e os demais em ordem alfabética
+  const orderedMuns = Array.from(munSet).sort((a, b) => compareMunicipios(a, b));
+
+  const efMap = new Map<string, E>();
+  for (const r of efetivo ?? []) {
+    if (r?.mun) efMap.set(canonicalMunicipio(r.mun).toLowerCase(), r);
+  }
+
+  const recMap = new Map<string, R>();
+  for (const r of recursos ?? []) {
+    if (r?.mun) recMap.set(canonicalMunicipio(r.mun).toLowerCase(), r);
+  }
+
+  const incMap = new Map<string, I>();
+  for (const r of incendios ?? []) {
+    if (r?.mun) incMap.set(canonicalMunicipio(r.mun).toLowerCase(), r);
+  }
+
+  const outEfetivo = orderedMuns.map((mun) => {
+    const existing = efMap.get(mun.toLowerCase());
+    return existing ? { ...existing, mun } : defaultEfetivo(mun);
+  });
+
+  const outRecursos = orderedMuns.map((mun) => {
+    const existing = recMap.get(mun.toLowerCase());
+    return existing ? { ...existing, mun } : defaultRecursos(mun);
+  });
+
+  const outIncendios = orderedMuns.map((mun) => {
+    const existing = incMap.get(mun.toLowerCase());
+    return existing ? { ...existing, mun } : defaultIncendios(mun);
+  });
+
+  return {
+    efetivo: outEfetivo,
+    recursos: outRecursos,
+    incendios: outIncendios,
+  };
+}

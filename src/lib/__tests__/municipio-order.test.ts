@@ -5,6 +5,7 @@ import {
   sortByMunicipio,
   manausFirst,
   manausFirstSheets,
+  harmonizeMunicipalitySections,
 } from "../municipio-order";
 
 describe("municipio-order", () => {
@@ -75,6 +76,38 @@ describe("municipio-order", () => {
       expect(result.efetivo).toEqual([{ mun: "Manaus" }, { mun: "Apuí" }]);
       expect(result.incendios_diario).toEqual([{ mun: "Manaus" }, { mun: "Tefé" }]);
       expect(result.outras).toBe("valor_não_array");
+    });
+  });
+
+  describe("harmonizeMunicipalitySections", () => {
+    it("deve unificar e alinhar a lista de municípios exatamente igual entre efetivo, recursos e incêndios", () => {
+      const efetivo = [{ mun: "Manaus", ord: 10 }, { mun: "Tefé", ord: 5 }];
+      const recursos = [{ mun: "Manaus", viaturas: 3 }, { mun: "Iranduba", viaturas: 2 }];
+      const incendios = [{ mun: "Iranduba", urb: 1 }, { mun: "Parintins", urb: 4 }];
+
+      const harmonized = harmonizeMunicipalitySections(
+        efetivo,
+        recursos,
+        incendios,
+        (mun) => ({ mun, ord: 0 }),
+        (mun) => ({ mun, viaturas: 0 }),
+        (mun) => ({ mun, urb: 0 }),
+      );
+
+      const expectedMuns = ["Manaus", "Iranduba", "Parintins", "Tefé"];
+      expect(harmonized.efetivo.map((r) => r.mun)).toEqual(expectedMuns);
+      expect(harmonized.recursos.map((r) => r.mun)).toEqual(expectedMuns);
+      expect(harmonized.incendios.map((r) => r.mun)).toEqual(expectedMuns);
+
+      // Valores existentes preservados:
+      expect(harmonized.efetivo.find((r) => r.mun === "Tefé")?.ord).toBe(5);
+      expect(harmonized.recursos.find((r) => r.mun === "Iranduba")?.viaturas).toBe(2);
+      expect(harmonized.incendios.find((r) => r.mun === "Parintins")?.urb).toBe(4);
+
+      // Linhas faltantes preenchidas com defaults:
+      expect(harmonized.efetivo.find((r) => r.mun === "Parintins")?.ord).toBe(0);
+      expect(harmonized.recursos.find((r) => r.mun === "Tefé")?.viaturas).toBe(0);
+      expect(harmonized.incendios.find((r) => r.mun === "Manaus")?.urb).toBe(0);
     });
   });
 });

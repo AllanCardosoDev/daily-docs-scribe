@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireBackendAuth } from "@/integrations/backend/auth-middleware";
 import { dbFail } from "./server-errors";
 import { ShiftEnum } from "./report-shift";
-import { canonicalMunicipio, compareMunicipios } from "./municipio-order";
+import { canonicalMunicipio, compareMunicipios, harmonizeMunicipalitySections } from "./municipio-order";
 
 // ---------- Schemas ----------
 
@@ -231,6 +231,19 @@ export const getDailyReport = createServerFn({ method: "GET" })
         }
         (row as any).recursos = Array.from(recMap.values()).sort((a, b) => compareMunicipios(a.mun, b.mun));
       }
+
+      // Harmonizar efetivo, recursos e incêndios para que sempre possuam a mesma lista de municípios
+      const harmonized = harmonizeMunicipalitySections(
+        (row as any).efetivo ?? [],
+        (row as any).recursos ?? [],
+        (row as any).incendios ?? [],
+        (mun) => ({ mun, ord: 0, cbmam: 0, seg: 0, brig: 0 }),
+        (mun) => ({ mun, viaturas: 0, aeronaves: 0, embarcacoes: 0 }),
+        (mun) => ({ mun, urb: 0, flor: 0, focos: 0, total_periodo: 0 }),
+      );
+      (row as any).efetivo = harmonized.efetivo;
+      (row as any).recursos = harmonized.recursos;
+      (row as any).incendios = harmonized.incendios;
     }
 
     const roles = new Set((rolesRes.data ?? []).map((r) => r.role));
@@ -284,12 +297,21 @@ export const saveDailyReport = createServerFn({ method: "POST" })
       if (!sched?.length) throw new Error("Sem permissão para editar este relatório.");
     }
 
+    const harmonized = harmonizeMunicipalitySections(
+      data.efetivo as any,
+      data.recursos as any,
+      data.incendios as any,
+      (mun) => ({ mun, ord: 0, cbmam: 0, seg: 0, brig: 0 }),
+      (mun) => ({ mun, viaturas: 0, aeronaves: 0, embarcacoes: 0 }),
+      (mun) => ({ mun, urb: 0, flor: 0, focos: 0, total_periodo: 0 }),
+    );
+
     const payload = {
       report_date: data.report_date,
       shift: data.shift,
-      efetivo: data.efetivo as any,
-      recursos: data.recursos as any,
-      incendios: data.incendios as any,
+      efetivo: harmonized.efetivo as any,
+      recursos: harmonized.recursos as any,
+      incendios: harmonized.incendios as any,
       outras: data.outras as any,
       notes: data.notes ?? null,
       updated_by: context.userId,
