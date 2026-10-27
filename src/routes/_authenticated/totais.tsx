@@ -1587,7 +1587,7 @@ function AggTable({
               {headers.map((h, i) => {
                 const isFirst = i === 0;
                 const isLast = i === headers.length - 1;
-                const widthCls = isFirst ? "min-w-[150px]" : "min-w-[85px]";
+                const widthCls = isFirst ? "min-w-[280px] w-[280px]" : "min-w-[85px]";
                 return (
                   <TableHead
                     key={i}
@@ -1621,8 +1621,11 @@ function AggTable({
 
                 return (
                   <TableRow key={r.mun} className="hover:bg-primary/5 transition-colors group">
-                    <TableCell className="p-1 align-middle min-w-[150px]">
-                      <div className="h-9 w-full flex items-center px-3 font-semibold text-foreground justify-start">
+                    <TableCell className="p-1 align-middle min-w-[280px] w-[280px]">
+                      <div
+                        title={r.mun}
+                        className="h-9 w-full flex items-center px-3 font-semibold text-foreground justify-start whitespace-nowrap"
+                      >
                         {r.mun}
                       </div>
                     </TableCell>
@@ -1645,8 +1648,8 @@ function AggTable({
 
             {rows.length > 0 && (
               <TableRow className="bg-muted/70 font-bold border-t-2 border-border/80">
-                <TableCell className="p-1 align-middle min-w-[150px]">
-                  <div className="h-9 w-full flex items-center px-3 font-bold text-foreground justify-start">
+                <TableCell className="p-1 align-middle min-w-[280px] w-[280px]">
+                  <div className="h-9 w-full flex items-center px-3 font-bold text-foreground justify-start whitespace-nowrap">
                     TOTAL GERAL
                   </div>
                 </TableCell>
@@ -1723,7 +1726,7 @@ function UnifiedComparisonTable({
         <Table className="min-w-[40rem]">
           <TableHeader>
             <TableRow>
-              <TableHead className="min-w-[160px] text-[11px] uppercase font-bold text-foreground p-1">
+              <TableHead className="min-w-[280px] w-[280px] text-[11px] uppercase font-bold text-foreground p-1">
                 <div className="h-9 w-full flex items-center px-3 justify-start">Município</div>
               </TableHead>
               {keys.map((k) => (
@@ -1736,7 +1739,7 @@ function UnifiedComparisonTable({
               </TableHead>
             </TableRow>
             <TableRow className="bg-muted/40">
-              <TableHead className="min-w-[160px] text-[10px] text-muted-foreground p-1 px-3">Nome</TableHead>
+              <TableHead className="min-w-[280px] w-[280px] text-[10px] text-muted-foreground p-1 px-3">Nome</TableHead>
               {keys.map((k) => (
                 <React.Fragment key={k}>
                   <TableHead className="text-center text-[10px] font-semibold text-muted-foreground p-1 px-2 border-l border-border/40">{year1}</TableHead>
@@ -1756,8 +1759,11 @@ function UnifiedComparisonTable({
 
               return (
                 <TableRow key={mun} className="hover:bg-primary/5 transition-colors">
-                  <TableCell className="p-1 align-middle min-w-[160px]">
-                    <div className="h-9 w-full flex items-center px-3 font-semibold text-foreground justify-start">
+                  <TableCell className="p-1 align-middle min-w-[280px] w-[280px]">
+                    <div
+                      title={mun}
+                      className="h-9 w-full flex items-center px-3 font-semibold text-foreground justify-start whitespace-nowrap"
+                    >
                       {mun}
                     </div>
                   </TableCell>
@@ -1786,8 +1792,8 @@ function UnifiedComparisonTable({
             })}
 
             <TableRow className="bg-muted/70 font-bold border-t-2 border-border/80">
-              <TableCell className="p-1 align-middle min-w-[160px]">
-                <div className="h-9 w-full flex items-center px-3 font-bold text-foreground justify-start">
+              <TableCell className="p-1 align-middle min-w-[280px] w-[280px]">
+                <div className="h-9 w-full flex items-center px-3 font-bold text-foreground justify-start whitespace-nowrap">
                   TOTAL GERAL
                 </div>
               </TableCell>

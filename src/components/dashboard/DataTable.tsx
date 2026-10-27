@@ -29,10 +29,10 @@ type Row = Record<string, any>;
 function getColumnWidthCls(c: Column, isFirst: boolean): string {
   if (c.key === "endereco") return "min-w-[280px]";
   if (c.key === "natureza") return "min-w-[190px]";
-  if (c.key === "municipio" || c.key === "mun") return "min-w-[150px]";
+  if (c.key === "municipio" || c.key === "mun") return "min-w-[280px] w-[280px]";
   if (c.key === "data") return "min-w-[110px]";
   if (c.key === "horario") return "min-w-[90px]";
-  if (isFirst) return "min-w-[160px]";
+  if (isFirst) return "min-w-[280px] w-[280px]";
   if (c.numeric) return "min-w-[92px]";
   return "min-w-[140px]";
 }
@@ -337,6 +337,7 @@ function DataCell({
           inputMode={column.numeric ? "numeric" : undefined}
           value={(value as string | number | undefined) ?? ""}
           onChange={(e) => onChange(e.target.value)}
+          title={String(value ?? "")}
           className={`h-9 w-full border-transparent hover:border-border focus:border-ring transition-colors px-3 ${
             column.numeric
               ? `text-center tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
@@ -344,7 +345,7 @@ function DataCell({
                     ? "border-red-500/50 bg-red-50/30 dark:bg-red-950/20 text-red-600 dark:text-red-400 font-bold"
                     : "font-normal text-foreground bg-transparent"
                 }`
-              : "font-bold text-foreground bg-transparent"
+              : "font-bold text-foreground bg-transparent whitespace-nowrap"
           }`}
           aria-label={column.label}
         />
@@ -357,12 +358,13 @@ function DataCell({
   return (
     <TableCell className={`p-1 align-middle ${widthCls}`}>
       <div
+        title={String(value ?? "")}
         className={`h-9 w-full flex items-center px-3 ${
           column.numeric
             ? `justify-center text-center tabular-nums whitespace-nowrap ${
                 isRed ? "text-red-600 dark:text-red-400 font-bold" : "font-normal text-foreground"
               }`
-            : "justify-start break-words whitespace-normal leading-snug font-bold text-foreground"
+            : "justify-start whitespace-nowrap font-bold text-foreground"
         }`}
       >
         {column.numeric ? NF.format(Number(value) || 0) : String(value ?? "")}

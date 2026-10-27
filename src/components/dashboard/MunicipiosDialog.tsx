@@ -208,7 +208,7 @@ function MunicipiosManagerDialog() {
             {q.data?.map((m) => (
               <li key={m.id} className="flex items-center gap-2 py-2 min-w-0">
                 <MapPin className="w-3.5 h-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-                <span className="text-sm font-medium truncate">{m.name}</span>
+                <span className="text-sm font-medium break-words">{m.name}</span>
                 <Button
                   size="icon"
                   variant="ghost"

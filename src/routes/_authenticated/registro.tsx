@@ -725,11 +725,13 @@ function RegistroPage() {
                 const numericCols = efetivoColumns.filter((c) => c.key !== "mun" && c.key !== "total");
                 return (
                   <>
-                    <TableCell>
+                    <TableCell className="min-w-[280px] w-[280px]">
                       <Input
                         value={r.mun}
                         onChange={(e) => renameMunicipio(r.mun, e.target.value)}
                         disabled={!canEdit}
+                        title={r.mun}
+                        className="font-bold text-foreground min-w-[260px]"
                       />
                     </TableCell>
                     {numericCols.map((col) => (
@@ -758,11 +760,13 @@ function RegistroPage() {
               canEdit={canEdit}
               renderCells={(r, patch) => (
                 <>
-                  <TableCell>
+                  <TableCell className="min-w-[280px] w-[280px]">
                     <Input
                       value={r.mun}
                       onChange={(e) => renameMunicipio(r.mun, e.target.value)}
                       disabled={!canEdit}
+                      title={r.mun}
+                      className="font-bold text-foreground min-w-[260px]"
                     />
                   </TableCell>
                   <NumCell v={r.viaturas} on={(v) => patch({ viaturas: v })} disabled={!canEdit} />
@@ -827,11 +831,13 @@ function RegistroPage() {
 
                 return (
                   <>
-                    <TableCell>
+                    <TableCell className="min-w-[280px] w-[280px]">
                       <Input
                         value={r.mun}
                         onChange={(e) => renameMunicipio(r.mun, e.target.value)}
                         disabled={!canEdit}
+                        title={r.mun}
+                        className="font-bold text-foreground min-w-[260px]"
                       />
                     </TableCell>
                     <NumCell
@@ -947,7 +953,10 @@ function SectionTable<T extends { mun: string }>(props: {
           <TableHeader>
             <TableRow>
               {headers.map((h, i) => (
-                <TableHead key={i} className="whitespace-nowrap">
+                <TableHead
+                  key={i}
+                  className={i === 0 ? "min-w-[280px] w-[280px] whitespace-nowrap font-bold" : "whitespace-nowrap"}
+                >
                   {h}
                 </TableHead>
               ))}
