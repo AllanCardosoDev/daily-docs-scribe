@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Plus, Trash2, CalendarDays, Lock, CheckCircle2, Clock, Info, Check, Loader2, RotateCcw } from "lucide-react";
+import { ArrowLeft, Save, Plus, Trash2, CalendarDays, Lock, CheckCircle2, Clock, Info, Check, Loader2, RotateCcw, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,8 @@ import {
   DadosComplementaresForm,
   type DadosComplementaresState,
 } from "@/components/dashboard/DadosComplementaresForm";
+import { EfetivoColumnsDialog } from "@/components/dashboard/EfetivoColumnsDialog";
+import { getStoredEfetivoColumns, saveStoredEfetivoColumns, type Column } from "@/lib/dashboard-columns";
 
 export const Route = createFileRoute("/_authenticated/registro")({
   head: () => ({
@@ -41,11 +43,11 @@ export const Route = createFileRoute("/_authenticated/registro")({
 });
 
 // ------- Row types -------
-type EfetivoRow = { mun: string; ord: number; seg: number; brig: number; brig_semas?: number };
+type EfetivoRow = { mun: string; [key: string]: any };
 type RecursoRow = { mun: string; viaturas: number; aeronaves: number; embarcacoes: number };
 type IncendioRow = { mun: string; urb: number; flor: number; focos: number };
 
-const EFETIVO_EMPTY: EfetivoRow = { mun: "", ord: 0, seg: 0, brig: 0, brig_semas: 0 };
+const EFETIVO_EMPTY: EfetivoRow = { mun: "", ord: 0, cbmam: 0, seg: 0, brig: 0 };
 const RECURSO_EMPTY: RecursoRow = { mun: "", viaturas: 0, aeronaves: 0, embarcacoes: 0 };
 const INCENDIO_EMPTY: IncendioRow = { mun: "", urb: 0, flor: 0, focos: 0 };
 
@@ -84,11 +86,38 @@ function RegistroPage() {
     staleTime: 30_000,
   });
 
+  const day25TemplateQuery = useQuery({
+    queryKey: ["daily-report", "2026-10-25", "noturno"],
+    queryFn: () => getFn({ data: { date: "2026-10-25", shift: "noturno" } }),
+    staleTime: 5 * 60_000,
+  });
+
+  const [efetivoColumns, setEfetivoColumns] = useState<Column[]>(() => getStoredEfetivoColumns());
+  const [columnsDialogOpen, setColumnsDialogOpen] = useState(false);
+
   const [efetivo, setEfetivo] = useState<EfetivoRow[]>([]);
   const [recursos, setRecursos] = useState<RecursoRow[]>([]);
   const [incendios, setIncendios] = useState<IncendioRow[]>([]);
   const [dadosComplementares, setDadosComplementares] = useState<DadosComplementaresState>({});
   const [notes, setNotes] = useState<string>("");
+
+  function handleSaveColumns(newCols: Column[]) {
+    setEfetivoColumns(newCols);
+    saveStoredEfetivoColumns(newCols);
+    dirtyRef.current = true;
+    setDadosComplementares((prev) => ({ ...prev, efetivo_columns: newCols }));
+    setEfetivo((prev) =>
+      prev.map((r) => {
+        const copy: any = { ...r };
+        for (const col of newCols) {
+          if (col.numeric && copy[col.key] === undefined) {
+            copy[col.key] = 0;
+          }
+        }
+        return copy;
+      }),
+    );
+  }
 
   /** Marca edições ainda não salvas — evita que um refetch em segundo plano
    *  (foco de janela, outro editor salvando) descarte o que está sendo digitado. */
@@ -180,9 +209,26 @@ function RegistroPage() {
       setNoturnoBaselineIncMap(new Map());
     }
 
-    // Carrega exatamente os dados salvos para aquele dia/turno
-    setEfetivo(manausFirst((row?.efetivo as EfetivoRow[]) ?? []));
-    setRecursos(manausFirst((row?.recursos as RecursoRow[]) ?? []));
+    // Carrega dados salvos ou pré-popula a partir do dia 25 se for do dia 25 em diante
+    let loadedEfetivo = (row?.efetivo as EfetivoRow[]) ?? [];
+    let loadedRecursos = (row?.recursos as RecursoRow[]) ?? [];
+
+    if (!row && date >= "2026-10-25" && day25TemplateQuery.data?.row) {
+      const d25 = day25TemplateQuery.data.row;
+      if (Array.isArray(d25.efetivo) && d25.efetivo.length > 0) {
+        loadedEfetivo = d25.efetivo as EfetivoRow[];
+      }
+      if (Array.isArray(d25.recursos) && d25.recursos.length > 0) {
+        loadedRecursos = d25.recursos as RecursoRow[];
+      }
+    }
+
+    if (Array.isArray(row?.dados_complementares?.efetivo_columns) && row.dados_complementares.efetivo_columns.length > 0) {
+      setEfetivoColumns(row.dados_complementares.efetivo_columns);
+    }
+
+    setEfetivo(manausFirst(loadedEfetivo));
+    setRecursos(manausFirst(loadedRecursos));
     setIncendios(manausFirst(initialInc));
     setDadosComplementares((row?.dados_complementares as DadosComplementaresState) ?? {});
     setNotes(row?.notes ?? "");
@@ -195,6 +241,7 @@ function RegistroPage() {
     q.isFetching,
     sameDayParcialQuery.data?.row,
     prevParcialQuery.data?.row,
+    day25TemplateQuery.data?.row,
   ]);
 
   const canEdit = !!q.data?.canEdit;
@@ -240,7 +287,10 @@ function RegistroPage() {
           recursos: recursos as any,
           incendios,
           outras: [],
-          dados_complementares: dadosComplementares as any,
+          dados_complementares: {
+            ...dadosComplementares,
+            efetivo_columns: efetivoColumns,
+          } as any,
           notes,
         },
       }),
@@ -464,26 +514,47 @@ function RegistroPage() {
                     <strong>Inserção de dados:</strong> Nenhum registro salvo para {date.split("-").reverse().join("/")} ({SHIFT_TAB[shift]}). Preencha os dados e clique em Salvar Dados.
                   </span>
                 </div>
-                {shift === "noturno" && sameDayParcialQuery.data?.row && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="h-7 text-xs bg-white text-blue-900 border-blue-300 hover:bg-blue-100"
-                    onClick={() => {
-                      const base = sameDayParcialQuery.data?.row;
-                      if (base) {
-                        if (base.efetivo) setEfetivo(manausFirst(base.efetivo as any));
-                        if (base.recursos) setRecursos(manausFirst(base.recursos as any));
-                        if (base.incendios) setIncendios(manausFirst(base.incendios as any));
-                        dirtyRef.current = true;
-                        toast.success("Dados do relatório Parcial copiados para este 24h.");
-                      }
-                    }}
-                  >
-                    Copiar base do Parcial deste dia
-                  </Button>
-                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  {date >= "2026-10-25" && day25TemplateQuery.data?.row && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs bg-white text-emerald-800 border-emerald-300 hover:bg-emerald-50"
+                      onClick={() => {
+                        const template = day25TemplateQuery.data?.row;
+                        if (template) {
+                          if (template.efetivo) setEfetivo(manausFirst(template.efetivo as any));
+                          if (template.recursos) setRecursos(manausFirst(template.recursos as any));
+                          dirtyRef.current = true;
+                          toast.success("Efetivo e Recursos carregados com base no modelo de 25/10!");
+                        }
+                      }}
+                    >
+                      Carregar modelo de 25/10
+                    </Button>
+                  )}
+                  {shift === "noturno" && sameDayParcialQuery.data?.row && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs bg-white text-blue-900 border-blue-300 hover:bg-blue-100"
+                      onClick={() => {
+                        const base = sameDayParcialQuery.data?.row;
+                        if (base) {
+                          if (base.efetivo) setEfetivo(manausFirst(base.efetivo as any));
+                          if (base.recursos) setRecursos(manausFirst(base.recursos as any));
+                          if (base.incendios) setIncendios(manausFirst(base.incendios as any));
+                          dirtyRef.current = true;
+                          toast.success("Dados do relatório Parcial copiados para este 24h.");
+                        }
+                      }}
+                    >
+                      Copiar base do Parcial deste dia
+                    </Button>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -519,26 +590,50 @@ function RegistroPage() {
           <TabsContent value="efetivo">
             <SectionTable
               title="Efetivo empenhado"
-              headers={["Município", "CBMAM", "Segurança", "Brigadista", "Brigadista SEMA", ""]}
+              headers={[
+                "Município",
+                ...efetivoColumns.filter((c) => c.key !== "mun" && c.key !== "total").map((c) => c.label),
+                "",
+              ]}
               rows={efetivo}
               onChange={mark(setEfetivo)}
               empty={EFETIVO_EMPTY}
               canEdit={canEdit}
-              renderCells={(r, patch) => (
-                <>
-                  <TableCell>
-                    <Input
-                      value={r.mun}
-                      onChange={(e) => patch({ mun: e.target.value })}
-                      disabled={!canEdit}
-                    />
-                  </TableCell>
-                  <NumCell v={r.ord} on={(v) => patch({ ord: v })} disabled={!canEdit} />
-                  <NumCell v={r.seg} on={(v) => patch({ seg: v })} disabled={!canEdit} />
-                  <NumCell v={r.brig} on={(v) => patch({ brig: v })} disabled={!canEdit} />
-                  <NumCell v={r.brig_semas ?? 0} on={(v) => patch({ brig_semas: v })} disabled={!canEdit} />
-                </>
-              )}
+              extraActions={
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setColumnsDialogOpen(true)}
+                  className="gap-1.5 text-xs font-semibold text-primary border-primary/30 hover:bg-primary/5"
+                  title="Alterar nomes, adicionar ou remover colunas do efetivo"
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
+                  <span>Personalizar Colunas</span>
+                </Button>
+              }
+              renderCells={(r, patch) => {
+                const numericCols = efetivoColumns.filter((c) => c.key !== "mun" && c.key !== "total");
+                return (
+                  <>
+                    <TableCell>
+                      <Input
+                        value={r.mun}
+                        onChange={(e) => patch({ mun: e.target.value })}
+                        disabled={!canEdit}
+                      />
+                    </TableCell>
+                    {numericCols.map((col) => (
+                      <NumCell
+                        key={col.key}
+                        v={Number(r[col.key] ?? 0)}
+                        on={(v) => patch({ [col.key]: v })}
+                        disabled={!canEdit}
+                      />
+                    ))}
+                  </>
+                );
+              }}
             />
           </TabsContent>
 
@@ -678,6 +773,13 @@ function RegistroPage() {
             </div>
           </TabsContent>
         </Tabs>
+
+        <EfetivoColumnsDialog
+          open={columnsDialogOpen}
+          onOpenChange={setColumnsDialogOpen}
+          columns={efetivoColumns}
+          onSave={handleSaveColumns}
+        />
       </main>
     </div>
   );
@@ -692,14 +794,16 @@ function SectionTable<T extends { mun: string }>(props: {
   empty: T;
   canEdit: boolean;
   onReset?: () => void;
+  extraActions?: React.ReactNode;
   renderCells: (row: T, patch: (p: Partial<T>) => void) => React.ReactNode;
 }) {
-  const { title, headers, rows, onChange, empty, canEdit, onReset, renderCells } = props;
+  const { title, headers, rows, onChange, empty, canEdit, onReset, extraActions, renderCells } = props;
   return (
     <div className="rounded-xl bg-card shadow-elevated p-4 sm:p-5 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-semibold text-base min-w-0">{title}</h2>
         <div className="flex items-center gap-2">
+          {extraActions}
           {onReset && canEdit && (
             <Button
               size="sm"

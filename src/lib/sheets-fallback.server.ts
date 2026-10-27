@@ -278,6 +278,32 @@ async function fetchOperationalDonor(
   supabase: SupabaseClient<any>,
   dateIso: string,
 ): Promise<{ efetivo: any[]; recursos: any[]; outras: any[]; header?: Record<string, any> } | null> {
+  // Modelo oficial de referência: 25 de outubro de 2026 (2026-10-25) em diante
+  const { data: day25Row } = await supabase
+    .from("daily_reports")
+    .select("report_date, shift, efetivo, recursos, outras, notes")
+    .eq("report_date", "2026-10-25")
+    .order("shift", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const isDay25Valid =
+    day25Row &&
+    Array.isArray(day25Row.efetivo) &&
+    day25Row.efetivo.length > 5 &&
+    Array.isArray(day25Row.recursos) &&
+    day25Row.recursos.length > 5;
+
+  if (dateIso >= "2026-10-25" && isDay25Valid) {
+    const notesEnv = parseNotesEnvelope(day25Row.notes);
+    return {
+      efetivo: day25Row.efetivo,
+      recursos: day25Row.recursos,
+      outras: day25Row.outras,
+      header: notesEnv.header,
+    };
+  }
+
   // 1. Tentar encontrar o dia anterior mais recente que possua dados operacionais
   const { data: prevRows } = await supabase
     .from("daily_reports")

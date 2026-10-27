@@ -9,10 +9,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { AlertCircle, SlidersHorizontal } from "lucide-react";
 import { NF } from "@/lib/formatters";
 import { useAutosave } from "@/hooks/use-autosave";
 import { SaveStatusBadge } from "./SaveStatusBadge";
+import { EfetivoColumnsDialog } from "./EfetivoColumnsDialog";
+import { saveStoredEfetivoColumns } from "@/lib/dashboard-columns";
 
 export interface Column {
   key: string;
@@ -40,6 +43,8 @@ interface Props {
   rows: readonly Row[];
   emptyMessage?: string;
   editable?: boolean;
+  allowManageColumns?: boolean;
+  onColumnsChange?: (columns: Column[]) => void;
   onRowsChange?: (rows: Row[]) => Promise<void> | void;
   className?: string;
 }
@@ -50,9 +55,20 @@ export const DataTable = memo(function DataTable({
   rows,
   emptyMessage = "Sem dados.",
   editable = false,
+  allowManageColumns,
+  onColumnsChange,
   onRowsChange,
   className,
 }: Props) {
+  const [activeColumns, setActiveColumns] = useState<Column[]>(() => [...columns]);
+  const [manageColsOpen, setManageColsOpen] = useState(false);
+  const isEfetivoTable = title.toLowerCase().includes("efetivo");
+  const canManage = allowManageColumns ?? isEfetivoTable;
+
+  useEffect(() => {
+    setActiveColumns([...columns]);
+  }, [columns]);
+
   const [local, setLocal] = useState<Row[]>(() => [...rows]);
   const { status, errorMessage, scheduleSave, isDirtyRef } = useAutosave<Row[]>({
     onSave: async (next) => {
@@ -104,6 +120,29 @@ export const DataTable = memo(function DataTable({
     [scheduleSave, onRowsChange],
   );
 
+  const handleColumnsSaved = useCallback(
+    (newCols: Column[]) => {
+      setActiveColumns(newCols);
+      if (onColumnsChange) onColumnsChange(newCols);
+      if (isEfetivoTable) saveStoredEfetivoColumns(newCols);
+
+      setLocal((prev) => {
+        const next = prev.map((r) => {
+          const copy = { ...r };
+          for (const c of newCols) {
+            if (c.numeric && copy[c.key] === undefined) {
+              copy[c.key] = 0;
+            }
+          }
+          return copy;
+        });
+        if (onRowsChange) scheduleSave(next);
+        return next;
+      });
+    },
+    [isEfetivoTable, onColumnsChange, onRowsChange, scheduleSave],
+  );
+
   return (
     <Card
       className={`card-interactive border-border overflow-hidden animate-fade-in-soft ${className ?? ""}`}
@@ -120,14 +159,29 @@ export const DataTable = memo(function DataTable({
             {NF.format(local.length)}
           </span>
         </div>
-        {editable && <SaveStatusBadge status={status} errorMessage={errorMessage} />}
+        <div className="flex items-center gap-2">
+          {canManage && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setManageColsOpen(true)}
+              className="h-8 text-xs font-semibold gap-1.5 bg-card/90 shadow-xs hover:bg-muted"
+              title="Personalizar colunas (mudar nome, inserir ou remover)"
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5 text-primary" />
+              <span>Personalizar Colunas</span>
+            </Button>
+          )}
+          {editable && <SaveStatusBadge status={status} errorMessage={errorMessage} />}
+        </div>
       </CardHeader>
       <CardContent className="p-0">
         <div className="overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
           <Table className="w-full">
             <TableHeader>
               <TableRow className="bg-muted/40 hover:bg-muted/40">
-                {columns.map((c, idx) => {
+                {activeColumns.map((c, idx) => {
                   const widthCls = getColumnWidthCls(c, idx === 0);
                   return (
                     <TableHead
@@ -148,17 +202,17 @@ export const DataTable = memo(function DataTable({
             </TableHeader>
             <TableBody>
               {local.length === 0 ? (
-                <EmptyRow colSpan={columns.length} message={emptyMessage} />
+                <EmptyRow colSpan={activeColumns.length} message={emptyMessage} />
               ) : (
                 <>
                   {local.map((row, i) => {
                     const rowWithTotal = { ...row };
-                    const totalCol = columns.find((c) => c.key === "total" && !c.editable);
+                    const totalCol = activeColumns.find((c) => c.key === "total" && !c.editable);
                     if (totalCol) {
-                      const numericKeys = columns.filter((c) => c.numeric && c.key !== "total" && c.key !== "total_periodo" && c.key !== "focos").map((c) => c.key);
+                      const numericKeys = activeColumns.filter((c) => c.numeric && c.key !== "total" && c.key !== "total_periodo" && c.key !== "focos").map((c) => c.key);
                       const isEfetivo = numericKeys.includes("cbmam") || numericKeys.includes("servico") || numericKeys.includes("opamv") || numericKeys.includes("ord");
                       if (isEfetivo) {
-                        rowWithTotal.total = (Number(row.cbmam) || Number(row.servico) || Number(row.ord) || 0) + (Number(row.opamv) || 0) + (Number(row.opam_ref) || 0) + (Number(row.inc1) || 0) + (Number(row.inc2) || 0) + (Number(row.inc3) || 0) + (Number(row.cbmsp) || 0) + (Number(row.prevfogo) || 0) + (Number(row.fn) || 0) + (Number(row.seg) || 0) + (Number(row.brig_mun) || Number(row.brig) || 0) + (Number(row.brig_semas) || 0);
+                        rowWithTotal.total = (Number(row.cbmam) || Number(row.servico) || Number(row.ord) || 0) + (Number(row.opamv) || 0) + (Number(row.opam_ref) || 0) + (Number(row.inc1) || 0) + (Number(row.inc2) || 0) + (Number(row.inc3) || 0) + (Number(row.cbmsp) || 0) + (Number(row.prevfogo) || 0) + (Number(row.fn) || 0) + (Number(row.seg) || 0) + (Number(row.marinha) || 0) + (Number(row.brig_mun) || Number(row.brig) || 0) + (Number(row.brig_semas) || 0);
                       } else {
                         rowWithTotal.total = numericKeys.reduce((sum, k) => sum + (Number(row[k]) || 0), 0);
                       }
@@ -171,7 +225,7 @@ export const DataTable = memo(function DataTable({
                           i % 2 === 1 ? "bg-muted/30" : ""
                         }`}
                       >
-                        {columns.map((c, idx) => (
+                        {activeColumns.map((c, idx) => (
                           <DataCell
                             key={c.key}
                             column={c}
@@ -186,7 +240,7 @@ export const DataTable = memo(function DataTable({
                   })}
                   {/* Footer Total Row */}
                   <TableRow className="bg-muted/70 font-bold border-t-2 border-border/80">
-                    {columns.map((c, idx) => {
+                    {activeColumns.map((c, idx) => {
                       const isFirst = idx === 0;
                       const widthCls = getColumnWidthCls(c, isFirst);
 
@@ -202,10 +256,10 @@ export const DataTable = memo(function DataTable({
                       if (c.numeric) {
                         const sum = local.reduce((acc, row) => {
                           if (c.key === "total") {
-                            const numericKeys = columns.filter((col) => col.numeric && col.key !== "total" && col.key !== "total_periodo" && col.key !== "focos").map((col) => col.key);
+                            const numericKeys = activeColumns.filter((col) => col.numeric && col.key !== "total" && col.key !== "total_periodo" && col.key !== "focos").map((col) => col.key);
                             const isEfetivo = numericKeys.includes("cbmam") || numericKeys.includes("servico") || numericKeys.includes("opamv") || numericKeys.includes("ord");
                             if (isEfetivo) {
-                              return acc + (Number(row.cbmam) || Number(row.servico) || Number(row.ord) || 0) + (Number(row.opamv) || 0) + (Number(row.opam_ref) || 0) + (Number(row.inc1) || 0) + (Number(row.inc2) || 0) + (Number(row.inc3) || 0) + (Number(row.cbmsp) || 0) + (Number(row.prevfogo) || 0) + (Number(row.fn) || 0) + (Number(row.seg) || 0) + (Number(row.brig_mun) || Number(row.brig) || 0) + (Number(row.brig_semas) || 0);
+                              return acc + (Number(row.cbmam) || Number(row.servico) || Number(row.ord) || 0) + (Number(row.opamv) || 0) + (Number(row.opam_ref) || 0) + (Number(row.inc1) || 0) + (Number(row.inc2) || 0) + (Number(row.inc3) || 0) + (Number(row.cbmsp) || 0) + (Number(row.prevfogo) || 0) + (Number(row.fn) || 0) + (Number(row.seg) || 0) + (Number(row.marinha) || 0) + (Number(row.brig_mun) || Number(row.brig) || 0) + (Number(row.brig_semas) || 0);
                             }
                             return acc + numericKeys.reduce((s, k) => s + (Number(row[k]) || 0), 0);
                           }
@@ -232,6 +286,14 @@ export const DataTable = memo(function DataTable({
           </Table>
         </div>
       </CardContent>
+      {canManage && (
+        <EfetivoColumnsDialog
+          open={manageColsOpen}
+          onOpenChange={setManageColsOpen}
+          columns={activeColumns}
+          onSave={handleColumnsSaved}
+        />
+      )}
     </Card>
   );
 });
