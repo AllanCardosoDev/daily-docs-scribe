@@ -1,4 +1,4 @@
-import { memo, useState, type ReactNode } from "react";
+import { memo, useMemo, useState, type ReactNode } from "react";
 import { DataTable } from "@/components/dashboard/DataTable";
 import { OccurrenceDetailDialog } from "@/components/dashboard/OccurrenceDetailDialog";
 import { DASHBOARD_COLUMNS, OCCURRENCES_PREVIEW_LIMIT } from "@/lib/dashboard-columns";
@@ -67,6 +67,13 @@ export const DashboardSections = memo(function DashboardSections({
     ? data.occurrences
     : data.occurrences.slice(0, OCCURRENCES_PREVIEW_LIMIT);
 
+  const totalIncendiosDia = useMemo(() => {
+    return (data.incendios_diario ?? []).reduce(
+      (sum, r) => sum + (Number(r.urb) || 0) + (Number(r.flor) || 0),
+      0,
+    );
+  }, [data.incendios_diario]);
+
   return (
     <div className="space-y-6 sm:space-y-8">
       <section className="space-y-3">
@@ -78,6 +85,7 @@ export const DashboardSections = memo(function DashboardSections({
         />
         <DataTable
           title="Recursos empregados"
+          badgeText="41 municípios"
           editable={canEdit}
           onRowsChange={savers.recursos}
           columns={DASHBOARD_COLUMNS.recursos}
@@ -94,6 +102,7 @@ export const DashboardSections = memo(function DashboardSections({
         />
         <DataTable
           title="Efetivo por município"
+          badgeText="41 municípios"
           editable={canEdit}
           onRowsChange={savers.efetivo}
           columns={DASHBOARD_COLUMNS.efetivo}
@@ -112,6 +121,7 @@ export const DashboardSections = memo(function DashboardSections({
         <div className="flex flex-col gap-6">
           <DataTable
             title="Incêndios do dia"
+            badgeText={`${totalIncendiosDia} ${totalIncendiosDia === 1 ? "incêndio" : "incêndios"}`}
             editable={canEdit}
             onRowsChange={savers.incendios_diario}
             columns={DASHBOARD_COLUMNS.incendios_diario}
@@ -149,6 +159,7 @@ export const DashboardSections = memo(function DashboardSections({
         />
         <DataTable
           title="Ocorrências de Incêndio"
+          badgeText={`${data.occurrences.length} ${data.occurrences.length === 1 ? "registro" : "registros"}`}
           editable={canEdit}
           onRowsChange={savers.occurrences}
           columns={DASHBOARD_COLUMNS.occurrences}

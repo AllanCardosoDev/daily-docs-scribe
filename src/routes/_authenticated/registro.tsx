@@ -901,6 +901,7 @@ function RegistroPage() {
 
               <DataTable
                 title="Ocorrências do CAD"
+                badgeText={`${cadOccurrences.length} ${cadOccurrences.length === 1 ? "registro" : "registros"}`}
                 editable={false}
                 columns={DASHBOARD_COLUMNS.occurrences}
                 rows={cadOccurrences}

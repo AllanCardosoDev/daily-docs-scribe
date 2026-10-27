@@ -41,6 +41,7 @@ interface Props {
   title: string;
   columns: Column[];
   rows: readonly Row[];
+  badgeText?: string;
   emptyMessage?: string;
   editable?: boolean;
   allowManageColumns?: boolean;
@@ -54,6 +55,7 @@ export const DataTable = memo(function DataTable({
   title,
   columns,
   rows,
+  badgeText,
   emptyMessage = "Sem dados.",
   editable = false,
   allowManageColumns,
@@ -156,9 +158,9 @@ export const DataTable = memo(function DataTable({
           </CardTitle>
           <span
             className="shrink-0 inline-flex items-center rounded-full bg-card/70 border border-border text-[10px] font-semibold text-muted-foreground px-2 py-0.5 tabular-nums"
-            aria-label={`${local.length} linhas`}
+            aria-label={badgeText ?? `${local.length} linhas`}
           >
-            {NF.format(local.length)}
+            {badgeText ?? `${NF.format(local.length)} municípios`}
           </span>
         </div>
         <div className="flex items-center gap-2">
