@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { manausFirst, canonicalMunicipio, harmonizeMunicipalitySections } from "@/lib/municipio-order";
+import { manausFirst, canonicalMunicipio, harmonizeMunicipalitySections, isNonMunicipioTroop } from "@/lib/municipio-order";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -617,7 +617,7 @@ function RegistroPage() {
                         const template = day25TemplateQuery.data?.row;
                         if (template) {
                           if (template.efetivo) setEfetivo(manausFirst(template.efetivo as any));
-                          if (template.recursos) setRecursos(manausFirst(template.recursos as any));
+                          if (template.recursos) setRecursos(manausFirst(template.recursos as any).filter((r: any) => !isNonMunicipioTroop(r?.mun)) as RecursoRow[]);
                           dirtyRef.current = true;
                           toast.success("Efetivo e Recursos carregados com base no modelo de 25/10!");
                         }
@@ -636,8 +636,8 @@ function RegistroPage() {
                         const base = sameDayParcialQuery.data?.row;
                         if (base) {
                           if (base.efetivo) setEfetivo(manausFirst(base.efetivo as any));
-                          if (base.recursos) setRecursos(manausFirst(base.recursos as any));
-                          if (base.incendios) setIncendios(manausFirst(base.incendios as any));
+                          if (base.recursos) setRecursos(manausFirst(base.recursos as any).filter((r: any) => !isNonMunicipioTroop(r?.mun)) as RecursoRow[]);
+                          if (base.incendios) setIncendios(manausFirst(base.incendios as any).filter((r: any) => !isNonMunicipioTroop(r?.mun)) as IncendioRow[]);
                           dirtyRef.current = true;
                           toast.success("Dados do relatório Parcial copiados para este 24h.");
                         }

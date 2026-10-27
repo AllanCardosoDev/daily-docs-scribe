@@ -109,5 +109,24 @@ describe("municipio-order", () => {
       expect(harmonized.recursos.find((r) => r.mun === "Tefé")?.viaturas).toBe(0);
       expect(harmonized.incendios.find((r) => r.mun === "Manaus")?.urb).toBe(0);
     });
+
+    it("nunca deve incluir tropas externas como Militares São Paulo-SP em recursos ou incêndios", () => {
+      const efetivo = [{ mun: "Manaus", ord: 10 }, { mun: "Militares São Paulo-SP", ord: 25 }];
+      const recursos = [{ mun: "Manaus", viaturas: 2 }];
+      const incendios = [{ mun: "Manaus", urb: 1 }];
+
+      const harmonized = harmonizeMunicipalitySections(
+        efetivo,
+        recursos,
+        incendios,
+        (mun) => ({ mun, ord: 0 }),
+        (mun) => ({ mun, viaturas: 0 }),
+        (mun) => ({ mun, urb: 0 }),
+      );
+
+      expect(harmonized.recursos.some((r) => r.mun.includes("São Paulo-SP"))).toBe(false);
+      expect(harmonized.incendios.some((r) => r.mun.includes("São Paulo-SP"))).toBe(false);
+      expect(harmonized.recursos.map((r) => r.mun)).toEqual(["Manaus"]);
+    });
   });
 });

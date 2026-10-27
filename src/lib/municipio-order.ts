@@ -130,6 +130,19 @@ const norm = (v: unknown) =>
 
 export const isManaus = (mun: unknown) => norm(mun) === "manaus";
 
+/** Identifica tropas ou forças externas que não são municípios do Amazonas. */
+export function isNonMunicipioTroop(mun: unknown): boolean {
+  if (!mun) return false;
+  const s = String(mun).trim().toLowerCase();
+  return (
+    s.includes("militares são paulo") ||
+    s.includes("militares sao paulo") ||
+    s.includes("são paulo-sp") ||
+    s.includes("sao paulo-sp") ||
+    s.includes("militares outro estado")
+  );
+}
+
 /** Comparador: Manaus primeiro, demais em ordem alfabética (pt-BR). */
 export function compareMunicipios(a: unknown, b: unknown) {
   const ca = canonicalMunicipio(a);
@@ -197,7 +210,13 @@ export function manausFirstSheets<T extends Record<string, any>>(data: T): T {
   ] as const;
   const out: Record<string, any> = { ...data };
   for (const s of sections) {
-    if (Array.isArray(out[s])) out[s] = deduplicateAndOrderMunicipios(out[s]);
+    if (Array.isArray(out[s])) {
+      let list = out[s];
+      if (s === "recursos" || s === "incendios_diario" || s === "incendios_acumulado") {
+        list = list.filter((r: any) => !isNonMunicipioTroop(r?.mun ?? r?.municipio));
+      }
+      out[s] = deduplicateAndOrderMunicipios(list);
+    }
   }
 
   // Ocorrências detalhadas são eventos individuais do CAD — NUNCA fundir/desduplicar!
@@ -255,13 +274,13 @@ export function harmonizeMunicipalitySections<
   const munSet = new Set<string>();
 
   for (const r of efetivo ?? []) {
-    if (r?.mun && r.mun !== "—") munSet.add(canonicalMunicipio(r.mun));
+    if (r?.mun && r.mun !== "—" && !isNonMunicipioTroop(r.mun)) munSet.add(canonicalMunicipio(r.mun));
   }
   for (const r of recursos ?? []) {
-    if (r?.mun && r.mun !== "—") munSet.add(canonicalMunicipio(r.mun));
+    if (r?.mun && r.mun !== "—" && !isNonMunicipioTroop(r.mun)) munSet.add(canonicalMunicipio(r.mun));
   }
   for (const r of incendios ?? []) {
-    if (r?.mun && r.mun !== "—") munSet.add(canonicalMunicipio(r.mun));
+    if (r?.mun && r.mun !== "—" && !isNonMunicipioTroop(r.mun)) munSet.add(canonicalMunicipio(r.mun));
   }
 
   // Ordena a lista unificada com Manaus em primeiro lugar e os demais em ordem alfabética
@@ -274,12 +293,12 @@ export function harmonizeMunicipalitySections<
 
   const recMap = new Map<string, R>();
   for (const r of recursos ?? []) {
-    if (r?.mun) recMap.set(canonicalMunicipio(r.mun).toLowerCase(), r);
+    if (r?.mun && !isNonMunicipioTroop(r.mun)) recMap.set(canonicalMunicipio(r.mun).toLowerCase(), r);
   }
 
   const incMap = new Map<string, I>();
   for (const r of incendios ?? []) {
-    if (r?.mun) incMap.set(canonicalMunicipio(r.mun).toLowerCase(), r);
+    if (r?.mun && !isNonMunicipioTroop(r.mun)) incMap.set(canonicalMunicipio(r.mun).toLowerCase(), r);
   }
 
   const outEfetivo = orderedMuns.map((mun) => {
@@ -287,6 +306,13 @@ export function harmonizeMunicipalitySections<
     return existing ? { ...existing, mun } : defaultEfetivo(mun);
   });
 
+  // Preserva qualquer tropa extra de efetivo que estava originalmente em efetivo
+  const extraTroops = (efetivo ?? []).filter((r) => isNonMunicipioTroop(r?.mun));
+  for (const t of extraTroops) {
+    outEfetivo.push(t);
+  }
+
+  // Recursos e Incêndios JAMAIS recebem tropas externas como se fossem municípios
   const outRecursos = orderedMuns.map((mun) => {
     const existing = recMap.get(mun.toLowerCase());
     return existing ? { ...existing, mun } : defaultRecursos(mun);

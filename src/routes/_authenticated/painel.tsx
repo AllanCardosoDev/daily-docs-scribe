@@ -171,10 +171,7 @@ function PainelPage() {
         brig: Number(brig) || 0,
       });
 
-      const updatedRecursos = appendOrUpdate(data.recursos ?? [], { mun: cleanName });
-
       await savers.efetivo(updatedEfetivo);
-      await savers.recursos(updatedRecursos);
       toast.success(`Efetivo "${cleanName}" adicionado ao relatório!`);
     },
     [data, savers],
