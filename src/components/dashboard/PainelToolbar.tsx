@@ -18,6 +18,7 @@ import {
   ChevronDown,
   FileSpreadsheet,
   BarChart3,
+  Users,
 } from "lucide-react";
 import { ReportHistoryDialog } from "./ReportHistoryDialog";
 import { AddMunicipioDialog } from "./AddMunicipioDialog";
@@ -37,6 +38,7 @@ interface Props {
   onExportXlsx: () => void;
   onExportPdf: () => void;
   onPreviewPdf: () => void;
+  onExportEfetivoMapas?: () => void;
   existingMunicipios?: string[];
   onAddMunicipio?: (name: string) => Promise<void> | void;
   onAddOutroEfetivo?: (name: string, ord?: number, seg?: number, brig?: number) => Promise<void> | void;
@@ -57,6 +59,7 @@ export const PainelToolbar = memo(function PainelToolbar({
   onExportXlsx,
   onExportPdf,
   onPreviewPdf,
+  onExportEfetivoMapas,
   existingMunicipios = [],
   onAddMunicipio,
   onAddOutroEfetivo,
@@ -250,6 +253,23 @@ export const PainelToolbar = memo(function PainelToolbar({
                     </div>
                   </div>
                 </DropdownMenuItem>
+
+                {onExportEfetivoMapas && (
+                  <DropdownMenuItem
+                    onClick={onExportEfetivoMapas}
+                    className="flex items-start gap-3 p-2.5 cursor-pointer rounded-lg hover:bg-muted focus:bg-muted transition-colors"
+                  >
+                    <div className="p-2 rounded-md bg-cyan-100 text-cyan-800 dark:bg-cyan-900/50 dark:text-cyan-300 mt-0.5">
+                      <Users className="w-4 h-4 shrink-0" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-sm text-foreground">Exportar Efetivo (Mapas .xlsx)</div>
+                      <div className="text-xs text-muted-foreground leading-snug">
+                        Matriz de efetivo do dia e bases para integração direta com o Projeto Mapas.
+                      </div>
+                    </div>
+                  </DropdownMenuItem>
+                )}
 
                 <DropdownMenuItem
                   asChild

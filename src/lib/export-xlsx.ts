@@ -322,3 +322,6 @@ export function exportTotaisToXlsx(
   const cleanPeriodo = periodoLabel.replace(/[^a-z0-9]/gi, "-").toLowerCase();
   XLSX.writeFile(wb, `totais-acumulados-cbmam-${cleanPeriodo}.xlsx`);
 }
+
+export { exportEfetivoMapasXlsx, exportEfetivoMapasJson } from "./efetivo-mapas";
+

@@ -16,6 +16,7 @@ import {
   ClipboardList,
   BarChart3,
   Flame,
+  Users,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useAuthEmail, useSignOut } from "@/hooks/use-auth-session";
@@ -107,6 +108,13 @@ export const DashboardHeader = memo(function DashboardHeader({
             Inserção
           </Link>
           <Link 
+            to="/efetivo" 
+            className="text-sm font-bold text-white/90 hover:text-white flex items-center gap-2 transition-colors [&.active]:text-emerald-300"
+          >
+            <Users className="w-4 h-4" />
+            Efetivo
+          </Link>
+          <Link 
             to="/totais" 
             className="text-sm font-bold text-white/90 hover:text-white flex items-center gap-2 transition-colors [&.active]:text-emerald-300"
           >
@@ -178,6 +186,11 @@ export const DashboardHeader = memo(function DashboardHeader({
               <DropdownMenuItem asChild>
                 <Link to="/painel">
                   <ClipboardList className="w-4 h-4 mr-2" /> Inserção de Dados
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/efetivo">
+                  <Users className="w-4 h-4 mr-2" /> Efetivo (Mapas)
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>

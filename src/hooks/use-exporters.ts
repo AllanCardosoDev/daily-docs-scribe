@@ -81,5 +81,34 @@ export function useExporters(
     }
   }, [data, reportDate]);
 
-  return { exportXlsx, exportPdf, exportMunicipioPdf, exportMunicipioCsv };
+  const exportEfetivoMapasXlsx = useCallback(async () => {
+    if (!data) return;
+    try {
+      const { exportEfetivoMapasXlsx } = await import("@/lib/efetivo-mapas");
+      exportEfetivoMapasXlsx(data, reportDate);
+      toast.success("Planilha de Efetivo (Mapas) gerada com sucesso!");
+    } catch (e) {
+      toast.error("Falha ao exportar Efetivo", { description: (e as Error)?.message });
+    }
+  }, [data, reportDate]);
+
+  const exportEfetivoMapasJson = useCallback(async () => {
+    if (!data) return;
+    try {
+      const { exportEfetivoMapasJson } = await import("@/lib/efetivo-mapas");
+      exportEfetivoMapasJson(data, reportDate);
+      toast.success("JSON de Efetivo para o Mapas exportado com sucesso!");
+    } catch (e) {
+      toast.error("Falha ao exportar JSON de Efetivo", { description: (e as Error)?.message });
+    }
+  }, [data, reportDate]);
+
+  return {
+    exportXlsx,
+    exportPdf,
+    exportMunicipioPdf,
+    exportMunicipioCsv,
+    exportEfetivoMapasXlsx,
+    exportEfetivoMapasJson,
+  };
 }

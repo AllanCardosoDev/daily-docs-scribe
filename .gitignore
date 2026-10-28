@@ -46,3 +46,7 @@ supabase/.temp/
 
 # Scratch test files
 scratch/
+
+# Projeto externo Mapas
+mapas/
+

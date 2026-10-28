@@ -14,12 +14,14 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedEfetivoRouteImport } from './routes/_authenticated/efetivo'
 import { Route as AuthenticatedEscalaRouteImport } from './routes/_authenticated/escala'
 import { Route as AuthenticatedPainelRouteImport } from './routes/_authenticated/painel'
 import { Route as AuthenticatedRegistroRouteImport } from './routes/_authenticated/registro'
 import { Route as AuthenticatedStatusRouteImport } from './routes/_authenticated/status'
 import { Route as AuthenticatedTotaisRouteImport } from './routes/_authenticated/totais'
 import { Route as ApiPublicDriveSyncRouteImport } from './routes/api/public/drive-sync'
+import { Route as ApiPublicEfetivoRouteImport } from './routes/api/public/efetivo'
 import { Route as ApiPublicGrupoAdicionalIncendioRouteImport } from './routes/api/public/grupo-adicional-incendio'
 
 const IndexRoute = IndexRouteImport.update({
@@ -44,6 +46,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedEfetivoRoute = AuthenticatedEfetivoRouteImport.update({
+  id: '/efetivo',
+  path: '/efetivo',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedEscalaRoute = AuthenticatedEscalaRouteImport.update({
@@ -76,6 +83,11 @@ const ApiPublicDriveSyncRoute = ApiPublicDriveSyncRouteImport.update({
   path: '/api/public/drive-sync',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicEfetivoRoute = ApiPublicEfetivoRouteImport.update({
+  id: '/api/public/efetivo',
+  path: '/api/public/efetivo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicGrupoAdicionalIncendioRoute =
   ApiPublicGrupoAdicionalIncendioRouteImport.update({
     id: '/api/public/grupo-adicional-incendio',
@@ -88,12 +100,14 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/efetivo': typeof AuthenticatedEfetivoRoute
   '/escala': typeof AuthenticatedEscalaRoute
   '/painel': typeof AuthenticatedPainelRoute
   '/registro': typeof AuthenticatedRegistroRoute
   '/status': typeof AuthenticatedStatusRoute
   '/totais': typeof AuthenticatedTotaisRoute
   '/api/public/drive-sync': typeof ApiPublicDriveSyncRoute
+  '/api/public/efetivo': typeof ApiPublicEfetivoRoute
   '/api/public/grupo-adicional-incendio': typeof ApiPublicGrupoAdicionalIncendioRoute
 }
 export interface FileRoutesByTo {
@@ -101,12 +115,14 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/efetivo': typeof AuthenticatedEfetivoRoute
   '/escala': typeof AuthenticatedEscalaRoute
   '/painel': typeof AuthenticatedPainelRoute
   '/registro': typeof AuthenticatedRegistroRoute
   '/status': typeof AuthenticatedStatusRoute
   '/totais': typeof AuthenticatedTotaisRoute
   '/api/public/drive-sync': typeof ApiPublicDriveSyncRoute
+  '/api/public/efetivo': typeof ApiPublicEfetivoRoute
   '/api/public/grupo-adicional-incendio': typeof ApiPublicGrupoAdicionalIncendioRoute
 }
 export interface FileRoutesById {
@@ -116,12 +132,14 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/efetivo': typeof AuthenticatedEfetivoRoute
   '/_authenticated/escala': typeof AuthenticatedEscalaRoute
   '/_authenticated/painel': typeof AuthenticatedPainelRoute
   '/_authenticated/registro': typeof AuthenticatedRegistroRoute
   '/_authenticated/status': typeof AuthenticatedStatusRoute
   '/_authenticated/totais': typeof AuthenticatedTotaisRoute
   '/api/public/drive-sync': typeof ApiPublicDriveSyncRoute
+  '/api/public/efetivo': typeof ApiPublicEfetivoRoute
   '/api/public/grupo-adicional-incendio': typeof ApiPublicGrupoAdicionalIncendioRoute
 }
 export interface FileRouteTypes {
@@ -131,12 +149,14 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/dashboard'
+    | '/efetivo'
     | '/escala'
     | '/painel'
     | '/registro'
     | '/status'
     | '/totais'
     | '/api/public/drive-sync'
+    | '/api/public/efetivo'
     | '/api/public/grupo-adicional-incendio'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -144,12 +164,14 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/dashboard'
+    | '/efetivo'
     | '/escala'
     | '/painel'
     | '/registro'
     | '/status'
     | '/totais'
     | '/api/public/drive-sync'
+    | '/api/public/efetivo'
     | '/api/public/grupo-adicional-incendio'
   id:
     | '__root__'
@@ -158,12 +180,14 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/_authenticated/dashboard'
+    | '/_authenticated/efetivo'
     | '/_authenticated/escala'
     | '/_authenticated/painel'
     | '/_authenticated/registro'
     | '/_authenticated/status'
     | '/_authenticated/totais'
     | '/api/public/drive-sync'
+    | '/api/public/efetivo'
     | '/api/public/grupo-adicional-incendio'
   fileRoutesById: FileRoutesById
 }
@@ -173,6 +197,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   ApiPublicDriveSyncRoute: typeof ApiPublicDriveSyncRoute
+  ApiPublicEfetivoRoute: typeof ApiPublicEfetivoRoute
   ApiPublicGrupoAdicionalIncendioRoute: typeof ApiPublicGrupoAdicionalIncendioRoute
 }
 
@@ -211,6 +236,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/efetivo': {
+      id: '/_authenticated/efetivo'
+      path: '/efetivo'
+      fullPath: '/efetivo'
+      preLoaderRoute: typeof AuthenticatedEfetivoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/escala': {
@@ -255,6 +287,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicDriveSyncRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/efetivo': {
+      id: '/api/public/efetivo'
+      path: '/api/public/efetivo'
+      fullPath: '/api/public/efetivo'
+      preLoaderRoute: typeof ApiPublicEfetivoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/grupo-adicional-incendio': {
       id: '/api/public/grupo-adicional-incendio'
       path: '/api/public/grupo-adicional-incendio'
@@ -267,6 +306,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedEfetivoRoute: typeof AuthenticatedEfetivoRoute
   AuthenticatedEscalaRoute: typeof AuthenticatedEscalaRoute
   AuthenticatedPainelRoute: typeof AuthenticatedPainelRoute
   AuthenticatedRegistroRoute: typeof AuthenticatedRegistroRoute
@@ -276,6 +316,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedEfetivoRoute: AuthenticatedEfetivoRoute,
   AuthenticatedEscalaRoute: AuthenticatedEscalaRoute,
   AuthenticatedPainelRoute: AuthenticatedPainelRoute,
   AuthenticatedRegistroRoute: AuthenticatedRegistroRoute,
@@ -292,6 +333,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   ApiPublicDriveSyncRoute: ApiPublicDriveSyncRoute,
+  ApiPublicEfetivoRoute: ApiPublicEfetivoRoute,
   ApiPublicGrupoAdicionalIncendioRoute: ApiPublicGrupoAdicionalIncendioRoute,
 }
 export const routeTree = rootRouteImport
