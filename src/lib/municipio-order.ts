@@ -303,7 +303,7 @@ export function harmonizeMunicipalitySections<
 
   const outEfetivo = orderedMuns.map((mun) => {
     const existing = efMap.get(mun.toLowerCase());
-    return existing ? { ...existing, mun } : defaultEfetivo(mun);
+    return existing ? { ...defaultEfetivo(mun), ...existing, mun } : defaultEfetivo(mun);
   });
 
   // Preserva qualquer tropa extra de efetivo que estava originalmente em efetivo
@@ -315,12 +315,12 @@ export function harmonizeMunicipalitySections<
   // Recursos e Incêndios JAMAIS recebem tropas externas como se fossem municípios
   const outRecursos = orderedMuns.map((mun) => {
     const existing = recMap.get(mun.toLowerCase());
-    return existing ? { ...existing, mun } : defaultRecursos(mun);
+    return existing ? { ...defaultRecursos(mun), ...existing, mun } : defaultRecursos(mun);
   });
 
   const outIncendios = orderedMuns.map((mun) => {
     const existing = incMap.get(mun.toLowerCase());
-    return existing ? { ...existing, mun } : defaultIncendios(mun);
+    return existing ? { ...defaultIncendios(mun), ...existing, mun } : defaultIncendios(mun);
   });
 
   return {

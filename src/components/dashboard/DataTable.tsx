@@ -73,7 +73,23 @@ export const DataTable = memo(function DataTable({
     setActiveColumns([...columns]);
   }, [columns]);
 
-  const [local, setLocal] = useState<Row[]>(() => [...rows]);
+  const sanitizeRowsWithDefaults = useCallback(
+    (inputRows: readonly Row[]): Row[] => {
+      const numericCols = activeColumns.filter((c) => c.numeric);
+      return inputRows.map((r) => {
+        const copy: Row = { ...r };
+        for (const col of numericCols) {
+          if (copy[col.key] === undefined || copy[col.key] === null || copy[col.key] === "") {
+            copy[col.key] = 0;
+          }
+        }
+        return copy;
+      });
+    },
+    [activeColumns],
+  );
+
+  const [local, setLocal] = useState<Row[]>(() => sanitizeRowsWithDefaults(rows));
   const { status, errorMessage, scheduleSave, isDirtyRef } = useAutosave<Row[]>({
     onSave: async (next) => {
       if (onRowsChange) await onRowsChange(next);
@@ -82,8 +98,8 @@ export const DataTable = memo(function DataTable({
 
   // sync from props when server data refreshes, unless a local edit is pending
   useEffect(() => {
-    if (!isDirtyRef.current) setLocal([...rows]);
-  }, [rows, isDirtyRef]);
+    if (!isDirtyRef.current) setLocal(sanitizeRowsWithDefaults(rows));
+  }, [rows, isDirtyRef, sanitizeRowsWithDefaults]);
 
   const updateCell = useCallback(
     (rowIdx: number, key: string, value: string, numeric?: boolean) => {
@@ -242,7 +258,7 @@ export const DataTable = memo(function DataTable({
                             key={c.key}
                             column={c}
                             isFirst={idx === 0}
-                            value={rowWithTotal[c.key]}
+                            value={rowWithTotal[c.key] ?? (c.numeric ? 0 : "")}
                             editable={!!editable && !!c.editable}
                             onChange={(v) => updateCell(i, c.key, v, c.numeric)}
                           />
@@ -363,16 +379,19 @@ function DataCell({
 
   if (editable) {
     const isNum = column.numeric;
-    const numVal = isNum ? Number(value) || 0 : 0;
+    const numVal = isNum ? (value === "" || value === null || value === undefined ? 0 : Number(value) || 0) : 0;
     const isRed = isNum && numVal > 0 && OCCURRENCE_KEYS.has(column.key);
+    const displayVal: string | number = isNum
+      ? (value === "" || value === null || value === undefined ? 0 : (Number(value) || 0))
+      : String(value ?? "");
     return (
       <TableCell className={`p-1 align-middle ${widthCls}`}>
         <Input
           type={column.numeric ? "number" : "text"}
           inputMode={column.numeric ? "numeric" : undefined}
-          value={(value as string | number | undefined) ?? ""}
+          value={displayVal}
           onChange={(e) => onChange(e.target.value)}
-          title={String(value ?? "")}
+          title={String(displayVal)}
           className={`h-9 w-full border-transparent hover:border-border focus:border-ring transition-colors px-3 ${
             column.numeric
               ? `text-center tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${

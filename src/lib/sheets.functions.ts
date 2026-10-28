@@ -292,7 +292,12 @@ export const saveSheetsData = createServerFn({ method: "POST" })
     const patch = data.patch;
     const payload: any = { updated_by: context.userId, updated_at: new Date().toISOString() };
     if (patch.efetivo) payload.efetivo = patch.efetivo;
-    if (patch.recursos) payload.recursos = patch.recursos;
+    if (patch.recursos) {
+      const { createDefaultRecursosRow } = await import("./sheets-fallback.server");
+      payload.recursos = patch.recursos.map((r: any) =>
+        createDefaultRecursosRow(r.mun ?? r.municipio, r),
+      );
+    }
     if (patch.incendios_diario) payload.incendios = patch.incendios_diario;
     if (patch.outras_diarias) payload.outras = patch.outras_diarias;
 

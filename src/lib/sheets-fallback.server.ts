@@ -51,20 +51,61 @@ const canonKey = (k: string) => {
   return RECURSOS_ALIASES[base] ?? base;
 };
 
+export const RECURSOS_COLUMNS_KEYS = [
+  "abt",
+  "at",
+  "aem",
+  "atp",
+  "ata",
+  "abf",
+  "atf",
+  "abs",
+  "abtf",
+  "pipa",
+  "dosa",
+  "crs",
+  "ar",
+  "ur",
+  "gse",
+  "mt",
+  "ta",
+  "quadriciclo",
+  "embarcacao",
+  "picape_fn",
+  "picape_muni",
+  "autoarp",
+  "picape_esfron",
+  "helicoptero",
+  "aviao",
+  "jetski",
+] as const;
+
+export function createDefaultRecursosRow(
+  mun: string,
+  initial: Record<string, any> = {},
+): { mun: string } & Record<string, any> {
+  const row: Record<string, any> = { mun };
+  for (const k of RECURSOS_COLUMNS_KEYS) {
+    row[k] = num(initial[k]);
+  }
+  return row as { mun: string } & Record<string, any>;
+}
+
 function normaliseRecursos(
   rows: Array<Record<string, any>>,
 ): Array<{ mun: string } & Record<string, any>> {
   return rows.map((r) => {
-    const out: Record<string, any> = {};
+    const rawOut: Record<string, any> = {};
     for (const [k, v] of Object.entries(r)) {
       const key = canonKey(k);
       // "viaturas"/"aeronaves"/"embarcacoes" são somatórios da planilha — o
       // painel recalcula o total, então não viram colunas.
       if (key === "viaturas" || key === "aeronaves" || key === "embarcacoes") continue;
       if (key === "mun") continue;
-      out[key] = key === "total" ? v : num(v);
+      rawOut[key] = num(v);
     }
-    return { ...out, mun: str(r.mun ?? r.municipio ?? r.MUN ?? r.Municipio) };
+    const mun = str(r.mun ?? r.municipio ?? r.MUN ?? r.Municipio);
+    return createDefaultRecursosRow(mun, rawOut);
   });
 }
 
@@ -486,12 +527,7 @@ export async function loadReportByDate(
 
   const recursosConsolidados = ensureAllMunicipios(
     normaliseRecursos(rawRecursosRows),
-    (mun) => ({
-      mun,
-      viaturas: 0,
-      aeronaves: 0,
-      embarcacoes: 0,
-    }),
+    (mun) => createDefaultRecursosRow(mun),
   );
 
   const incendiosConsolidados = ensureAllMunicipios(
@@ -655,12 +691,7 @@ export async function loadReportByDate(
       brig_mun: mun.toLowerCase().includes("itapiranga") ? 12 : 0,
       brig_semas: 0,
     }),
-    (mun) => ({
-      mun,
-      viaturas: 0,
-      aeronaves: 0,
-      embarcacoes: 0,
-    }),
+    (mun) => createDefaultRecursosRow(mun),
     (mun) => ({
       mun,
       urb: 0,
@@ -804,12 +835,7 @@ export async function loadReportRange(
 
   const recursosConsolidados = ensureAllMunicipios(
     lastRecursos,
-    (mun) => ({
-      mun,
-      viaturas: 0,
-      aeronaves: 0,
-      embarcacoes: 0,
-    }),
+    (mun) => createDefaultRecursosRow(mun),
   );
 
   return {
