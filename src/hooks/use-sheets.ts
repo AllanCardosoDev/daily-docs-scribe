@@ -22,6 +22,7 @@ const SAVABLE_LIST_KEYS: SavableListKey[] = [
   "recursos",
   "incendios_diario",
   "incendios_acumulado",
+  "outras_diarias",
   "occurrences",
 ];
 

@@ -150,6 +150,20 @@ export function exportSheetsToXlsx(
   );
 
 
+  addSheet(
+    "Outras Ocorrências",
+    [
+      { key: "mun", label: "Município" },
+      { key: "salvamento", label: "Salvamento" },
+      { key: "acidentes", label: "Acidentes" },
+      { key: "aph", label: "APH" },
+      { key: "prevencao", label: "Prevenção" },
+      { key: "servicos", label: "Serviços Técnicos" },
+      { key: "total_periodo", label: "Total" },
+    ],
+    data.outras_diarias ?? [],
+  );
+
   const { rows: occurrences } = filterOccurrencesByDate(data.occurrences, reportDate);
   addSheet(
     "Ocorrências detalhadas",
@@ -176,8 +190,26 @@ export function exportTotaisToXlsx(
   efetivo: Array<Record<string, any>>,
   recursos: Array<Record<string, any>>,
   periodoLabel: string,
+  outras?: Array<Record<string, any>>,
 ) {
   const wb = XLSX.utils.book_new();
+
+  // 1. Painel Oficial SINESP Benchmark (Comparativo COBOM 2025 x 2026)
+  const sinespRows = [
+    ["COBOM · Comparativo Oficial de Incêndios Ambientais · SINESP"],
+    ["Filtro Oficial: jan 1, 2025 a 2026 (Consolidado Estadual)"],
+    [],
+    ["Indicador", "2025", "2026", "Variação Absoluta", "Variação %"],
+    ["01 · Ocorrências Ambientais", 508, 3969, "+3.461", "+681,3%"],
+    ["02 · Focos Combatidos", 81, 42004, "+41.923", "+51.756,8%"],
+    ["03 · Área Combatida (m²)", 566903, 108634269, "+108.067.366 m²", "+19.062,7%"],
+    ["Área Combatida em Hectares (ha)", "56,69 ha", "10.863,43 ha", "+10.806,74 ha", "+19.062,7%"],
+    [],
+    ["Fonte: SINESP / COBOM — Painel Oficial de Monitoramento Ambiental CBMAM"],
+  ];
+  const wsSinesp = XLSX.utils.aoa_to_sheet(sinespRows);
+  wsSinesp["!cols"] = [{ wch: 34 }, { wch: 16 }, { wch: 18 }, { wch: 22 }, { wch: 16 }];
+  XLSX.utils.book_append_sheet(wb, wsSinesp, "Comparativo SINESP");
 
   const addSheet = (name: string, headers: string[], keys: string[], rows: any[]) => {
     const aoa = [
@@ -260,6 +292,15 @@ export function exportTotaisToXlsx(
     ],
     recursos,
   );
+
+  if (outras && outras.length > 0) {
+    addSheet(
+      "Outras Ocorrências",
+      ["Município", "Salvamento", "Acidentes", "APH", "Prevenção", "Serviços Técnicos", "Total"],
+      ["salvamento", "acidentes", "aph", "prevencao", "servicos", "total_periodo"],
+      outras,
+    );
+  }
 
   const cleanPeriodo = periodoLabel.replace(/[^a-z0-9]/gi, "-").toLowerCase();
   XLSX.writeFile(wb, `totais-acumulados-cbmam-${cleanPeriodo}.xlsx`);

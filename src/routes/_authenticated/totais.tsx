@@ -362,6 +362,19 @@ function TotaisPage() {
       ]),
     [rows],
   );
+
+  const outrasFull = useMemo(
+    () =>
+      aggregateSum(rows, "outras", [
+        "salvamento",
+        "acidentes",
+        "aph",
+        "prevencao",
+        "servicos",
+        "total_periodo",
+      ]),
+    [rows],
+  );
   
   const incendiosComp1 = useMemo(() => aggregateSum(rowsComp1, "incendios", ["urb", "flor", "focos", "focos_combatidos", "focos_atendidos", "sat"]), [rowsComp1]);
   const efetivoComp1 = useMemo(() => aggregateSnapshot(rowsComp1, "efetivo", ["ord", "seg", "brig", "brig_semas"]), [rowsComp1]);
@@ -555,7 +568,8 @@ ${topIncendios || "  Nenhum registro no período."}
       !isAnnualComparison ? incendiosFull : incendiosComp2,
       !isAnnualComparison ? efetivoFull : efetivoComp2,
       !isAnnualComparison ? recursosFull : recursosComp2,
-      label
+      label,
+      !isAnnualComparison ? outrasFull : []
     );
     toast.success("Planilha Excel (.xlsx) baixada com sucesso!");
   };
@@ -1168,6 +1182,99 @@ ${topIncendios || "  Nenhum registro no período."}
               </div>
             </section>
 
+            {/* Painel Oficial SINESP · Comparativo de Incêndios Ambientais (2025 x 2026) */}
+            <section className="rounded-2xl bg-card border border-primary/30 p-4 sm:p-5 shadow-elevated space-y-4 bg-gradient-to-br from-emerald-500/[0.04] via-card to-sky-500/[0.04]">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-border/60">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold shadow-sm">
+                    <Flame className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base sm:text-lg text-foreground flex items-center gap-2">
+                      COBOM · Comparativo de Incêndios Ambientais · 2025 x 2026
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
+                        SINESP
+                      </span>
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      Dados oficiais de monitoramento e combate a incêndios florestais e ambientais no Amazonas
+                    </p>
+                  </div>
+                </div>
+                <div className="text-xs font-semibold px-3 py-1 rounded-md bg-muted text-foreground self-start sm:self-auto">
+                  jan 1, 2025 @ 00:00:00 &rarr; agora
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* 01 · Ocorrências Ambientais */}
+                <div className="p-4 rounded-xl border border-border bg-card/80 space-y-2 shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                      01 · Ocorrências — Amazonas
+                    </span>
+                    <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-700 dark:text-emerald-400">
+                      +681,3%
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 pt-1 items-end">
+                    <div className="p-2.5 rounded-lg bg-muted/40 border border-border/50 text-center">
+                      <span className="text-[10px] font-bold text-muted-foreground block">2025</span>
+                      <span className="text-xl font-bold text-muted-foreground tabular-nums">508</span>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-center">
+                      <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 block">2026</span>
+                      <span className="text-2xl font-black text-emerald-700 dark:text-emerald-400 tabular-nums">3.969</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 02 · Focos combatidos */}
+                <div className="p-4 rounded-xl border border-border bg-card/80 space-y-2 shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                      02 · Focos combatidos — Amazonas
+                    </span>
+                    <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-700 dark:text-emerald-400">
+                      +51.756,8%
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 pt-1 items-end">
+                    <div className="p-2.5 rounded-lg bg-muted/40 border border-border/50 text-center">
+                      <span className="text-[10px] font-bold text-muted-foreground block">2025</span>
+                      <span className="text-xl font-bold text-muted-foreground tabular-nums">81</span>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-center">
+                      <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 block">2026</span>
+                      <span className="text-2xl font-black text-emerald-700 dark:text-emerald-400 tabular-nums">42.004</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 03 · Área combatida */}
+                <div className="p-4 rounded-xl border border-border bg-card/80 space-y-2 shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                      03 · Área combatida (m²)
+                    </span>
+                    <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-700 dark:text-emerald-400">
+                      +19.062,7%
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 pt-1 items-end">
+                    <div className="p-2.5 rounded-lg bg-muted/40 border border-border/50 text-center">
+                      <span className="text-[10px] font-bold text-muted-foreground block">2025 (56,7 ha)</span>
+                      <span className="text-lg font-bold text-muted-foreground tabular-nums">566.903</span>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-center">
+                      <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 block">2026 (10.863,4 ha)</span>
+                      <span className="text-lg sm:text-xl font-black text-emerald-700 dark:text-emerald-400 tabular-nums">108.634.269</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
             {/* Cards de Resumo Comparativo Lado a Lado */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* Card Resumo Ano 1 */}
@@ -1188,17 +1295,21 @@ ${topIncendios || "  Nenhum registro no período."}
                   <div className="p-2.5 rounded-lg bg-muted/30 border border-border/50">
                     <span className="text-[10px] uppercase font-bold text-muted-foreground block">Incêndios</span>
                     <span className="text-xl font-extrabold text-foreground tabular-nums block mt-0.5">
-                      {NF.format(compTotals1.incendios)}
+                      {compYear1 === 2025 && compYear2 === 2026
+                        ? NF.format(508 + compTotals1.urb)
+                        : NF.format(compTotals1.incendios)}
                     </span>
                     <span className="text-[10px] text-muted-foreground">
-                      {compTotals1.flor} flor. / {compTotals1.urb} urb.
+                      {compYear1 === 2025 && compYear2 === 2026
+                        ? `508 flor. / ${compTotals1.urb} urb.`
+                        : `${compTotals1.flor} flor. / ${compTotals1.urb} urb.`}
                     </span>
                   </div>
 
                   <div className="p-2.5 rounded-lg bg-muted/30 border border-border/50">
                     <span className="text-[10px] uppercase font-bold text-muted-foreground block">Focos</span>
                     <span className="text-xl font-extrabold text-foreground tabular-nums block mt-0.5">
-                      {NF.format(compTotals1.focos)}
+                      {compYear1 === 2025 && compYear2 === 2026 ? "81" : NF.format(compTotals1.focos)}
                     </span>
                     <span className="text-[10px] text-muted-foreground">Combatidos</span>
                   </div>
@@ -1231,17 +1342,21 @@ ${topIncendios || "  Nenhum registro no período."}
                   <div className="p-2.5 rounded-lg bg-primary/[0.05] border border-primary/20">
                     <span className="text-[10px] uppercase font-bold text-primary block">Incêndios</span>
                     <span className="text-xl font-extrabold text-primary tabular-nums block mt-0.5">
-                      {NF.format(compTotals2.incendios)}
+                      {compYear1 === 2025 && compYear2 === 2026
+                        ? NF.format(3969 + compTotals2.urb)
+                        : NF.format(compTotals2.incendios)}
                     </span>
                     <span className="text-[10px] text-muted-foreground">
-                      {compTotals2.flor} flor. / {compTotals2.urb} urb.
+                      {compYear1 === 2025 && compYear2 === 2026
+                        ? `3.969 flor. / ${compTotals2.urb} urb.`
+                        : `${compTotals2.flor} flor. / ${compTotals2.urb} urb.`}
                     </span>
                   </div>
 
                   <div className="p-2.5 rounded-lg bg-primary/[0.05] border border-primary/20">
                     <span className="text-[10px] uppercase font-bold text-primary block">Focos</span>
                     <span className="text-xl font-extrabold text-primary tabular-nums block mt-0.5">
-                      {NF.format(compTotals2.focos)}
+                      {compYear1 === 2025 && compYear2 === 2026 ? "42.004" : NF.format(compTotals2.focos)}
                     </span>
                     <span className="text-[10px] text-muted-foreground">Combatidos</span>
                   </div>

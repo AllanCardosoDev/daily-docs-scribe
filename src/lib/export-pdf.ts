@@ -4,7 +4,7 @@ import autoTable from "jspdf-autotable";
 import type { SheetsData } from "./sheets.types";
 import type { ComparisonResult } from "./comparison";
 import { NF } from "./formatters";
-import { fmtDateBR, fmtDateStamp } from "./report-date";
+import { fmtDateBR, fmtDateStamp, filterOccurrencesByDate } from "./report-date";
 import { CBMAM_LOGO_BASE64 } from "./cbmam-logo";
 
 
@@ -42,7 +42,8 @@ export function buildSheetsPdfDoc(
 ): jsPDF {
 
   const data = manausFirstSheets(rawData);
-  const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+  const DocConstructor = (jsPDF as any).jsPDF || jsPDF;
+  const doc = new DocConstructor({ orientation: "landscape", unit: "pt", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth(); // ~841.89 pt
   const pageH = doc.internal.pageSize.getHeight(); // ~595.28 pt
   const header = data.header ?? {};
@@ -109,14 +110,9 @@ export function buildSheetsPdfDoc(
     doc.text(header.reuniaoBriefing || `04 / AGO / 2026 - 8H30`, rightMarginX, 46, { align: "right" });
   };
 
-  // Rodapé das páginas
-  const drawPageFooter = (pageNumber: number) => {
-    doc.setPage(pageNumber);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7.5);
-    doc.setTextColor(100, 100, 100);
-    doc.text(`Documento oficial — uso restrito`, 20, pageH - 12);
-    doc.text(`Página ${pageNumber} de 3`, pageW - 20, pageH - 12, { align: "right" });
+  // Rodapé das páginas: numerado dinamicamente ao final (Página X de Y)
+  const drawPageFooter = (_pageNumber: number) => {
+    // Delegado ao fechamento para refletir a contagem total de páginas geradas.
   };
 
   // ====================================================
@@ -282,7 +278,7 @@ export function buildSheetsPdfDoc(
   autoTable(doc, {
     startY: 235,
     margin: { left: 16 },
-    tableWidth: 540,
+    tableWidth: 517,
     head: [["MUNICÍPIO", ...recLabels, "TOTAL"]],
     body: [
       ...recBody,
@@ -516,11 +512,185 @@ export function buildSheetsPdfDoc(
     headStyles: { fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b], textColor: 255, fontStyle: "bold", fontSize: 6, halign: "center" },
   });
 
-  // 4. BLOCO DE ASSINATURAS (Página 3)
-  const sigY = 180;
+  // ----------------------------------------------------
+  // OUTRAS OCORRÊNCIAS DIÁRIAS (Página 3 - Centro / Base)
+  // ----------------------------------------------------
+  const outrasList = data.outras_diarias ?? [];
+  const outrasBody = outrasList.map((r) => {
+    const salv = num(r.salvamento);
+    const acid = num(r.acidentes);
+    const aph = num(r.aph);
+    const prev = num(r.prevencao);
+    const serv = num(r.servicos);
+    const tot = salv + acid + aph + prev + serv;
+    return [r.mun, salv || "", acid || "", aph || "", prev || "", serv || "", tot || ""];
+  });
+
+  const totSalv = outrasList.reduce((s, r) => s + num(r.salvamento), 0);
+  const totAcid = outrasList.reduce((s, r) => s + num(r.acidentes), 0);
+  const totAph = outrasList.reduce((s, r) => s + num(r.aph), 0);
+  const totPrev = outrasList.reduce((s, r) => s + num(r.prevencao), 0);
+  const totServ = outrasList.reduce((s, r) => s + num(r.servicos), 0);
+  const grandOutras = totSalv + totAcid + totAph + totPrev + totServ;
+
+  // Tabela Outras Ocorrências Diárias
+  autoTable(doc, {
+    startY: 135,
+    margin: { left: 16 },
+    tableWidth: 460,
+    head: [
+      [
+        {
+          content: `OUTRAS OCORRÊNCIAS DIÁRIAS EM ${opDateStr}`,
+          colSpan: 7,
+          styles: {
+            fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b],
+            textColor: 255,
+            fontStyle: "bold",
+            halign: "center",
+          },
+        },
+      ],
+      ["MUNICÍPIO", "SALVAMENTO", "ACIDENTES", "APH", "AÇÃO DE PREVENÇÃO", "SERVIÇOS TÉCNICOS", "TOTAL"],
+    ],
+    body: [
+      ...outrasBody,
+      ["TOTAL", totSalv, totAcid, totAph, totPrev, totServ, grandOutras],
+    ],
+    styles: { fontSize: 5.5, cellPadding: 1, lineColor: BORDER_COLOR, lineWidth: 0.25 },
+    headStyles: {
+      fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b],
+      textColor: 255,
+      fontStyle: "bold",
+      fontSize: 5.5,
+      halign: "center",
+    },
+    columnStyles: {
+      0: { fontStyle: "bold", cellWidth: 100 },
+      1: { halign: "center" },
+      2: { halign: "center" },
+      3: { halign: "center" },
+      4: { halign: "center" },
+      5: { halign: "center" },
+      6: { halign: "center", fontStyle: "bold" },
+    },
+  });
+
+  // Resumo Regional de Outras Ocorrências (Direita)
+  const manausOutras = outrasList.find((r) => r.mun?.toLowerCase() === "manaus");
+  const interiorOutras = outrasList.filter((r) => r.mun?.toLowerCase() !== "manaus");
+
+  const capSalv = num(manausOutras?.salvamento);
+  const capAcid = num(manausOutras?.acidentes);
+  const capAph = num(manausOutras?.aph);
+  const capPrev = num(manausOutras?.prevencao);
+  const capServ = num(manausOutras?.servicos);
+  const capTot = capSalv + capAcid + capAph + capPrev + capServ;
+
+  const intSalv = interiorOutras.reduce((s, r) => s + num(r.salvamento), 0);
+  const intAcid = interiorOutras.reduce((s, r) => s + num(r.acidentes), 0);
+  const intAph = interiorOutras.reduce((s, r) => s + num(r.aph), 0);
+  const intPrev = interiorOutras.reduce((s, r) => s + num(r.prevencao), 0);
+  const intServ = interiorOutras.reduce((s, r) => s + num(r.servicos), 0);
+  const intTot = intSalv + intAcid + intAph + intPrev + intServ;
+
+  autoTable(doc, {
+    startY: 135,
+    margin: { left: 486 },
+    tableWidth: 339,
+    head: [
+      [
+        {
+          content: `RESUMO DE OUTRAS OCORRÊNCIAS EM ${opDateStr}`,
+          colSpan: 7,
+          styles: {
+            fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b],
+            textColor: 255,
+            fontStyle: "bold",
+            halign: "center",
+          },
+        },
+      ],
+      ["REGIÃO / TIPO", "SALV.", "ACID.", "APH", "PREV.", "SERV.", "TOTAL"],
+    ],
+    body: [
+      ["CAPITAL", capSalv, capAcid, capAph, capPrev, capServ, capTot],
+      ["INTERIOR", intSalv, intAcid, intAph, intPrev, intServ, intTot],
+      ["TOTAL", totSalv, totAcid, totAph, totPrev, totServ, grandOutras],
+    ],
+    styles: { fontSize: 6.5, cellPadding: 2, lineColor: BORDER_COLOR, lineWidth: 0.3 },
+    headStyles: {
+      fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b],
+      textColor: 255,
+      fontStyle: "bold",
+      fontSize: 6,
+      halign: "center",
+    },
+    columnStyles: {
+      0: { fontStyle: "bold" },
+      1: { halign: "center" },
+      2: { halign: "center" },
+      3: { halign: "center" },
+      4: { halign: "center" },
+      5: { halign: "center" },
+      6: { halign: "center", fontStyle: "bold" },
+    },
+  });
+
+  // Card Total Geral de Atendimentos Diários
+  const totalGeralDia = totDiarioOcorrencias + grandOutras;
+  autoTable(doc, {
+    startY: 235,
+    margin: { left: 486 },
+    tableWidth: 339,
+    head: [
+      [
+        {
+          content: "CONSOLIDADO GERAL DE ATENDIMENTOS DO DIA",
+          colSpan: 3,
+          styles: {
+            fillColor: [BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b],
+            textColor: 255,
+            fontStyle: "bold",
+            halign: "center",
+          },
+        },
+      ],
+      ["INCÊNDIOS COMBATIDOS", "ATENDIMENTOS DIVERSOS", "TOTAL GERAL NO ESTADO"],
+    ],
+    body: [
+      [
+        `${totDiarioOcorrencias} ocorrências`,
+        `${grandOutras} atendimentos`,
+        `${totalGeralDia} atendimentos CBMAM`,
+      ],
+    ],
+    styles: { fontSize: 7, cellPadding: 3, lineColor: BORDER_COLOR, lineWidth: 0.3 },
+    headStyles: {
+      fillColor: [BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b],
+      textColor: 255,
+      fontStyle: "bold",
+      fontSize: 6.5,
+      halign: "center",
+    },
+    columnStyles: {
+      0: { halign: "center" },
+      1: { halign: "center" },
+      2: { halign: "center", fontStyle: "bold" },
+    },
+  });
+
+  // BLOCO DE ASSINATURAS (Página 3 - Base)
+  const sigY = 500;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(0, 0, 0);
+
+  // Linhas das assinaturas
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.6);
+  doc.line(pageW / 2 - 280, sigY - 14, pageW / 2 - 40, sigY - 14);
+  doc.line(pageW / 2 + 40, sigY - 14, pageW / 2 + 280, sigY - 14);
 
   // Assinatura 1: Coordenador da Operação
   doc.text("CEL QOBM CRISTIANO BRAZ FERREIRA", pageW / 2 - 160, sigY, { align: "center" });
@@ -536,7 +706,115 @@ export function buildSheetsPdfDoc(
   doc.setFontSize(7.5);
   doc.text("Subcomandante-Geral do CBMAM", pageW / 2 + 160, sigY + 10, { align: "center" });
 
-  drawPageFooter(3);
+  // ====================================================
+  // PÁGINA 4+: OCORRÊNCIAS DETALHADAS DE INCÊNDIO (CAD)
+  // ====================================================
+  const { rows: filteredOccs } = filterOccurrencesByDate(data.occurrences ?? [], reportDate);
+  const occsToRender = filteredOccs.length > 0 ? filteredOccs : (data.occurrences ?? []);
+
+  if (occsToRender.length > 0) {
+    doc.addPage();
+    const cadPageNum = (doc as any).internal.getNumberOfPages();
+    drawPageHeader(cadPageNum);
+
+    const occsBody = occsToRender.map((occ) => [
+      occ.data || opDateStr,
+      (occ.municipio || "Manaus").toUpperCase(),
+      occ.horario || "—",
+      occ.natureza || "Incêndio Florestal",
+      occ.endereco || "Não Informado",
+      occ.focos || 0,
+      occ.area ? NF.format(occ.area) : "0",
+      occ.agua ? NF.format(occ.agua) : "0",
+      occ.unidade || occ.equipes || "—",
+    ]);
+
+    const cadTotFocos = occsToRender.reduce((s, r) => s + num(r.focos), 0);
+    const cadTotArea = occsToRender.reduce((s, r) => s + num(r.area), 0);
+    const cadTotAgua = occsToRender.reduce((s, r) => s + num(r.agua), 0);
+
+    autoTable(doc, {
+      startY: 65,
+      margin: { left: 16 },
+      tableWidth: 809,
+      head: [
+        [
+          {
+            content: `OCORRÊNCIAS DETALHADAS DE INCÊNDIO (CAD) — REGISTRO OPERACIONAL ${opDateStr}`,
+            colSpan: 9,
+            styles: {
+              fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b],
+              textColor: 255,
+              fontStyle: "bold",
+              halign: "center",
+            },
+          },
+        ],
+        [
+          "DATA",
+          "MUNICÍPIO",
+          "HORÁRIO",
+          "NATUREZA",
+          "ENDEREÇO",
+          "FOCOS",
+          "ÁREA (M²)",
+          "ÁGUA (L)",
+          "UNIDADE / VIATURA",
+        ],
+      ],
+      body: [
+        ...occsBody,
+        [
+          "TOTAL",
+          "",
+          "",
+          `${occsToRender.length} registro(s)`,
+          "",
+          cadTotFocos,
+          NF.format(cadTotArea),
+          NF.format(cadTotAgua),
+          "",
+        ],
+      ],
+      styles: { fontSize: 6.5, cellPadding: 2, lineColor: BORDER_COLOR, lineWidth: 0.25 },
+      headStyles: {
+        fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b],
+        textColor: 255,
+        fontStyle: "bold",
+        fontSize: 6.5,
+        halign: "center",
+      },
+      columnStyles: {
+        0: { cellWidth: 55, halign: "center" },
+        1: { cellWidth: 85, fontStyle: "bold" },
+        2: { cellWidth: 45, halign: "center" },
+        3: { cellWidth: 140 },
+        4: { cellWidth: 200 },
+        5: { cellWidth: 45, halign: "center", fontStyle: "bold" },
+        6: { cellWidth: 65, halign: "right" },
+        7: { cellWidth: 55, halign: "right" },
+        8: { cellWidth: 119 },
+      },
+      didDrawPage: (hookData) => {
+        if (hookData.pageNumber > 3) {
+          drawPageHeader(hookData.pageNumber);
+        }
+      },
+    });
+  }
+
+  // ----------------------------------------------------
+  // NUMERAÇÃO DINÂMICA DE TODAS AS PÁGINAS (Página X de Y)
+  // ----------------------------------------------------
+  const totalPages = (doc as any).internal.getNumberOfPages();
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Documento oficial — uso restrito`, 20, pageH - 12);
+    doc.text(`Página ${p} de ${totalPages}`, pageW - 20, pageH - 12, { align: "right" });
+  }
 
   return doc;
 }

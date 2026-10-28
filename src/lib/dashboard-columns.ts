@@ -2,7 +2,11 @@ import type { Column } from "@/components/dashboard/DataTable";
 export type { Column };
 
 export type EditableSection =
-  "efetivo" | "recursos" | "incendios_diario" | "incendios_acumulado";
+  | "efetivo"
+  | "recursos"
+  | "incendios_diario"
+  | "incendios_acumulado"
+  | "outras_diarias";
 
 export const DEFAULT_EFETIVO_COLUMNS: Column[] = [
   { key: "mun", label: "Município", editable: true },
@@ -103,6 +107,15 @@ export const DASHBOARD_COLUMNS = {
     { key: "focos", label: "Focos", numeric: true, editable: true },
     { key: "area", label: "Área (m²)", numeric: true, editable: true },
     { key: "agua", label: "Água (L)", numeric: true, editable: true },
+  ],
+  outras_diarias: [
+    { key: "mun", label: "Município", editable: true },
+    { key: "salvamento", label: "Salvamento", numeric: true, editable: true },
+    { key: "acidentes", label: "Acidentes", numeric: true, editable: true },
+    { key: "aph", label: "APH", numeric: true, editable: true },
+    { key: "prevencao", label: "Prevenção", numeric: true, editable: true },
+    { key: "servicos", label: "Serviços Técnicos", numeric: true, editable: true },
+    { key: "total", label: "Total", numeric: true, editable: false },
   ],
 } as const satisfies Record<string, Column[]>;
 
