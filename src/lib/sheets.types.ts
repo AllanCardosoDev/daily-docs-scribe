@@ -14,10 +14,11 @@ export interface SheetsHeader {
 
 export interface EfetivoRow {
   mun: string;
-  ord: number;
-  seg: number;
-  brig: number;
+  ord?: number;
+  seg?: number;
+  brig?: number;
   // Campos expandidos do XLSX oficial (operação Amazonas + Verde)
+  cbmam?: number;
   servico?: number;
   opamv?: number;
   opam_ref?: number;
@@ -27,8 +28,12 @@ export interface EfetivoRow {
   cbmsp?: number;
   prevfogo?: number;
   fn?: number;
+  marinha?: number;
+  sec?: number;
   brig_mun?: number;
   brig_semas?: number;
+  total?: number;
+  [k: string]: any;
 }
 export interface RecursosRow {
   mun: string;
@@ -91,6 +96,11 @@ export interface SheetsData {
   isRange?: boolean;
   startDate?: string;
   endDate?: string;
+  custom_columns?: {
+    efetivo?: Array<{ key: string; label: string; numeric?: boolean; editable?: boolean }>;
+    recursos?: Array<{ key: string; label: string; numeric?: boolean; editable?: boolean }>;
+    [key: string]: any;
+  };
 }
 
 export const EMPTY_SHEETS_DATA: SheetsData = {

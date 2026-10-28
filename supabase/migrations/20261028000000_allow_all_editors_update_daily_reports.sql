@@ -12,3 +12,4 @@ WITH CHECK (
   public.has_role(auth.uid(), 'admin'::public.app_role)
   OR public.has_role(auth.uid(), 'editor'::public.app_role)
 );
+

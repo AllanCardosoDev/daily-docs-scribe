@@ -723,6 +723,7 @@ export async function loadReportByDate(
       : acum,
     outras_diarias: finalOutrasDiarias,
     occurrences: dayOccurrences,
+    custom_columns: notesEnv.custom_columns ?? undefined,
   };
 
   return { data, found: isFound || dayOccurrences.length > 0 || !!donor };

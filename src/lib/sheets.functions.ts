@@ -238,6 +238,7 @@ const SavePayloadSchema = z.object({
       incendios_acumulado: z.array(IncAcumRowSchema).max(500).optional(),
       outras_diarias: z.array(OutrasRowSchema).max(500).optional(),
       occurrences: z.array(OccurrenceRowSchema).max(5000).optional(),
+      custom_columns: z.record(z.any()).optional(),
     })
     .refine((p) => Object.keys(p).length > 0, "Nada para salvar."),
 });
@@ -334,7 +335,7 @@ export const saveSheetsData = createServerFn({ method: "POST" })
       }
     }
 
-    if (patch.header || patch.occurrences || patch.incendios_acumulado) {
+    if (patch.header || patch.occurrences || patch.incendios_acumulado || patch.custom_columns) {
       let existingNotes: Record<string, any> = {};
       if (existing?.notes) {
         try {
@@ -354,6 +355,14 @@ export const saveSheetsData = createServerFn({ method: "POST" })
         ...(patch.header ? { header: patch.header } : {}),
         ...(patch.occurrences ? { occurrences: patch.occurrences } : {}),
         ...(patch.incendios_acumulado ? { incendios_acumulado: patch.incendios_acumulado } : {}),
+        ...(patch.custom_columns
+          ? {
+              custom_columns: {
+                ...(existingNotes.custom_columns || {}),
+                ...patch.custom_columns,
+              },
+            }
+          : {}),
       });
     }
 

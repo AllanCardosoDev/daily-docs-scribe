@@ -1,4 +1,5 @@
 import { manausFirstSheets, canonicalMunicipio } from "./municipio-order";
+import { resolveEfetivoColumns, calculateRowTotal } from "./dashboard-columns";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { SheetsData } from "./sheets.types";
@@ -239,19 +240,58 @@ export function buildSheetsPdfDoc(
   });
 
   // Tabela Resumo Efetivo
+  const activeEfetivoCols = resolveEfetivoColumns(efetivoList, data.custom_columns?.efetivo);
+  const otherKeys = activeEfetivoCols.filter(
+    (c) =>
+      c.numeric &&
+      c.key !== "mun" &&
+      c.key !== "total" &&
+      c.key !== "ord" &&
+      c.key !== "cbmam" &&
+      c.key !== "servico" &&
+      c.key !== "seg" &&
+      c.key !== "brig" &&
+      c.key !== "brig_mun" &&
+      c.key !== "brig_semas",
+  );
+
+  const extraMissionRows: Array<[string, number, number, number]> = [];
+  let otherCapTotal = 0;
+  let otherIntTotal = 0;
+
+  for (const c of otherKeys) {
+    const cap = num((manausEf as any)[c.key]);
+    const int = allInteriorEf.reduce((s, r) => s + num((r as any)[c.key]), 0);
+    const tot = cap + int;
+    if (tot > 0) {
+      extraMissionRows.push([c.label, cap, int, tot]);
+      otherCapTotal += cap;
+      otherIntTotal += int;
+    }
+  }
+
+  const grandCap = capitalOrd + capitalSeg + capitalBrig + otherCapTotal;
+  const grandInt = interiorOrd + interiorSeg + interiorBrig + otherIntTotal;
+
+  const resumoBody = [
+    ["SV ORD / CBMAM", capitalOrd, interiorOrd, capitalOrd + interiorOrd],
+    ["SEG", capitalSeg, interiorSeg, capitalSeg + interiorSeg],
+    ["BRIGADISTA", capitalBrig, interiorBrig, capitalBrig + interiorBrig],
+    ...extraMissionRows,
+    ["TOTAL", grandCap, grandInt, grandCap + grandInt],
+  ];
+
+  const resumoPad = resumoBody.length > 5 ? 1.5 : 2.5;
+  const resumoFont = resumoBody.length > 5 ? 6 : 7;
+
   autoTable(doc, {
     startY: 65,
     margin: { left: 562 },
     tableWidth: 260,
     head: [["MISSÃO", "CAPITAL", "INTERIOR", "TOTAL"]],
-    body: [
-      ["SV ORD", capitalOrd, interiorOrd, capitalOrd + interiorOrd],
-      ["SEG", capitalSeg, interiorSeg, capitalSeg + interiorSeg],
-      ["BRIGADISTA", capitalBrig, interiorBrig, capitalBrig + interiorBrig],
-      ["TOTAL", capitalOrd + capitalSeg + capitalBrig, interiorOrd + interiorSeg + interiorBrig, capitalOrd + capitalSeg + capitalBrig + interiorOrd + interiorSeg + interiorBrig],
-    ],
-    styles: { fontSize: 7, cellPadding: 2.5, lineColor: BORDER_COLOR, lineWidth: 0.3 },
-    headStyles: { fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b], textColor: 255, fontStyle: "bold", fontSize: 7, halign: "center" },
+    body: resumoBody,
+    styles: { fontSize: resumoFont, cellPadding: resumoPad, lineColor: BORDER_COLOR, lineWidth: 0.3 },
+    headStyles: { fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b], textColor: 255, fontStyle: "bold", fontSize: resumoFont, halign: "center" },
     columnStyles: { 0: { fontStyle: "bold" }, 1: { halign: "center" }, 2: { halign: "center" }, 3: { halign: "center", fontStyle: "bold" } },
   });
 
@@ -353,10 +393,89 @@ export function buildSheetsPdfDoc(
   drawPageFooter(1);
 
   // ====================================================
-  // PÁGINA 2: INCÊNDIOS DIÁRIOS & ACUMULADOS
+  // PÁGINA 2: EFETIVO OPERACIONAL — DISTRIBUIÇÃO COMPLETA
   // ====================================================
   doc.addPage();
-  drawPageHeader(2);
+  const pEfetivoDet = (doc as any).internal.getNumberOfPages();
+  drawPageHeader(pEfetivoDet);
+
+  const fullEfetivoCols = resolveEfetivoColumns(efetivoList, data.custom_columns?.efetivo);
+  const activeDataCols = fullEfetivoCols.filter((c) => c.key !== "mun" && c.key !== "total");
+
+  const fullEfetivoHead = [
+    [
+      {
+        content: `DISTRIBUIÇÃO DETALHADA DO EFETIVO OPERACIONAL EM ${opDateStr}`,
+        colSpan: activeDataCols.length + 2,
+        styles: {
+          fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b] as [number, number, number],
+          textColor: 255,
+          fontStyle: "bold" as const,
+          halign: "center" as const,
+        },
+      },
+    ],
+    ["MUNICÍPIO", ...activeDataCols.map((c) => c.label), "TOTAL"],
+  ];
+
+  const fullEfetivoBody = efetivoList.map((r) => {
+    const rowVals = activeDataCols.map((c) => (num(r[c.key]) ? num(r[c.key]) : ""));
+    const rowTot = calculateRowTotal(r, fullEfetivoCols);
+    return [r.mun, ...rowVals, rowTot || ""];
+  });
+
+  const colTotals = activeDataCols.map((c) =>
+    efetivoList.reduce((s, r) => s + num(r[c.key]), 0),
+  );
+  const grandTotalEfetivo = efetivoList.reduce(
+    (s, r) => s + calculateRowTotal(r, fullEfetivoCols),
+    0,
+  );
+
+  const colCount = activeDataCols.length + 2;
+  const efFontSize = colCount <= 12 ? 6.5 : colCount <= 18 ? 5.6 : 5.0;
+  const efPadding = colCount <= 14 ? 1.5 : 1.0;
+
+  autoTable(doc, {
+    startY: 65,
+    margin: { left: 16 },
+    tableWidth: 809,
+    head: fullEfetivoHead,
+    body: [
+      ...fullEfetivoBody,
+      ["TOTAL GERAL", ...colTotals.map((v) => v || "0"), grandTotalEfetivo || "0"],
+    ],
+    styles: {
+      fontSize: efFontSize,
+      cellPadding: efPadding,
+      lineColor: BORDER_COLOR,
+      lineWidth: 0.25,
+    },
+    headStyles: {
+      fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b],
+      textColor: 255,
+      fontStyle: "bold",
+      fontSize: efFontSize,
+      halign: "center",
+    },
+    columnStyles: {
+      0: { cellWidth: 85, fontStyle: "bold" },
+      ...Object.fromEntries(activeDataCols.map((_, i) => [i + 1, { halign: "center" }])),
+      [activeDataCols.length + 1]: { halign: "center", fontStyle: "bold" },
+    },
+    didDrawPage: (hookData) => {
+      drawPageHeader(hookData.pageNumber);
+    },
+  });
+
+  drawPageFooter(pEfetivoDet);
+
+  // ====================================================
+  // PÁGINA 3: INCÊNDIOS DIÁRIOS & ACUMULADOS
+  // ====================================================
+  doc.addPage();
+  const pIncendios = (doc as any).internal.getNumberOfPages();
+  drawPageHeader(pIncendios);
 
   const incDiarios = data.incendios_diario ?? [];
   const incAcumulados = data.incendios_acumulado ?? [];
@@ -427,13 +546,14 @@ export function buildSheetsPdfDoc(
     columnStyles: { 0: { cellWidth: 20, halign: "center" }, 1: { fontStyle: "bold", cellWidth: 100 }, 2: { halign: "center" }, 3: { halign: "center" }, 4: { halign: "center" }, 5: { halign: "center" }, 6: { halign: "center" }, 7: { halign: "center", fontStyle: "bold" } },
   });
 
-  drawPageFooter(2);
+  drawPageFooter(pIncendios);
 
   // ====================================================
-  // PÁGINA 3: RESUMOS, OUTRAS OCORRÊNCIAS & ASSINATURAS
+  // PÁGINA 4: RESUMOS, OUTRAS OCORRÊNCIAS & ASSINATURAS
   // ====================================================
   doc.addPage();
-  drawPageHeader(3);
+  const pResumos = (doc as any).internal.getNumberOfPages();
+  drawPageHeader(pResumos);
 
   // 1. INCÊNDIOS - RESUMO DO DIA (Topo Esquerda)
   const manausIncDiario = incDiarios.find((r) => r.mun?.toLowerCase() === "manaus");
@@ -796,7 +916,7 @@ export function buildSheetsPdfDoc(
         8: { cellWidth: 119 },
       },
       didDrawPage: (hookData) => {
-        if (hookData.pageNumber > 3) {
+        if (hookData.pageNumber > cadPageNum) {
           drawPageHeader(hookData.pageNumber);
         }
       },

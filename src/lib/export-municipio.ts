@@ -61,7 +61,7 @@ export function exportMunicipioToPdf(data: SheetsData, municipioName: string, re
     autoTable(doc, {
       startY: finalY + 10,
       head: [["Ord. Público", "Seg. Presidencial", "Brigadistas", "Total"]],
-      body: munData.efetivo.map(r => [r.ord, r.seg, r.brig, Number(r.ord) + Number(r.seg) + Number(r.brig)]),
+      body: munData.efetivo.map(r => [r.ord ?? 0, r.seg ?? 0, r.brig ?? 0, Number(r.ord ?? 0) + Number(r.seg ?? 0) + Number(r.brig ?? 0)]),
       theme: "striped",
       headStyles: { fillColor: [16, 78, 46] }
     });

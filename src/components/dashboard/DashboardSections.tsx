@@ -1,7 +1,7 @@
 import { memo, useMemo, useState, type ReactNode } from "react";
 import { DataTable } from "@/components/dashboard/DataTable";
 import { OccurrenceDetailDialog } from "@/components/dashboard/OccurrenceDetailDialog";
-import { DASHBOARD_COLUMNS, OCCURRENCES_PREVIEW_LIMIT } from "@/lib/dashboard-columns";
+import { DASHBOARD_COLUMNS, OCCURRENCES_PREVIEW_LIMIT, resolveEfetivoColumns } from "@/lib/dashboard-columns";
 import type { OccurrenceRow, SheetsData } from "@/lib/sheets.types";
 import type { SectionSavers } from "@/hooks/use-sheets";
 import { manausFirstSheets } from "@/lib/municipio-order";
@@ -74,6 +74,10 @@ export const DashboardSections = memo(function DashboardSections({
     );
   }, [data.incendios_diario]);
 
+  const efetivoColumns = useMemo(() => {
+    return resolveEfetivoColumns(data.efetivo, data.custom_columns?.efetivo);
+  }, [data.efetivo, data.custom_columns?.efetivo]);
+
   return (
     <div className="space-y-6 sm:space-y-8">
       <section className="space-y-3">
@@ -105,7 +109,8 @@ export const DashboardSections = memo(function DashboardSections({
           badgeText="41 municípios"
           editable={canEdit}
           onRowsChange={savers.efetivo}
-          columns={DASHBOARD_COLUMNS.efetivo}
+          onColumnsChange={(cols) => savers.custom_columns({ efetivo: cols })}
+          columns={efetivoColumns}
           rows={data.efetivo}
           emptyMessage="Buscando dados de Efetivo (Itapiranga)..."
         />

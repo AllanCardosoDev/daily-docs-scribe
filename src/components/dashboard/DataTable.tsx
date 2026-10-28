@@ -10,12 +10,13 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, Eye, SlidersHorizontal } from "lucide-react";
+import { AlertCircle, Eye, SlidersHorizontal, Trash2 } from "lucide-react";
 import { NF } from "@/lib/formatters";
 import { useAutosave } from "@/hooks/use-autosave";
 import { SaveStatusBadge } from "./SaveStatusBadge";
 import { EfetivoColumnsDialog } from "./EfetivoColumnsDialog";
-import { saveStoredEfetivoColumns } from "@/lib/dashboard-columns";
+import { calculateRowTotal, saveStoredEfetivoColumns } from "@/lib/dashboard-columns";
+import { toast } from "sonner";
 
 export interface Column {
   key: string;
@@ -142,6 +143,9 @@ export const DataTable = memo(function DataTable({
 
   const handleColumnsSaved = useCallback(
     (newCols: Column[]) => {
+      const newKeySet = new Set(newCols.map((c) => c.key));
+      const removedKeys = activeColumns.filter((c) => !newKeySet.has(c.key)).map((c) => c.key);
+
       setActiveColumns(newCols);
       if (onColumnsChange) onColumnsChange(newCols);
       if (isEfetivoTable) saveStoredEfetivoColumns(newCols);
@@ -149,6 +153,9 @@ export const DataTable = memo(function DataTable({
       setLocal((prev) => {
         const next = prev.map((r) => {
           const copy = { ...r };
+          for (const k of removedKeys) {
+            delete copy[k];
+          }
           for (const c of newCols) {
             if (c.numeric && copy[c.key] === undefined) {
               copy[c.key] = 0;
@@ -160,7 +167,39 @@ export const DataTable = memo(function DataTable({
         return next;
       });
     },
-    [isEfetivoTable, onColumnsChange, onRowsChange, scheduleSave],
+    [activeColumns, isEfetivoTable, onColumnsChange, onRowsChange, scheduleSave],
+  );
+
+  const handleDeleteColumn = useCallback(
+    (col: Column) => {
+      if (col.key === "mun" || col.key === "total") {
+        toast.error(`A coluna "${col.label}" é obrigatória e não pode ser removida.`);
+        return;
+      }
+
+      const confirmed = window.confirm(
+        `Deseja realmente remover a coluna "${col.label}"?\nTodos os dados preenchidos nesta coluna serão apagados do relatório.`,
+      );
+      if (!confirmed) return;
+
+      const newCols = activeColumns.filter((c) => c.key !== col.key);
+      setActiveColumns(newCols);
+      if (onColumnsChange) onColumnsChange(newCols);
+      if (isEfetivoTable) saveStoredEfetivoColumns(newCols);
+
+      setLocal((prev) => {
+        const next = prev.map((r) => {
+          const copy = { ...r };
+          delete copy[col.key];
+          return copy;
+        });
+        if (onRowsChange) scheduleSave(next);
+        return next;
+      });
+
+      toast.success(`Coluna "${col.label}" excluída com sucesso.`);
+    },
+    [activeColumns, isEfetivoTable, onColumnsChange, onRowsChange, scheduleSave],
   );
 
   return (
@@ -203,17 +242,34 @@ export const DataTable = memo(function DataTable({
               <TableRow className="bg-muted/40 hover:bg-muted/40">
                 {activeColumns.map((c, idx) => {
                   const widthCls = getColumnWidthCls(c, idx === 0);
+                  const isProtected = c.key === "mun" || c.key === "total";
+                  const canDelete = editable && canManage && !isProtected;
+
                   return (
                     <TableHead
                       key={c.key}
                       className={`whitespace-nowrap text-[11px] uppercase tracking-wide font-bold text-foreground p-1 ${widthCls}`}
                     >
                       <div
-                        className={`h-9 w-full flex items-center px-3 ${
+                        className={`group/th relative h-9 w-full flex items-center px-2 ${
                           c.numeric ? "justify-center text-center" : "justify-start"
                         }`}
                       >
-                        {c.label}
+                        <span className="truncate">{c.label}</span>
+                        {canDelete && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteColumn(c);
+                            }}
+                            title={`Excluir coluna "${c.label}"`}
+                            className="opacity-0 group-hover/th:opacity-100 focus:opacity-100 ml-1.5 p-1 rounded-sm text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-all cursor-pointer shrink-0"
+                            aria-label={`Excluir coluna ${c.label}`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     </TableHead>
                   );
@@ -236,13 +292,7 @@ export const DataTable = memo(function DataTable({
                     const rowWithTotal = { ...row };
                     const totalCol = activeColumns.find((c) => c.key === "total" && !c.editable);
                     if (totalCol) {
-                      const numericKeys = activeColumns.filter((c) => c.numeric && c.key !== "total" && c.key !== "total_periodo" && c.key !== "focos").map((c) => c.key);
-                      const isEfetivo = numericKeys.includes("cbmam") || numericKeys.includes("servico") || numericKeys.includes("opamv") || numericKeys.includes("ord");
-                      if (isEfetivo) {
-                        rowWithTotal.total = (Number(row.cbmam) || Number(row.servico) || Number(row.ord) || 0) + (Number(row.opamv) || 0) + (Number(row.opam_ref) || 0) + (Number(row.inc1) || 0) + (Number(row.inc2) || 0) + (Number(row.inc3) || 0) + (Number(row.cbmsp) || 0) + (Number(row.prevfogo) || 0) + (Number(row.fn) || 0) + (Number(row.seg) || 0) + (Number(row.marinha) || 0) + (Number(row.brig_mun) || Number(row.brig) || 0) + (Number(row.brig_semas) || 0);
-                      } else {
-                        rowWithTotal.total = numericKeys.reduce((sum, k) => sum + (Number(row[k]) || 0), 0);
-                      }
+                      rowWithTotal.total = calculateRowTotal(row, activeColumns);
                     }
 
                     return (
@@ -302,12 +352,7 @@ export const DataTable = memo(function DataTable({
                       if (c.numeric) {
                         const sum = local.reduce((acc, row) => {
                           if (c.key === "total") {
-                            const numericKeys = activeColumns.filter((col) => col.numeric && col.key !== "total" && col.key !== "total_periodo" && col.key !== "focos").map((col) => col.key);
-                            const isEfetivo = numericKeys.includes("cbmam") || numericKeys.includes("servico") || numericKeys.includes("opamv") || numericKeys.includes("ord");
-                            if (isEfetivo) {
-                              return acc + (Number(row.cbmam) || Number(row.servico) || Number(row.ord) || 0) + (Number(row.opamv) || 0) + (Number(row.opam_ref) || 0) + (Number(row.inc1) || 0) + (Number(row.inc2) || 0) + (Number(row.inc3) || 0) + (Number(row.cbmsp) || 0) + (Number(row.prevfogo) || 0) + (Number(row.fn) || 0) + (Number(row.seg) || 0) + (Number(row.marinha) || 0) + (Number(row.brig_mun) || Number(row.brig) || 0) + (Number(row.brig_semas) || 0);
-                            }
-                            return acc + numericKeys.reduce((s, k) => s + (Number(row[k]) || 0), 0);
+                            return acc + calculateRowTotal(row, activeColumns);
                           }
                           return acc + (Number(row[c.key]) || 0);
                         }, 0);

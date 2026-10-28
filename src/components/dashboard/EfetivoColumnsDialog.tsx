@@ -96,8 +96,13 @@ export function EfetivoColumnsDialog({
       toast.error(`A coluna "${col.label}" é obrigatória e não pode ser removida.`);
       return;
     }
+    const confirmed = window.confirm(
+      `Deseja realmente excluir a coluna "${col.label}"?\nAo salvar, os valores desta coluna serão removidos dos relatórios.`,
+    );
+    if (!confirmed) return;
+
     setList((prev) => prev.filter((_, i) => i !== index));
-    toast.info(`Coluna "${col.label}" removida.`);
+    toast.info(`Coluna "${col.label}" marcada para exclusão. Clique em 'Salvar Colunas' para aplicar.`);
   }
 
   function handleMove(index: number, direction: "up" | "down") {
