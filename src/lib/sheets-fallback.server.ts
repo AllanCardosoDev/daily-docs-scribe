@@ -69,7 +69,7 @@ function normaliseRecursos(
 }
 
 import { compareMunicipios, canonicalMunicipio, harmonizeMunicipalitySections } from "./municipio-order";
-import { isFlorestalAmbiental } from "./fire-classification";
+import { isFlorestalAmbiental, isIncendio } from "./fire-classification";
 
 export const OFFICIAL_CUMULATIVE_04_08_2026 = [
   { mun: "Manaus", urb: 267, flor: 178, focos: 338, sat: 5, area: 37546 },
@@ -558,33 +558,72 @@ export async function loadReportByDate(
     }
   }
 
-  // Se os incêndios diários estão zerados mas existem ocorrências de incêndio catalogadas no banco para o dia,
-  // sintetizamos os dados municipais a partir das ocorrências oficiais de incêndio:
+  // Sempre que há ocorrências do CAD para a data, sintetizamos e harmonizamos
+  // as contagens municipais de incêndio a partir das ocorrências oficiais:
+  // - Naturezas ambientais (vegetação, florestal, lixo/entulho, lavoura/pastagem/mata) -> Incêndio Florestal (flor)
+  // - Demais incêndios (residência, comércio, rede elétrica, veículo) -> Incêndio Urbano (urb)
+  // - Não-incêndios (salvamento, acidentes, APH, etc.) -> Outras Ocorrências
   const incTotal = incendiosConsolidados.reduce(
     (sum, r) => sum + (r.urb || 0) + (r.flor || 0) + (r.total_periodo || 0),
     0,
   );
   let finalIncendiosDiario = incendiosConsolidados;
-  if (incTotal === 0 && dayOccurrences.length > 0) {
+  let finalOutrasDiarias = outrasConsolidadas;
+
+  if (dayOccurrences.length > 0) {
     const munMap = new Map<string, { urb: number; flor: number; focos: number; total_periodo: number }>();
+    const outrasMap = new Map<string, { salvamento: number; acidentes: number; aph: number; prevencao: number; servicos: number; total_periodo: number }>();
+
     for (const occ of dayOccurrences) {
       const mun = canonicalMunicipio(occ.municipio);
       if (!mun || mun === "—") continue;
-      const cur = munMap.get(mun) ?? { urb: 0, flor: 0, focos: 0, total_periodo: 0 };
+
       const isFlor = isFlorestalAmbiental(occ.natureza);
+      const isInc = isIncendio(occ.natureza);
+
       if (isFlor) {
+        const cur = munMap.get(mun) ?? { urb: 0, flor: 0, focos: 0, total_periodo: 0 };
         cur.flor += 1;
-      } else {
+        cur.focos += Math.max(1, Number(occ.focos) || 1);
+        cur.total_periodo += 1;
+        munMap.set(mun, cur);
+      } else if (isInc) {
+        const cur = munMap.get(mun) ?? { urb: 0, flor: 0, focos: 0, total_periodo: 0 };
         cur.urb += 1;
+        cur.focos += Math.max(1, Number(occ.focos) || 1);
+        cur.total_periodo += 1;
+        munMap.set(mun, cur);
+      } else {
+        const curO = outrasMap.get(mun) ?? { salvamento: 0, acidentes: 0, aph: 0, prevencao: 0, servicos: 0, total_periodo: 0 };
+        const natNorm = String(occ.natureza || "").toLowerCase();
+        if (natNorm.includes("samu") || natNorm.includes("aph") || natNorm.includes("hospitalar") || natNorm.includes("socorro")) {
+          curO.aph += 1;
+        } else if (natNorm.includes("salvamento") || natNorm.includes("busca") || natNorm.includes("resgate") || natNorm.includes("animal")) {
+          curO.salvamento += 1;
+        } else if (natNorm.includes("acidente") || natNorm.includes("colis") || natNorm.includes("transito")) {
+          curO.acidentes += 1;
+        } else if (natNorm.includes("prevenc") || natNorm.includes("palestra") || natNorm.includes("vistoria")) {
+          curO.prevencao += 1;
+        } else {
+          curO.servicos += 1;
+        }
+        curO.total_periodo += 1;
+        outrasMap.set(mun, curO);
       }
-      cur.focos += Math.max(1, Number(occ.focos) || 1);
-      cur.total_periodo += 1;
-      munMap.set(mun, cur);
     }
+
     finalIncendiosDiario = ensureAllMunicipios(
       Array.from(munMap.entries()).map(([mun, vals]) => ({ mun, ...vals })),
       (mun) => ({ mun, urb: 0, flor: 0, focos: 0, total_periodo: 0 }),
     );
+
+    const outrasTotal = outrasConsolidadas.reduce((sum, r) => sum + (r.total_periodo || 0), 0);
+    if (outrasTotal === 0 && outrasMap.size > 0) {
+      finalOutrasDiarias = ensureAllMunicipios(
+        Array.from(outrasMap.entries()).map(([mun, vals]) => ({ mun, ...vals })),
+        (mun) => ({ mun, salvamento: 0, acidentes: 0, aph: 0, prevencao: 0, servicos: 0, total_periodo: 0 }),
+      );
+    }
   }
 
   const rawCoord = headerObj.coordSituacao ?? "CEL QOBM FERREIRA";
@@ -649,7 +688,7 @@ export async function loadReportByDate(
     incendios_acumulado: Array.isArray(notesEnv.incendios_acumulado) && notesEnv.incendios_acumulado.length > 0
       ? notesEnv.incendios_acumulado
       : acum,
-    outras_diarias: outrasConsolidadas,
+    outras_diarias: finalOutrasDiarias,
     occurrences: dayOccurrences,
   };
 
@@ -705,13 +744,16 @@ export async function loadReportRange(
       if (!mun || mun === "—") continue;
       const cur = munMap.get(mun) ?? { urb: 0, flor: 0, focos: 0, total_periodo: 0 };
       const isFlor = isFlorestalAmbiental(occ.natureza);
+      const isInc = isIncendio(occ.natureza);
       if (isFlor) {
         cur.flor += 1;
-      } else {
+        cur.focos += Math.max(1, Number(occ.focos) || 1);
+        cur.total_periodo += 1;
+      } else if (isInc) {
         cur.urb += 1;
+        cur.focos += Math.max(1, Number(occ.focos) || 1);
+        cur.total_periodo += 1;
       }
-      cur.focos += Math.max(1, Number(occ.focos) || 1);
-      cur.total_periodo += 1;
       munMap.set(mun, cur);
     }
     aggregatedInc = ensureAllMunicipios(
