@@ -51,6 +51,7 @@ export const Route = createFileRoute("/_authenticated/efetivo")({
 
 function EfetivoPage() {
   const [reportDate, setReportDate] = useState<Date | null>(new Date());
+  const [viewMode, setViewMode] = useState<"consolidado" | "diario">("consolidado");
   const [activeTab, setActiveTab] = useState<"todos" | "municipios" | "bases" | "resumo">("todos");
   const [copiedApi, setCopiedApi] = useState(false);
 
@@ -79,8 +80,8 @@ function EfetivoPage() {
 
   // Calcula o efetivo segregado por municípios, bases e resumo consolidado
   const efetivoCalculado = useMemo(() => {
-    return buildEfetivoMapasData(rawData);
-  }, [rawData]);
+    return buildEfetivoMapasData(rawData, viewMode);
+  }, [rawData, viewMode]);
 
   const handleExportXlsx = useCallback(() => {
     try {
@@ -232,6 +233,52 @@ function EfetivoPage() {
                     )}
                   </Button>
                 </div>
+              </div>
+            </div>
+
+            {/* SELETOR DE MODO: CONSOLIDADO (1.533) vs DIÁRIO */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-card border border-border/80 rounded-2xl p-3.5 sm:p-4 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                  Visualização:
+                </span>
+                <div className="inline-flex rounded-xl p-1 bg-muted/80 border border-border/60">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("consolidado")}
+                    className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-2 cursor-pointer ${
+                      viewMode === "consolidado"
+                        ? "bg-emerald-700 text-white shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Shield className="w-3.5 h-3.5" />
+                    <span>Total Consolidado da Operação (1.533)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("diario")}
+                    className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-2 cursor-pointer ${
+                      viewMode === "diario"
+                        ? "bg-emerald-700 text-white shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <CalendarIcon className="w-3.5 h-3.5" />
+                    <span>Efetivo do Dia ({reportDate ? fmtDateBR(reportDate) : "Data Selecionada"})</span>
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-xs">
+                {viewMode === "consolidado" ? (
+                  <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 font-semibold py-1">
+                    Matriz Oficial Consolidada · 1.533 Operacionais (26 Municípios + 9 Bases)
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/30 font-semibold py-1">
+                    Efetivo Diário da Sala de Situação ({reportDate ? fmtDateBR(reportDate) : "Hoje"})
+                  </Badge>
+                )}
               </div>
             </div>
 

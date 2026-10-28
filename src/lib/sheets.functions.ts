@@ -247,11 +247,8 @@ export const saveSheetsData = createServerFn({ method: "POST" })
   .middleware([requireBackendAuth])
   .inputValidator((raw: unknown) => SavePayloadSchema.parse(raw))
   .handler(async ({ data, context }): Promise<{ ok: true; version: number }> => {
+    // Todos os usuários autenticados têm permissão para editar os dados da Inserção e painel
     const roles = await readUserRoles(context.supabase, context.userId);
-    const allowed = roles.some((r) => r === "admin" || r === "editor");
-    if (!allowed) {
-      throw new Error("Sem permissão para editar. Peça ao administrador o papel de editor.");
-    }
 
     const iso = data.reportDate || new Date().toISOString().split("T")[0];
     let dbClient: any = context.supabase;
@@ -525,7 +522,7 @@ export const getAppConfig = createServerFn({ method: "GET" })
     return {
       apps_script_url: (cfg?.apps_script_url as string | null) ?? "",
       isAdmin: roles.includes("admin"),
-      isEditor: roles.includes("admin") || roles.includes("editor"),
+      isEditor: true, // Todos os usuários autenticados têm permissão para editar os dados da Inserção
     };
   });
 

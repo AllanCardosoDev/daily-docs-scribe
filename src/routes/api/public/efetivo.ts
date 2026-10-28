@@ -6,7 +6,7 @@ import {
 } from "@/lib/efetivo-mapas";
 import { EMPTY_SHEETS_DATA, type SheetsData } from "@/lib/sheets.types";
 import { createClient } from "@supabase/supabase-js";
-import { OWN_PROJECT_URL } from "@/integrations/backend/own-project";
+import { OWN_PROJECT_URL, OWN_PROJECT_PUBLISHABLE_KEY } from "@/integrations/backend/own-project";
 
 export const Route = createFileRoute("/api/public/efetivo")({
   server: {
@@ -40,7 +40,9 @@ async function handler({ request }: { request: Request }) {
       OWN_PROJECT_URL;
     const serviceKey =
       process.env.CUSTOM_SUPABASE_SERVICE_ROLE_KEY ??
-      process.env.SUPABASE_SERVICE_ROLE_KEY;
+      process.env.SUPABASE_SERVICE_ROLE_KEY ??
+      process.env.VITE_CUSTOM_SUPABASE_PUBLISHABLE_KEY ??
+      OWN_PROJECT_PUBLISHABLE_KEY;
 
     if (supabaseUrl && serviceKey) {
       const supabase = createClient(supabaseUrl, serviceKey, {

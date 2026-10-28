@@ -258,10 +258,7 @@ export const getDailyReport = createServerFn({ method: "GET" })
 
     const roles = new Set((rolesRes.data ?? []).map((r) => r.role));
     const isAdmin = roles.has("admin");
-    const isEditor = roles.has("editor");
-    const scheduled = (scheduledRes.data?.length ?? 0) > 0;
-    const canEdit =
-      isAdmin || (isEditor && (!row || (row as any).created_by === context.userId || scheduled));
+    const canEdit = true; // Usuários autenticados podem editar no módulo de Inserção
 
     const { getOccurrencesForDate } = await import("./occurrences-store.server");
     const occurrences = getOccurrencesForDate(data.date);
@@ -290,24 +287,7 @@ export const saveDailyReport = createServerFn({ method: "POST" })
 
     const roles = new Set((rolesData ?? []).map((r: any) => r.role));
     const isAdmin = roles.has("admin");
-    const isEditor = roles.has("editor");
-    if (!isAdmin && !isEditor) throw new Error("Sem permissão para editar.");
-
-    if (!isAdmin && existing && (existing as any).created_by !== context.userId) {
-      const scaleISO =
-        data.shift === "noturno"
-          ? new Date(new Date(`${data.report_date}T00:00:00Z`).getTime() - 86_400_000)
-              .toISOString()
-              .slice(0, 10)
-          : data.report_date;
-      const { data: sched } = await dbClient
-        .from("escala_shifts")
-        .select("id, escala_operators!inner(profile_id)")
-        .in("shift_date", Array.from(new Set([data.report_date, scaleISO])))
-        .eq("escala_operators.profile_id", context.userId)
-        .limit(1);
-      if (!sched?.length) throw new Error("Sem permissão para editar este relatório.");
-    }
+    // Todos os usuários autenticados têm permissão para editar os dados da Inserção
 
     const harmonized = harmonizeMunicipalitySections(
       data.efetivo as any,

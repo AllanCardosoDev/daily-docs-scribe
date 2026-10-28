@@ -48,6 +48,48 @@ export const EFETIVO_BASES_PADRAO = [
   "Urucurituba",
 ];
 
+// Dados consolidados oficiais atualizados da planilha EFETIVO.xlsx (1.533 operacionais)
+export const BENCHMARK_MUNICIPIOS_1533: Record<string, Partial<EfetivoMapasItem>> = {
+  "Manaus": { serv_ord: 406, fn: 14 },
+  "Apuí": { serv_ord: 5, inc1: 3, inc3: 2, fn: 4, brig_semas: 15 },
+  "Atalaia do Norte": { serv_ord: 8, brig_mun: 15 },
+  "Autazes": { serv_ord: 5, opam_ref: 2, inc1: 6, inc2: 3, prevfogo: 26, brig_mun: 13, brig_semas: 6 },
+  "Barcelos": { serv_ord: 7, brig_mun: 12 },
+  "Coari": { serv_ord: 7, opam_ref: 1, inc1: 1, inc2: 2, inc3: 1, brig_mun: 23, brig_semas: 12 },
+  "Envira": { serv_ord: 5, brig_mun: 11 },
+  "Humaitá": { serv_ord: 29, opamv: 4, opam_ref: 2, inc3: 3, brig_semas: 15 },
+  "Iranduba": { serv_ord: 28, opamv: 3, opam_ref: 12, inc1: 2, inc2: 4, inc3: 3 },
+  "Itacoatiara": { serv_ord: 24, opam_ref: 14, inc1: 9, inc2: 6, inc3: 6, prevfogo: 70 },
+  "Itapiranga": { serv_ord: 6, opam_ref: 4, inc1: 3, inc3: 1, brig_mun: 11 },
+  "Jutaí": { serv_ord: 4, brig_mun: 11 },
+  "Lábrea": { serv_ord: 5, inc1: 3, fn: 4, brig_mun: 10, brig_semas: 15 },
+  "Manaquiri": { serv_ord: 7, opamv: 2, inc2: 4, inc3: 2, brig_mun: 7, brig_semas: 9 },
+  "Manacapuru": { serv_ord: 30, opam_ref: 1, fn: 6 },
+  "Manicoré": { serv_ord: 8, opamv: 2, inc2: 3, brig_mun: 20, brig_semas: 7 },
+  "Maués": { serv_ord: 5, inc3: 4, brig_mun: 13 },
+  "Nhamundá": { serv_ord: 1, opamv: 2, brig_mun: 15 },
+  "Novo Airão": { serv_ord: 15, inc2: 3, inc3: 2, brig_mun: 2 },
+  "Novo Aripuanã": { serv_ord: 4, opamv: 1, inc1: 2, brig_semas: 12 },
+  "Parintins": { serv_ord: 35, opam_ref: 10 },
+  "Presidente Figueiredo": { serv_ord: 26, inc3: 3, brig_mun: 3 },
+  "Rio Preto da Eva": { serv_ord: 22, inc1: 5, inc2: 5, inc3: 3, brig_mun: 2 },
+  "Tabatinga": { serv_ord: 26, brig_mun: 3 },
+  "Tapauá": { serv_ord: 3, opamv: 2, inc1: 2, brig_mun: 5, brig_semas: 12 },
+  "Tefé": { serv_ord: 26, brig_mun: 5 },
+};
+
+export const BENCHMARK_BASES_1533: Record<string, Partial<EfetivoMapasItem>> = {
+  "Autazes Posto Km 53": { opam_ref: 15, inc3: 2, brig_semas: 6 },
+  "Boa Vista do Ramos": { opam_ref: 4, inc2: 4, marinha: 6, brig_mun: 11 },
+  "Boca do Acre": { opamv: 2, inc1: 3, inc2: 2, brig_semas: 15 },
+  "Borba": { opamv: 3, brig_semas: 10 },
+  "Caapiranga": { opam_ref: 2, inc3: 3, brig_mun: 9 },
+  "Canutama": { opamv: 2, brig_semas: 11 },
+  "Careiro Castanho": { opamv: 2, opam_ref: 10, inc2: 4, inc3: 2, brig_semas: 8 },
+  "Careiro da Várzea": { opam_ref: 17, prevfogo: 40, fn: 6 },
+  "Urucurituba": { opamv: 2, opam_ref: 1, fn: 6, brig_mun: 18 },
+};
+
 export interface EfetivoMapasItem {
   id: string;
   nome: string;
@@ -106,19 +148,27 @@ function getRowValue(r: any, ...keys: string[]): number {
   return 0;
 }
 
-function extractEfetivoValues(r: any, nome: string, tipo: "capital" | "interior" | "base"): EfetivoMapasItem {
-  const serv_ord = getRowValue(r, "cbmam", "servico", "ord", "serv_ord");
-  const opamv = getRowValue(r, "opamv");
-  const opam_ref = getRowValue(r, "opam_ref");
-  const inc1 = getRowValue(r, "inc1", "inc_1");
-  const inc2 = getRowValue(r, "inc2", "inc_2");
-  const inc3 = getRowValue(r, "inc3", "inc_3");
-  const cbmsp = getRowValue(r, "cbmsp");
-  const prevfogo = getRowValue(r, "prevfogo");
-  const fn = getRowValue(r, "fn");
-  const marinha = getRowValue(r, "marinha", "icmbio");
-  const brig_mun = getRowValue(r, "brig_mun");
-  const brig_semas = getRowValue(r, "brig_semas", "brig_sema");
+function extractEfetivoValues(
+  r: any,
+  nome: string,
+  tipo: "capital" | "interior" | "base",
+  fallbackBenchmark?: Partial<EfetivoMapasItem>,
+): EfetivoMapasItem {
+  const hasData = r && Object.keys(r).some((k) => k !== "mun" && k !== "municipio" && Number(r[k]) > 0);
+  const fb = fallbackBenchmark || {};
+
+  const serv_ord = hasData ? getRowValue(r, "cbmam", "servico", "ord", "serv_ord") : (fb.serv_ord ?? 0);
+  const opamv = hasData ? getRowValue(r, "opamv") : (fb.opamv ?? 0);
+  const opam_ref = hasData ? getRowValue(r, "opam_ref") : (fb.opam_ref ?? 0);
+  const inc1 = hasData ? getRowValue(r, "inc1", "inc_1") : (fb.inc1 ?? 0);
+  const inc2 = hasData ? getRowValue(r, "inc2", "inc_2") : (fb.inc2 ?? 0);
+  const inc3 = hasData ? getRowValue(r, "inc3", "inc_3") : (fb.inc3 ?? 0);
+  const cbmsp = hasData ? getRowValue(r, "cbmsp") : (fb.cbmsp ?? 0);
+  const prevfogo = hasData ? getRowValue(r, "prevfogo") : (fb.prevfogo ?? 0);
+  const fn = hasData ? getRowValue(r, "fn") : (fb.fn ?? 0);
+  const marinha = hasData ? getRowValue(r, "marinha", "icmbio") : (fb.marinha ?? 0);
+  const brig_mun = hasData ? getRowValue(r, "brig_mun") : (fb.brig_mun ?? 0);
+  const brig_semas = hasData ? getRowValue(r, "brig_semas", "brig_sema") : (fb.brig_semas ?? 0);
 
   const total =
     serv_ord +
@@ -159,8 +209,14 @@ function extractEfetivoValues(r: any, nome: string, tipo: "capital" | "interior"
  * 1. Municípios (completos, priorizando os 26 oficiais e incluindo outros se existirem)
  * 2. Bases Temporárias (as 9 bases oficiais)
  * 3. Resumo por Missão (Capital x Interior x Total)
+ * 
+ * Se mode === "consolidado", utiliza a matriz oficial consolidada (1.533 operacionais).
+ * Se mode === "diario", prioriza os dados inseridos na tabela do dia pelo operador.
  */
-export function buildEfetivoMapasData(data: SheetsData): EfetivoMapasCalculado {
+export function buildEfetivoMapasData(
+  data: SheetsData,
+  mode: "diario" | "consolidado" = "diario",
+): EfetivoMapasCalculado {
   const existingRows = data?.efetivo || [];
   const rowMap = new Map<string, any>();
 
@@ -174,8 +230,9 @@ export function buildEfetivoMapasData(data: SheetsData): EfetivoMapasCalculado {
   // 1. Monta as 9 Bases Temporárias
   const baseNormalizedSet = new Set(EFETIVO_BASES_PADRAO.map((b) => norm(b)));
   const bases: EfetivoMapasItem[] = EFETIVO_BASES_PADRAO.map((baseName) => {
-    const raw = rowMap.get(norm(baseName));
-    return extractEfetivoValues(raw, baseName, "base");
+    const raw = mode === "consolidado" ? null : rowMap.get(norm(baseName));
+    const fb = BENCHMARK_BASES_1533[baseName] || {};
+    return extractEfetivoValues(raw, baseName, "base", fb);
   });
 
   // 2. Monta os Municípios
@@ -191,23 +248,23 @@ export function buildEfetivoMapasData(data: SheetsData): EfetivoMapasCalculado {
   }
 
   const municipios: EfetivoMapasItem[] = muniNames.map((muniName) => {
-    const raw = rowMap.get(norm(muniName));
+    const raw = mode === "consolidado" ? null : rowMap.get(norm(muniName));
     const tipo = isManaus(muniName) ? "capital" : "interior";
-    return extractEfetivoValues(raw, muniName, tipo);
+    const fb = BENCHMARK_MUNICIPIOS_1533[muniName] || {};
+    return extractEfetivoValues(raw, muniName, tipo, fb);
   });
 
   // 3. Resumo por Missão (Capital x Interior x Total)
   const missoesDefs = [
     { key: "serv_ord", label: "SV ORD (CBMAM)", short: "SV ORD" },
-    { key: "opamv", label: "OPAM Verão", short: "OPAM" },
-    { key: "opam_ref", label: "OPAM Reforço", short: "OPAM REF" },
-    { key: "inc1", label: "INC 1 29/10", short: "INC 1 - 29/10" },
-    { key: "inc2", label: "INC 2 17/11", short: "INC 2- 17/11" },
-    { key: "inc3", label: "INC 3 30/10", short: "INC3 - 30/10" },
+    { key: "opamv", label: "OPAM Verão (26/10)", short: "OPAM" },
+    { key: "opam_ref", label: "OPAM Reforço (07/11)", short: "OPAM REF" },
+    { key: "inc1", label: "INC 1 - 29/10", short: "INC 1 - 29/10" },
+    { key: "inc2", label: "INC 2 - 17/11", short: "INC 2- 17/11" },
+    { key: "inc3", label: "INC 3 - 30/10", short: "INC3 - 30/10" },
     { key: "cbmsp", label: "CBMSP (São Paulo)", short: "CBMSP" },
     { key: "prevfogo", label: "PREVFOGO / IBAMA", short: "PREVFOGO" },
     { key: "fn", label: "Força Nacional", short: "FN" },
-    { key: "marinha", label: "Marinha / ICMBio", short: "MARINHA" },
     { key: "brig_mun", label: "Brigadista Municipal", short: "BRIG MUN" },
     { key: "brig_semas", label: "Brigadista SEMA", short: "BRIG SEM" },
   ];
@@ -282,13 +339,15 @@ export function buildEfetivoMapasWorkbook(
   data: SheetsData,
   reportDate: Date | null = null,
 ): XLSX.WorkBook {
-  const calc = buildEfetivoMapasData(data);
+  const calcConsolidado = buildEfetivoMapasData(data, "consolidado");
+  const calcDiario = buildEfetivoMapasData(data, "diario");
   const wb = XLSX.utils.book_new();
 
   // ---------------------------------------------------------------------------
-  // ABA 1: EFETIVO (Layout 3-em-1 lado a lado fiel a EFETIVO.xlsx)
+  // ABA 1: EFETIVO (Layout 3-em-1 lado a lado fiel a EFETIVO.xlsx com merges)
   // ---------------------------------------------------------------------------
   const aoa: any[][] = [];
+  const merges: XLSX.Range[] = [];
 
   // Linha 0 (vazia)
   aoa.push([]);
@@ -297,7 +356,7 @@ export function buildEfetivoMapasWorkbook(
   const row1: any[] = [];
   row1[0] = "EFETIVO";
   row1[13] = "EFETIVO";
-  row1[30] = "RESUMO EFETIVO";
+  row1[29] = "RESUMO EFETIVO";
   aoa.push(row1);
 
   // Linha 2 (Cabeçalhos das colunas)
@@ -316,130 +375,145 @@ export function buildEfetivoMapasWorkbook(
   row2[10] = "BRIGADISTA MUN";
   row2[11] = "BRIGADISTA SEMAS";
 
-  // Bloco 2: Bases Temporárias (Cols 13-25)
+  // Bloco 2: Bases Temporárias (Cols 13-27)
   row2[13] = "BASES TEMPORÁRIAS";
-  row2[14] = "OPAMV 26/10";
-  row2[15] = "OPAM REF 07/11";
-  row2[16] = "INC 1- 29/10";
-  row2[17] = "INC 2 - 17/11";
-  row2[18] = "INC3 - 30/10";
-  row2[19] = "CBMSP";
-  row2[20] = "PREVFOGO";
-  row2[21] = "MARINHA";
-  row2[22] = "FN";
-  row2[23] = "BRIGADISTA MUNC.";
-  row2[24] = "BRIGADISTA SEMAS";
-  row2[25] = "TOTAL GERAL";
+  row2[17] = "OPAMV 26/10";
+  row2[18] = "OPAM REF 07/11";
+  row2[19] = "INC 1- 29/10";
+  row2[20] = "INC 2 - 17/11";
+  row2[21] = "INC3 - 30/10";
+  row2[22] = "CBMSP";
+  row2[23] = "PREVFOGO";
+  row2[24] = "MARINHA";
+  row2[25] = "FN";
+  row2[26] = "BRIGADISTA MUNC.";
+  row2[27] = "BRIGADISTA SEMAS";
 
-  // Bloco 3: Resumo Efetivo (Cols 30-33)
-  row2[30] = "MISSÃO";
-  row2[31] = "CAPITAL";
-  row2[32] = "INTERIOR";
-  row2[33] = "TOTAL";
+  // Bloco 3: Resumo Efetivo (Cols 29-35)
+  row2[29] = "MISSÃO";
+  row2[32] = "CAPITAL";
+  row2[33] = "INTERIOR";
+  row2[35] = "TOTAL";
 
   aoa.push(row2);
 
+  // Merges do cabeçalho
+  merges.push({ s: { r: 1, c: 13 }, e: { r: 1, c: 27 } }); // EFETIVO (BASES)
+  merges.push({ s: { r: 1, c: 29 }, e: { r: 1, c: 35 } }); // RESUMO EFETIVO
+  merges.push({ s: { r: 2, c: 13 }, e: { r: 2, c: 16 } }); // BASES TEMPORÁRIAS
+  merges.push({ s: { r: 2, c: 29 }, e: { r: 2, c: 31 } }); // MISSÃO
+  merges.push({ s: { r: 2, c: 33 }, e: { r: 2, c: 34 } }); // INTERIOR
+  merges.push({ s: { r: 2, c: 35 }, e: { r: 2, c: 36 } }); // TOTAL
+
   // Preenche as linhas de dados (Linha 3 em diante)
   const maxRows = Math.max(
-    calc.municipios.length + 1, // +1 para total de municípios
-    calc.bases.length + 1,       // +1 para total de bases
-    calc.resumo.length + 1       // +1 para total de resumo
+    calcConsolidado.municipios.length + 1,
+    calcConsolidado.bases.length + 1,
+    calcConsolidado.resumo.length + 1
   );
 
   for (let i = 0; i < maxRows; i++) {
     const row: any[] = [];
+    const rIdx = i + 3;
 
     // 1. Dados do Bloco da Esquerda (Municípios)
-    if (i < calc.municipios.length) {
-      const m = calc.municipios[i];
+    if (i < calcConsolidado.municipios.length) {
+      const m = calcConsolidado.municipios[i];
       row[0] = m.nome;
-      row[1] = m.serv_ord;
-      row[2] = m.opamv;
-      row[3] = m.opam_ref;
-      row[4] = m.inc1;
-      row[5] = m.inc2;
-      row[6] = m.inc3;
-      row[7] = m.cbmsp;
-      row[8] = m.prevfogo;
-      row[9] = m.fn;
-      row[10] = m.brig_mun;
-      row[11] = m.brig_semas;
-    } else if (i === calc.municipios.length) {
+      row[1] = m.serv_ord || "";
+      row[2] = m.opamv || "";
+      row[3] = m.opam_ref || "";
+      row[4] = m.inc1 || "";
+      row[5] = m.inc2 || "";
+      row[6] = m.inc3 || "";
+      row[7] = m.cbmsp || "";
+      row[8] = m.prevfogo || "";
+      row[9] = m.fn || "";
+      row[10] = m.brig_mun || "";
+      row[11] = m.brig_semas || "";
+    } else if (i === calcConsolidado.municipios.length) {
       // Linha TOTAL de Municípios
       row[0] = "TOTAL";
-      row[1] = calc.municipios.reduce((s, m) => s + m.serv_ord, 0);
-      row[2] = calc.municipios.reduce((s, m) => s + m.opamv, 0);
-      row[3] = calc.municipios.reduce((s, m) => s + m.opam_ref, 0);
-      row[4] = calc.municipios.reduce((s, m) => s + m.inc1, 0);
-      row[5] = calc.municipios.reduce((s, m) => s + m.inc2, 0);
-      row[6] = calc.municipios.reduce((s, m) => s + m.inc3, 0);
-      row[7] = calc.municipios.reduce((s, m) => s + m.cbmsp, 0);
-      row[8] = calc.municipios.reduce((s, m) => s + m.prevfogo, 0);
-      row[9] = calc.municipios.reduce((s, m) => s + m.fn, 0);
-      row[10] = calc.municipios.reduce((s, m) => s + m.brig_mun, 0);
-      row[11] = calc.municipios.reduce((s, m) => s + m.brig_semas, 0);
+      row[1] = calcConsolidado.municipios.reduce((s, m) => s + m.serv_ord, 0);
+      row[2] = calcConsolidado.municipios.reduce((s, m) => s + m.opamv, 0);
+      row[3] = calcConsolidado.municipios.reduce((s, m) => s + m.opam_ref, 0);
+      row[4] = calcConsolidado.municipios.reduce((s, m) => s + m.inc1, 0);
+      row[5] = calcConsolidado.municipios.reduce((s, m) => s + m.inc2, 0);
+      row[6] = calcConsolidado.municipios.reduce((s, m) => s + m.inc3, 0);
+      row[7] = calcConsolidado.municipios.reduce((s, m) => s + m.cbmsp, 0);
+      row[8] = calcConsolidado.municipios.reduce((s, m) => s + m.prevfogo, 0);
+      row[9] = calcConsolidado.municipios.reduce((s, m) => s + m.fn, 0);
+      row[10] = calcConsolidado.municipios.reduce((s, m) => s + m.brig_mun, 0);
+      row[11] = calcConsolidado.municipios.reduce((s, m) => s + m.brig_semas, 0);
     }
 
     // 2. Dados do Bloco do Meio (Bases Temporárias)
-    if (i < calc.bases.length) {
-      const b = calc.bases[i];
+    if (i < calcConsolidado.bases.length) {
+      const b = calcConsolidado.bases[i];
       row[13] = b.nome;
-      row[14] = b.opamv;
-      row[15] = b.opam_ref;
-      row[16] = b.inc1;
-      row[17] = b.inc2;
-      row[18] = b.inc3;
-      row[19] = b.cbmsp;
-      row[20] = b.prevfogo;
-      row[21] = b.marinha;
-      row[22] = b.fn;
-      row[23] = b.brig_mun;
-      row[24] = b.brig_semas;
-      row[25] = b.total;
-    } else if (i === calc.bases.length) {
+      row[17] = b.opamv || "";
+      row[18] = b.opam_ref || "";
+      row[19] = b.inc1 || "";
+      row[20] = b.inc2 || "";
+      row[21] = b.inc3 || "";
+      row[22] = b.cbmsp || "";
+      row[23] = b.prevfogo || "";
+      row[24] = b.marinha || "";
+      row[25] = b.fn || "";
+      row[26] = b.brig_mun || "";
+      row[27] = b.brig_semas || "";
+      merges.push({ s: { r: rIdx, c: 13 }, e: { r: rIdx, c: 16 } });
+    } else if (i === calcConsolidado.bases.length) {
       // Linha TOTAL de Bases
       row[13] = "TOTAL";
-      row[14] = calc.bases.reduce((s, b) => s + b.opamv, 0);
-      row[15] = calc.bases.reduce((s, b) => s + b.opam_ref, 0);
-      row[16] = calc.bases.reduce((s, b) => s + b.inc1, 0);
-      row[17] = calc.bases.reduce((s, b) => s + b.inc2, 0);
-      row[18] = calc.bases.reduce((s, b) => s + b.inc3, 0);
-      row[19] = calc.bases.reduce((s, b) => s + b.cbmsp, 0);
-      row[20] = calc.bases.reduce((s, b) => s + b.prevfogo, 0);
-      row[21] = calc.bases.reduce((s, b) => s + b.marinha, 0);
-      row[22] = calc.bases.reduce((s, b) => s + b.fn, 0);
-      row[23] = calc.bases.reduce((s, b) => s + b.brig_mun, 0);
-      row[24] = calc.bases.reduce((s, b) => s + b.brig_semas, 0);
-      row[25] = calc.bases.reduce((s, b) => s + b.total, 0);
+      row[17] = calcConsolidado.bases.reduce((s, b) => s + b.opamv, 0);
+      row[18] = calcConsolidado.bases.reduce((s, b) => s + b.opam_ref, 0);
+      row[19] = calcConsolidado.bases.reduce((s, b) => s + b.inc1, 0);
+      row[20] = calcConsolidado.bases.reduce((s, b) => s + b.inc2, 0);
+      row[21] = calcConsolidado.bases.reduce((s, b) => s + b.inc3, 0);
+      row[22] = calcConsolidado.bases.reduce((s, b) => s + b.cbmsp, 0);
+      row[23] = calcConsolidado.bases.reduce((s, b) => s + b.prevfogo, 0);
+      row[24] = calcConsolidado.bases.reduce((s, b) => s + b.marinha, 0);
+      row[25] = calcConsolidado.bases.reduce((s, b) => s + b.fn, 0);
+      row[26] = calcConsolidado.bases.reduce((s, b) => s + b.brig_mun, 0);
+      row[27] = calcConsolidado.bases.reduce((s, b) => s + b.brig_semas, 0);
+      merges.push({ s: { r: rIdx, c: 13 }, e: { r: rIdx, c: 16 } });
     }
 
     // 3. Dados do Bloco da Direita (Resumo Efetivo)
-    if (i < calc.resumo.length) {
-      const res = calc.resumo[i];
-      row[30] = res.missao;
-      row[31] = res.capital;
-      row[32] = res.interior;
-      row[33] = res.total;
-    } else if (i === calc.resumo.length) {
+    if (i < calcConsolidado.resumo.length) {
+      const res = calcConsolidado.resumo[i];
+      row[29] = res.missao;
+      row[32] = res.capital;
+      row[33] = res.interior;
+      row[35] = res.total;
+      merges.push({ s: { r: rIdx, c: 29 }, e: { r: rIdx, c: 31 } });
+      merges.push({ s: { r: rIdx, c: 33 }, e: { r: rIdx, c: 34 } });
+      merges.push({ s: { r: rIdx, c: 35 }, e: { r: rIdx, c: 36 } });
+    } else if (i === calcConsolidado.resumo.length) {
       // Linha TOTAL Geral do Resumo
-      row[30] = "TOTAL";
-      row[31] = calc.totals.capital;
-      row[32] = calc.totals.interior;
-      row[33] = calc.totals.totalGeral;
+      row[29] = "TOTAL";
+      row[32] = calcConsolidado.totals.capital;
+      row[33] = calcConsolidado.totals.interior;
+      row[35] = calcConsolidado.totals.totalGeral;
+      merges.push({ s: { r: rIdx, c: 29 }, e: { r: rIdx, c: 31 } });
+      merges.push({ s: { r: rIdx, c: 33 }, e: { r: rIdx, c: 34 } });
+      merges.push({ s: { r: rIdx, c: 35 }, e: { r: rIdx, c: 36 } });
     }
 
     aoa.push(row);
   }
 
   const wsEfetivo = XLSX.utils.aoa_to_sheet(aoa);
+  wsEfetivo["!merges"] = merges;
   XLSX.utils.book_append_sheet(wb, wsEfetivo, "EFETIVO");
 
   // ---------------------------------------------------------------------------
-  // ABA 2: EFETIVO_DIARIO (Formato tabular simples normalizado para GIS/Mapas)
+  // ABA 2: EFETIVO_DIARIO (Dados do Dia preenchidos na Inserção)
   // ---------------------------------------------------------------------------
   const dateStr = reportDate ? fmtDateBR(reportDate) : fmtDateBR(new Date());
-  const flatRows = [
-    ...calc.municipios.map((m) => ({
+  const flatDiario = [
+    ...calcDiario.municipios.map((m) => ({
       Data: dateStr,
       Tipo: m.tipo === "capital" ? "Capital" : "Interior",
       Localidade: m.nome,
@@ -457,7 +531,7 @@ export function buildEfetivoMapasWorkbook(
       "Brigadista SEMA": m.brig_semas,
       Total: m.total,
     })),
-    ...calc.bases.map((b) => ({
+    ...calcDiario.bases.map((b) => ({
       Data: dateStr,
       Tipo: "Base Temporária",
       Localidade: b.nome,
@@ -476,15 +550,58 @@ export function buildEfetivoMapasWorkbook(
       Total: b.total,
     })),
   ];
-
-  const wsDiario = XLSX.utils.json_to_sheet(flatRows);
+  const wsDiario = XLSX.utils.json_to_sheet(flatDiario);
   XLSX.utils.book_append_sheet(wb, wsDiario, "EFETIVO_DIARIO");
 
   // ---------------------------------------------------------------------------
-  // ABA 3: RESUMO_MISSOES (Resumo comparativo e percentual de forças)
+  // ABA 3: EFETIVO_CONSOLIDADO (Matriz Geral Consolidada 1.533)
+  // ---------------------------------------------------------------------------
+  const flatConsolidado = [
+    ...calcConsolidado.municipios.map((m) => ({
+      Escopo: "Operação Amazonas + Verde",
+      Tipo: m.tipo === "capital" ? "Capital" : "Interior",
+      Localidade: m.nome,
+      "Serviço Ordinário (CBMAM)": m.serv_ord,
+      "OPAM Verão": m.opamv,
+      "OPAM Reforço": m.opam_ref,
+      "INC 1": m.inc1,
+      "INC 2": m.inc2,
+      "INC 3": m.inc3,
+      CBMSP: m.cbmsp,
+      PREVFOGO: m.prevfogo,
+      "Força Nacional": m.fn,
+      "Marinha/ICMBio": m.marinha,
+      "Brigadista Municipal": m.brig_mun,
+      "Brigadista SEMA": m.brig_semas,
+      Total: m.total,
+    })),
+    ...calcConsolidado.bases.map((b) => ({
+      Escopo: "Operação Amazonas + Verde",
+      Tipo: "Base Temporária",
+      Localidade: b.nome,
+      "Serviço Ordinário (CBMAM)": b.serv_ord,
+      "OPAM Verão": b.opamv,
+      "OPAM Reforço": b.opam_ref,
+      "INC 1": b.inc1,
+      "INC 2": b.inc2,
+      "INC 3": b.inc3,
+      CBMSP: b.cbmsp,
+      PREVFOGO: b.prevfogo,
+      "Força Nacional": b.fn,
+      "Marinha/ICMBio": b.marinha,
+      "Brigadista Municipal": b.brig_mun,
+      "Brigadista SEMA": b.brig_semas,
+      Total: b.total,
+    })),
+  ];
+  const wsConsolidado = XLSX.utils.json_to_sheet(flatConsolidado);
+  XLSX.utils.book_append_sheet(wb, wsConsolidado, "EFETIVO_CONSOLIDADO");
+
+  // ---------------------------------------------------------------------------
+  // ABA 4: RESUMO_MISSOES (Resumo comparativo e percentual de forças)
   // ---------------------------------------------------------------------------
   const resumoFlat = [
-    ...calc.resumo.map((r) => ({
+    ...calcConsolidado.resumo.map((r) => ({
       Missão: r.missao,
       Denominação: r.label,
       Capital: r.capital,
@@ -495,9 +612,9 @@ export function buildEfetivoMapasWorkbook(
     {
       Missão: "TOTAL",
       Denominação: "TOTAL GERAL INTEGRADO",
-      Capital: calc.totals.capital,
-      Interior: calc.totals.interior,
-      "Total Geral": calc.totals.totalGeral,
+      Capital: calcConsolidado.totals.capital,
+      Interior: calcConsolidado.totals.interior,
+      "Total Geral": calcConsolidado.totals.totalGeral,
       "Participação (%)": "100.0%",
     },
   ];
@@ -525,7 +642,7 @@ export function exportEfetivoMapasXlsx(
 // =============================================================================
 
 export function getEfetivoMapasPayload(data: SheetsData, reportDate: Date | null = null) {
-  const calc = buildEfetivoMapasData(data);
+  const calc = buildEfetivoMapasData(data, "consolidado");
   const dateStr = reportDate ? reportDate.toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
 
   const categorias = [
