@@ -11,7 +11,7 @@ export type EditableSection =
 export const DEFAULT_EFETIVO_COLUMNS: Column[] = [
   { key: "mun", label: "Município", editable: true },
   { key: "cbmam", label: "CBMAM", numeric: true, editable: true },
-  { key: "opamv", label: "OPAMV 26/10", numeric: true, editable: true },
+  { key: "opamv", label: "OPAMV 28/10", numeric: true, editable: true },
   { key: "opam_ref", label: "OPAM REF 21/10", numeric: true, editable: true },
   { key: "inc1", label: "INC 1 29/10", numeric: true, editable: true },
   { key: "inc2", label: "INC 2 17/11", numeric: true, editable: true },
@@ -20,6 +20,7 @@ export const DEFAULT_EFETIVO_COLUMNS: Column[] = [
   { key: "prevfogo", label: "PREVFOGO", numeric: true, editable: true },
   { key: "fn", label: "FN", numeric: true, editable: true },
   { key: "marinha", label: "Marinha", numeric: true, editable: true },
+  { key: "sec", label: "SEC", numeric: true, editable: true },
   { key: "seg", label: "SEG", numeric: true, editable: true },
   { key: "brig_mun", label: "Brig. Mun", numeric: true, editable: true },
   { key: "brig_semas", label: "Brig. SEMA", numeric: true, editable: true },

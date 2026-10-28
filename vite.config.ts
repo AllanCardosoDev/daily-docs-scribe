@@ -6,6 +6,13 @@ import tsConfigPaths from "vite-tsconfig-paths";
 import { nitro } from "nitro/vite";
 
 export default defineConfig(async ({ mode }) => {
+  const allEnv = loadEnv(mode, process.cwd(), "");
+  for (const [key, value] of Object.entries(allEnv)) {
+    if (process.env[key] === undefined) {
+      process.env[key] = value;
+    }
+  }
+
   const loadedEnv = loadEnv(mode, process.cwd(), "VITE_");
   const envDefine: Record<string, string> = {};
   for (const [key, value] of Object.entries(loadedEnv)) {

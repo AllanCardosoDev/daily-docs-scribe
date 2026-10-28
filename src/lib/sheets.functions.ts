@@ -32,11 +32,14 @@ async function readUserRoles(supabase: SB, userId: string): Promise<string[]> {
 
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data } = await supabaseAdmin.from("user_roles").select("role").eq("user_id", userId);
-    return (data ?? []).map((r: { role: string }) => r.role);
+    if (supabaseAdmin && typeof (supabaseAdmin as any).from === "function") {
+      const { data } = await supabaseAdmin.from("user_roles").select("role").eq("user_id", userId);
+      return (data ?? []).map((r: { role: string }) => r.role);
+    }
   } catch {
     return [];
   }
+  return [];
 }
 
 /** Shape returned by the Apps Script Web App. Fields default to safe empties. */
@@ -171,9 +174,9 @@ const HeaderSchema = z
 const EfetivoRowSchema = z
   .object({
     mun: shortStr,
-    ord: nnInt,
-    seg: nnInt,
-    brig: nnInt,
+    ord: nnInt.optional().default(0),
+    seg: nnInt.optional().default(0),
+    brig: nnInt.optional().default(0),
     servico: nnInt.optional(),
     opamv: nnInt.optional(),
     opam_ref: nnInt.optional(),
@@ -183,6 +186,10 @@ const EfetivoRowSchema = z
     cbmsp: nnInt.optional(),
     prevfogo: nnInt.optional(),
     fn: nnInt.optional(),
+    marinha: nnInt.optional(),
+    sec: nnInt.optional(),
+    cbmam: nnInt.optional(),
+    total: nnInt.optional(),
     brig_mun: nnInt.optional(),
     brig_semas: nnInt.optional(),
   })
@@ -245,19 +252,42 @@ export const saveSheetsData = createServerFn({ method: "POST" })
       throw new Error("Sem permissão para editar. Peça ao administrador o papel de editor.");
     }
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const dbClient = supabaseAdmin ?? context.supabase;
-
     const iso = data.reportDate || new Date().toISOString().split("T")[0];
-    const { data: existing, error: readErr } = await dbClient
+    let dbClient: any = context.supabase;
+
+    // Helper para tentar admin client APENAS em caso de restrição RLS
+    const getAdminFallback = async () => {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        if (supabaseAdmin && typeof supabaseAdmin.from === "function") {
+          return supabaseAdmin;
+        }
+      } catch {}
+      return null;
+    };
+
+    let existing: any = null;
+    let readRes = await dbClient
       .from("daily_reports")
-      .select("id, notes")
+      .select("id, report_date, shift, efetivo, recursos, incendios, outras, notes")
       .eq("report_date", iso)
       .order("shift", { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    if (readErr) dbFail(readErr, "daily-reports");
+    if (readRes.error) {
+      const adminClient = await getAdminFallback();
+      if (adminClient) {
+        readRes = await adminClient
+          .from("daily_reports")
+          .select("id, report_date, shift, efetivo, recursos, incendios, outras, notes")
+          .eq("report_date", iso)
+          .order("shift", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+      }
+    }
+    existing = readRes.data;
 
     const patch = data.patch;
     const payload: any = { updated_by: context.userId, updated_at: new Date().toISOString() };
@@ -266,11 +296,50 @@ export const saveSheetsData = createServerFn({ method: "POST" })
     if (patch.incendios_diario) payload.incendios = patch.incendios_diario;
     if (patch.outras_diarias) payload.outras = patch.outras_diarias;
 
+    // Se o registro não existe ou tem seções em branco, carregamos a base padrão completa da data:
+    // Padrão operacional do dia estipulado (dia 25) para efetivo/recursos + ocorrências do CAD para o dia.
+    if (!existing || !existing.recursos || !existing.efetivo || !existing.incendios) {
+      try {
+        const { loadReportByDate } = await import("./sheets-fallback.server");
+        const fullDay = await loadReportByDate(dbClient, iso);
+        const base = fullDay?.data;
+        if (base) {
+          if (!payload.efetivo && (!existing?.efetivo || existing.efetivo.length <= 1)) {
+            payload.efetivo = base.efetivo;
+          }
+          if (!payload.recursos && (!existing?.recursos || existing.recursos.length <= 1)) {
+            payload.recursos = base.recursos;
+          }
+          if (!payload.incendios && (!existing?.incendios || existing.incendios.length === 0)) {
+            payload.incendios = base.incendios_diario;
+          }
+          if (!payload.outras && (!existing?.outras || existing.outras.length === 0)) {
+            payload.outras = base.outras_diarias;
+          }
+          if (!payload.notes && !existing?.notes) {
+            payload.notes = JSON.stringify({
+              header: base.header ?? {},
+              occurrences: base.occurrences ?? [],
+              incendios_acumulado: base.incendios_acumulado ?? [],
+            });
+          }
+        }
+      } catch (e) {
+        console.warn("[saveSheetsData] Não foi possível carregar base de referência:", e);
+      }
+    }
+
     if (patch.header || patch.occurrences || patch.incendios_acumulado) {
       let existingNotes: Record<string, any> = {};
       if (existing?.notes) {
         try {
           existingNotes = JSON.parse(existing.notes);
+        } catch {
+          existingNotes = {};
+        }
+      } else if (payload.notes) {
+        try {
+          existingNotes = JSON.parse(payload.notes);
         } catch {
           existingNotes = {};
         }
@@ -284,18 +353,31 @@ export const saveSheetsData = createServerFn({ method: "POST" })
     }
 
     if (existing) {
-      const { error } = await dbClient
+      let { error: updateErr } = await dbClient
         .from("daily_reports")
         .update(payload)
         .eq("id", existing.id);
-      if (error) {
-        console.error("[saveSheetsData] Erro ao atualizar daily_reports:", error);
-        dbFail(error, "daily-reports");
+
+      if (updateErr) {
+        const adminClient = await getAdminFallback();
+        if (adminClient) {
+          const res = await adminClient
+            .from("daily_reports")
+            .update(payload)
+            .eq("id", existing.id);
+          updateErr = res.error;
+        }
+      }
+
+      if (updateErr) {
+        console.error("[saveSheetsData] Erro ao atualizar daily_reports:", updateErr);
+        dbFail(updateErr, "daily-reports");
       }
       return { ok: true, version: 1 };
     }
 
-    const { data: inserted, error: insErr } = await dbClient
+    // Criação de novo dia com todas as colunas preenchidas
+    let { error: insErr } = await dbClient
       .from("daily_reports")
       .insert({
         ...payload,
@@ -305,6 +387,24 @@ export const saveSheetsData = createServerFn({ method: "POST" })
       })
       .select("id")
       .single();
+
+    if (insErr) {
+      const adminClient = await getAdminFallback();
+      if (adminClient) {
+        const res = await adminClient
+          .from("daily_reports")
+          .insert({
+            ...payload,
+            report_date: iso,
+            shift: "noturno",
+            created_by: context.userId,
+          })
+          .select("id")
+          .single();
+        insErr = res.error;
+      }
+    }
+
     if (insErr) {
       console.error("[saveSheetsData] Erro ao inserir daily_reports:", insErr);
       dbFail(insErr, "daily-reports");

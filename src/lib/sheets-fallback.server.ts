@@ -227,14 +227,20 @@ function consolidateAndCanonicalizeRows<T extends Record<string, any>>(
     const mun = canonicalMunicipio(rawMun);
     const existing = map.get(mun);
     if (!existing) {
-      const copy = { ...r, mun };
+      const copy: any = { ...r, mun };
+      for (const [k, v] of Object.entries(r)) {
+        if (k !== "mun" && k !== "municipio" && typeof v !== "object") {
+          copy[k] = num(v);
+        }
+      }
       for (const k of numericKeys) {
-        (copy as any)[k] = num(r[k]);
+        if (copy[k] === undefined) copy[k] = 0;
       }
       map.set(mun, copy);
     } else {
-      for (const k of numericKeys) {
-        (existing as any)[k] = num((existing as any)[k]) + num(r[k]);
+      for (const [k, v] of Object.entries(r)) {
+        if (k === "mun" || k === "municipio" || typeof v === "object") continue;
+        (existing as any)[k] = num((existing as any)[k]) + num(v);
       }
     }
   }
@@ -275,7 +281,7 @@ function parseNotesEnvelope(notes: unknown): Record<string, any> {
   try { return JSON.parse(s); } catch { return {}; }
 }
 
-async function fetchOperationalDonor(
+export async function fetchOperationalDonor(
   supabase: SupabaseClient<any>,
   dateIso: string,
 ): Promise<{ efetivo: any[]; recursos: any[]; outras: any[]; header?: Record<string, any> } | null> {
@@ -415,28 +421,22 @@ export async function loadReportByDate(
     }
   }
 
-  const rawEfetivo = rawEfetivoRows.map((r: any) => {
+  const rawEfetivo: Array<{ mun: string } & Record<string, any>> = rawEfetivoRows.map((r: any) => {
     const mun = canonicalMunicipio(r.mun ?? r.municipio);
     const isItapiranga = mun.toLowerCase().includes("itapiranga");
     const valCbmam = num(r.cbmam ?? r.ord ?? r.servico);
-    return {
-      mun,
-      cbmam: isItapiranga ? valCbmam || 6 : valCbmam,
-      ord: isItapiranga ? num(r.ord) || valCbmam || 6 : valCbmam,
-      servico: isItapiranga ? num(r.servico) || valCbmam || 6 : valCbmam,
-      seg: num(r.seg),
-      brig: isItapiranga ? num(r.brig) || 12 : num(r.brig),
-      opamv: num(r.opamv),
-      opam_ref: num(r.opam_ref),
-      inc1: num(r.inc1),
-      inc2: num(r.inc2),
-      inc3: num(r.inc3),
-      cbmsp: num(r.cbmsp),
-      prevfogo: num(r.prevfogo),
-      fn: num(r.fn),
-      brig_mun: num(r.brig_mun),
-      brig_semas: num(r.brig_semas),
-    };
+    const copy: { mun: string } & Record<string, any> = { ...r, mun };
+    for (const [k, v] of Object.entries(r)) {
+      if (k !== "mun" && k !== "municipio" && typeof v !== "object") {
+        copy[k] = num(v);
+      }
+    }
+    copy.cbmam = isItapiranga ? valCbmam || 6 : valCbmam;
+    copy.ord = isItapiranga ? num(r.ord) || valCbmam || 6 : valCbmam;
+    copy.servico = isItapiranga ? num(r.servico) || valCbmam || 6 : valCbmam;
+    copy.seg = num(r.seg);
+    copy.brig = isItapiranga ? num(r.brig) || 12 : num(r.brig);
+    return copy;
   });
   if (!rawEfetivo.some((r) => r.mun.toLowerCase().includes("itapiranga"))) {
     rawEfetivo.push({ mun: "Itapiranga", cbmam: 6, ord: 6, seg: 0, brig: 12, servico: 6, opamv: 0, opam_ref: 0, inc1: 0, inc2: 0, inc3: 0, cbmsp: 0, prevfogo: 0, fn: 0, brig_mun: 12, brig_semas: 0 });
@@ -461,7 +461,7 @@ export async function loadReportByDate(
   }));
 
   const efetivoConsolidado = ensureAllMunicipios(
-    consolidateAndCanonicalizeRows(rawEfetivo, ["cbmam", "ord", "seg", "brig", "servico", "opamv", "opam_ref", "inc1", "inc2", "inc3", "cbmsp", "prevfogo", "fn", "brig_mun", "brig_semas"]),
+    consolidateAndCanonicalizeRows(rawEfetivo, ["cbmam", "ord", "seg", "brig", "servico", "opamv", "opam_ref", "inc1", "inc2", "inc3", "cbmsp", "prevfogo", "fn", "marinha", "sec", "brig_mun", "brig_semas"]),
     (mun) => ({
       mun,
       cbmam: mun.toLowerCase().includes("itapiranga") ? 6 : 0,
@@ -477,6 +477,8 @@ export async function loadReportByDate(
       cbmsp: 0,
       prevfogo: 0,
       fn: 0,
+      marinha: 0,
+      sec: 0,
       brig_mun: mun.toLowerCase().includes("itapiranga") ? 12 : 0,
       brig_semas: 0,
     }),
@@ -682,9 +684,9 @@ export async function loadReportByDate(
       coordenador: safeCoordenador,
       subcomandante: headerObj.subcomandante ?? "Subcomandante-Geral do CBMAM",
     },
-    efetivo: harmonizedSections.efetivo,
-    recursos: harmonizedSections.recursos,
-    incendios_diario: harmonizedSections.incendios,
+    efetivo: harmonizedSections.efetivo as any,
+    recursos: harmonizedSections.recursos as any,
+    incendios_diario: harmonizedSections.incendios as any,
     incendios_acumulado: Array.isArray(notesEnv.incendios_acumulado) && notesEnv.incendios_acumulado.length > 0
       ? notesEnv.incendios_acumulado
       : acum,

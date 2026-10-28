@@ -4,6 +4,7 @@
 // For user-authenticated queries (with RLS), use the auth middleware instead.
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
+import { OWN_PROJECT_URL } from "@/integrations/backend/own-project";
 
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith("sb_publishable_") || value.startsWith("sb_secret_");
@@ -33,29 +34,35 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 }
 
 function createSupabaseAdminClient() {
-  const SUPABASE_URL = process.env.SUPABASE_URL;
-  const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const SUPABASE_URL =
+    process.env.SUPABASE_URL ||
+    process.env.CUSTOM_SUPABASE_URL ||
+    process.env.VITE_CUSTOM_SUPABASE_URL ||
+    process.env.VITE_SUPABASE_URL ||
+    OWN_PROJECT_URL;
+  const SUPABASE_SERVICE_ROLE_KEY =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.CUSTOM_SUPABASE_SERVICE_ROLE_KEY;
 
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    const missing = [
-      ...(!SUPABASE_URL ? ["SUPABASE_URL"] : []),
-      ...(!SUPABASE_SERVICE_ROLE_KEY ? ["SUPABASE_SERVICE_ROLE_KEY"] : []),
-    ];
-    const message = `Missing Supabase environment variable(s): ${missing.join(", ")}. Configure as variáveis do Supabase no ambiente.`;
-    console.error(`[Supabase] ${message}`);
-    throw new Error(message);
+    return undefined as unknown as ReturnType<typeof createClient<Database>>;
   }
 
-  return createClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-    global: {
-      fetch: createSupabaseFetch(SUPABASE_SERVICE_ROLE_KEY),
-    },
-    auth: {
-      storage: undefined,
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  });
+  try {
+    return createClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      global: {
+        fetch: createSupabaseFetch(SUPABASE_SERVICE_ROLE_KEY),
+      },
+      auth: {
+        storage: undefined,
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    });
+  } catch (err) {
+    console.warn("[createSupabaseAdminClient] Falha ao inicializar client admin:", err);
+    return undefined as unknown as ReturnType<typeof createClient<Database>>;
+  }
 }
 
 let _supabaseAdmin: ReturnType<typeof createSupabaseAdminClient> | undefined;
@@ -66,7 +73,12 @@ let _supabaseAdmin: ReturnType<typeof createSupabaseAdminClient> | undefined;
 // Top-level import is safe only in other .server.ts modules - route files and *.functions.ts ship to the client bundle.
 export const supabaseAdmin = new Proxy({} as ReturnType<typeof createSupabaseAdminClient>, {
   get(_, prop, receiver) {
-    if (!_supabaseAdmin) _supabaseAdmin = createSupabaseAdminClient();
-    return Reflect.get(_supabaseAdmin, prop, receiver);
+    try {
+      if (!_supabaseAdmin) _supabaseAdmin = createSupabaseAdminClient();
+      if (!_supabaseAdmin) return undefined;
+      return Reflect.get(_supabaseAdmin, prop, receiver);
+    } catch {
+      return undefined;
+    }
   },
 });

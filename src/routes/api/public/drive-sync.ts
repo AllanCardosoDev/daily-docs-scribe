@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
+import { OWN_PROJECT_URL } from "@/integrations/backend/own-project";
 
 /**
  * Sincronização agendada com a pasta pública do Google Drive.
@@ -36,11 +37,14 @@ async function handler({ request }: { request: Request }) {
   const supabaseUrl =
     process.env.CUSTOM_SUPABASE_URL ??
     process.env.VITE_CUSTOM_SUPABASE_URL ??
-    process.env.SUPABASE_URL;
+    process.env.SUPABASE_URL ??
+    OWN_PROJECT_URL;
   const serviceKey =
-    process.env.CUSTOM_SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !serviceKey) {
-    return Response.json({ error: "Backend não configurado." }, { status: 503 });
+    process.env.CUSTOM_SUPABASE_SERVICE_ROLE_KEY ??
+    process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!serviceKey) {
+    return Response.json({ error: "Chave de serviço do Supabase não configurada para sincronização." }, { status: 503 });
   }
 
   const supabase = createClient(supabaseUrl, serviceKey, {

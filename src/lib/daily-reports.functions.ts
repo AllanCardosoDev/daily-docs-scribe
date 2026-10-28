@@ -97,9 +97,14 @@ export const listDailyReports = createServerFn({ method: "GET" })
 export const getLatestReportDate = createServerFn({ method: "GET" })
   .middleware([requireBackendAuth])
   .handler(async ({ context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    let dbClient = context.supabase;
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      if (supabaseAdmin) dbClient = supabaseAdmin;
+    } catch {
+      dbClient = context.supabase;
+    }
     const { getLatestOccurrenceDate } = await import("./occurrences-store.server");
-    const dbClient = supabaseAdmin ?? context.supabase;
     const { data } = await dbClient
       .from("daily_reports")
       .select("report_date")
@@ -119,9 +124,14 @@ export const getLatestReportDate = createServerFn({ method: "GET" })
 export const listAvailableReportDates = createServerFn({ method: "GET" })
   .middleware([requireBackendAuth])
   .handler(async ({ context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    let dbClient = context.supabase;
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      if (supabaseAdmin) dbClient = supabaseAdmin;
+    } catch {
+      dbClient = context.supabase;
+    }
     const { getAvailableDates } = await import("./occurrences-store.server");
-    const dbClient = supabaseAdmin ?? context.supabase;
     const { data } = await dbClient
       .from("daily_reports")
       .select("report_date, shift")

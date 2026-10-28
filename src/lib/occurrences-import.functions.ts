@@ -15,10 +15,14 @@ export const importSpreadsheetOccurrences = createServerFn({ method: "POST" })
   )
   .handler(async ({ data: input, context }): Promise<ImportSpreadsheetResult> => {
     const { processSpreadsheetBuffer } = await import("./occurrences-import.server");
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    let dbClient = context.supabase;
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      if (supabaseAdmin) dbClient = supabaseAdmin;
+    } catch {
+      dbClient = context.supabase;
+    }
 
     const buffer = Buffer.from(input.base64Data, "base64");
-    const dbClient = supabaseAdmin ?? context.supabase;
-
     return processSpreadsheetBuffer(buffer, input.fileName, dbClient);
   });

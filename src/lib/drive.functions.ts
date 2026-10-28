@@ -50,8 +50,13 @@ export const importDriveReport = createServerFn({ method: "POST" })
   .middleware([requireBackendAuth])
   .inputValidator((raw: unknown) => ImportSchema.parse(raw))
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const dbClient = supabaseAdmin ?? context.supabase;
+    let dbClient = context.supabase;
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      if (supabaseAdmin) dbClient = supabaseAdmin;
+    } catch {
+      dbClient = context.supabase;
+    }
 
     const { data: roles } = await dbClient
       .from("user_roles")
