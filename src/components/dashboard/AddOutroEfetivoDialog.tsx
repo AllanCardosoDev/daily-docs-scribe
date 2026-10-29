@@ -119,7 +119,7 @@ export function AddOutroEfetivoDialog({ onAddOutroEfetivo, disabled }: Props) {
             </Label>
             <Input
               id="custom-efetivo-name"
-              placeholder="Ex: Militares São Paulo-SP, Força Nacional..."
+              placeholder="Ex: Força Nacional, Brigada Voluntária..."
               value={customName}
               onChange={(e) => setCustomName(e.target.value)}
               className="h-10 font-medium"
