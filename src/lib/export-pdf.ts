@@ -302,10 +302,10 @@ export function buildSheetsPdfDoc(
   const efBody = efetivoList.map((r) => {
     const rowVals = activeDataCols.map((c) => {
       const v = num(r[c.key]);
-      return v > 0 ? v : "—";
+      return v > 0 ? v : 0;
     });
     const rowTot = calculateRowTotal(r, fullEfetivoCols);
-    return [r.mun, ...rowVals, rowTot > 0 ? rowTot : "0"];
+    return [r.mun, ...rowVals, rowTot > 0 ? rowTot : 0];
   });
 
   const efColTotals = activeDataCols.map((c) =>
@@ -623,9 +623,9 @@ export function buildSheetsPdfDoc(
 
   // --- Tabela Esquerda: Matriz Completa de Recursos por Município (tableWidth: 540) ---
   const recBody = recursosList.map((r) => {
-    const rowVals = recKeys.map((k) => (num(r[k]) > 0 ? num(r[k]) : "—"));
+    const rowVals = recKeys.map((k) => (num(r[k]) > 0 ? num(r[k]) : 0));
     const rowTot = recKeys.reduce((s, k) => s + num(r[k]), 0);
-    return [r.mun, ...rowVals, rowTot > 0 ? rowTot : "0"];
+    return [r.mun, ...rowVals, rowTot > 0 ? rowTot : 0];
   });
 
   autoTable(doc, {
@@ -878,10 +878,10 @@ export function buildSheetsPdfDoc(
     const tot = u + f;
     return [
       r.mun,
-      u > 0 ? u : "—",
-      f > 0 ? f : "—",
-      foc > 0 ? foc : "—",
-      tot > 0 ? tot : "0",
+      u > 0 ? u : 0,
+      f > 0 ? f : 0,
+      foc > 0 ? foc : 0,
+      tot > 0 ? tot : 0,
     ];
   });
 
@@ -945,12 +945,12 @@ export function buildSheetsPdfDoc(
     return [
       idx + 1,
       r.mun,
-      u > 0 ? u : "—",
-      f > 0 ? f : "—",
-      foc > 0 ? foc : "—",
-      sat > 0 ? sat : "—",
-      area > 0 ? NF.format(area) : "—",
-      tot > 0 ? tot : "0",
+      u > 0 ? u : 0,
+      f > 0 ? f : 0,
+      foc > 0 ? foc : 0,
+      sat > 0 ? sat : 0,
+      area > 0 ? NF.format(area) : 0,
+      tot > 0 ? tot : 0,
     ];
   });
 

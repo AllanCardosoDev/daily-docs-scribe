@@ -464,7 +464,9 @@ export async function loadReportByDate(
     }
   }
 
-  const rawEfetivo: Array<{ mun: string } & Record<string, any>> = rawEfetivoRows.map((r: any) => {
+  const rawEfetivo: Array<{ mun: string } & Record<string, any>> = rawEfetivoRows
+    .filter((r) => !isNonMunicipioTroop(r?.mun ?? r?.municipio))
+    .map((r: any) => {
     const mun = canonicalMunicipio(r.mun ?? r.municipio);
     const isItapiranga = mun.toLowerCase().includes("itapiranga");
     const valCbmam = num(r.cbmam ?? r.ord ?? r.servico);
@@ -485,7 +487,9 @@ export async function loadReportByDate(
     rawEfetivo.push({ mun: "Itapiranga", cbmam: 6, ord: 6, seg: 0, brig: 12, servico: 6, opamv: 0, opam_ref: 0, inc1: 0, inc2: 0, inc3: 0, cbmsp: 0, prevfogo: 0, fn: 0, brig_mun: 12, brig_semas: 0 });
   }
 
-  const rawInc = asRows(row?.incendios).map((r: any) => ({
+  const rawInc = asRows(row?.incendios)
+    .filter((r) => !isNonMunicipioTroop(r?.mun ?? r?.municipio))
+    .map((r: any) => ({
     mun: canonicalMunicipio(r.mun ?? r.municipio),
     urb: num(r.urb),
     flor: num(r.flor),

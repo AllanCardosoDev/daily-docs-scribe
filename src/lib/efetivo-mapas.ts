@@ -1,7 +1,7 @@
 import * as XLSX from "xlsx";
 import type { SheetsData, EfetivoRow } from "./sheets.types";
 import { fmtDateBR, fmtDateStamp } from "./report-date";
-import { canonicalMunicipio, isManaus } from "./municipio-order";
+import { canonicalMunicipio, isManaus, isNonMunicipioTroop } from "./municipio-order";
 
 // =============================================================================
 // ESTRUTURA INSTITUCIONAL DE EFETIVO · PADRÃO OFICIAL CBMAM / MAPAS
@@ -315,12 +315,13 @@ export function buildEfetivoMapasData(
   data: SheetsData,
   mode: "diario" | "consolidado" = "diario",
 ): EfetivoMapasCalculado {
-  const existingRows = data?.efetivo || [];
+  const existingRows = (data?.efetivo || []).filter((r) => !isNonMunicipioTroop(r?.mun));
   const rowMap = new Map<string, any>();
 
   for (const r of existingRows) {
-    if (!r?.mun) continue;
+    if (!r?.mun || isNonMunicipioTroop(r.mun)) continue;
     const can = canonicalMunicipio(r.mun);
+    if (isNonMunicipioTroop(can)) continue;
     rowMap.set(norm(can), r);
     rowMap.set(norm(r.mun), r);
   }
@@ -333,12 +334,13 @@ export function buildEfetivoMapasData(
     return extractEfetivoValues(raw, baseName, "base", fb, mode);
   });
 
-  // 2. Monta os Municípios
+  // 2. Monta os Municípios (excluindo estritamente tropas externas como Militares SP)
   const muniNames = [...EFETIVO_MUNICIPIOS_PADRAO];
   // Adiciona municípios adicionais da tabela do dia que não estão na lista fixa nem nas bases
   for (const r of existingRows) {
-    if (!r?.mun) continue;
+    if (!r?.mun || isNonMunicipioTroop(r.mun)) continue;
     const can = canonicalMunicipio(r.mun);
+    if (isNonMunicipioTroop(can)) continue;
     const n = norm(can);
     if (!baseNormalizedSet.has(n) && !muniNames.some((m) => norm(m) === n)) {
       muniNames.push(can);

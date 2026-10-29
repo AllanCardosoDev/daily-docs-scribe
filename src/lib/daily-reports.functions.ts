@@ -193,7 +193,7 @@ export const getDailyReport = createServerFn({ method: "GET" })
     ]);
 
     if (reportRes.error) dbFail(reportRes.error, "daily-reports");
-    const row = reportRes.data;
+    let row = reportRes.data;
 
     if (row) {
       const num = (v: any) => (Number(v) || 0);
@@ -267,6 +267,76 @@ export const getDailyReport = createServerFn({ method: "GET" })
 
     const { getOccurrencesForDate } = await import("./occurrences-store.server");
     const occurrences = getOccurrencesForDate(data.date);
+
+    // Se houver ocorrências CAD para esta data, garantir integração com a tabela de incêndios
+    if (occurrences.length > 0) {
+      const { isFlorestalAmbiental } = await import("./fire-classification");
+      const muniFires = new Map<string, { urb: number; flor: number; focos: number }>();
+      for (const occ of occurrences) {
+        const mun = canonicalMunicipio(occ.municipio);
+        const cur = muniFires.get(mun) || { urb: 0, flor: 0, focos: 0 };
+        if (isFlorestalAmbiental(occ.natureza)) cur.flor += 1;
+        else cur.urb += 1;
+        cur.focos += Math.max(1, occ.focos || 1);
+        muniFires.set(mun, cur);
+      }
+
+      if (row) {
+        const incArray = (row as any).incendios || [];
+        const hasFiresInRow = incArray.some(
+          (r: any) => (Number(r.urb) || 0) > 0 || (Number(r.flor) || 0) > 0,
+        );
+        if (!hasFiresInRow) {
+          const incMap = new Map<string, any>();
+          for (const r of incArray) {
+            if (r?.mun) incMap.set(canonicalMunicipio(r.mun), { ...r });
+          }
+          for (const [mun, vals] of muniFires.entries()) {
+            const ex = incMap.get(mun);
+            if (ex) {
+              ex.urb = vals.urb;
+              ex.flor = vals.flor;
+              ex.focos = vals.focos;
+              ex.total_periodo = vals.urb + vals.flor;
+            } else {
+              incMap.set(mun, { mun, urb: vals.urb, flor: vals.flor, focos: vals.focos, total_periodo: vals.urb + vals.flor });
+            }
+          }
+          (row as any).incendios = Array.from(incMap.values()).sort((a, b) => compareMunicipios(a.mun, b.mun));
+        }
+      } else {
+        const { fetchOperationalDonor } = await import("./sheets-fallback.server");
+        const donor = await fetchOperationalDonor(context.supabase, data.date);
+        const targetInc = Array.from(muniFires.entries()).map(([mun, vals]) => ({
+          mun,
+          urb: vals.urb,
+          flor: vals.flor,
+          focos: vals.focos,
+          total_periodo: vals.urb + vals.flor,
+        }));
+        const harmonized = harmonizeMunicipalitySections(
+          donor?.efetivo || [],
+          donor?.recursos || [],
+          targetInc,
+          (mun) => ({ mun, ord: 0, cbmam: 0, seg: 0, brig: 0 }),
+          (mun) => ({ mun, viaturas: 0, aeronaves: 0, embarcacoes: 0 }),
+          (mun) => ({ mun, urb: 0, flor: 0, focos: 0, total_periodo: 0 }),
+        );
+        row = {
+          report_date: data.date,
+          shift: data.shift,
+          efetivo: harmonized.efetivo,
+          recursos: harmonized.recursos,
+          incendios: harmonized.incendios,
+          outras: donor?.outras || [],
+          notes: JSON.stringify({ occurrences }),
+          created_by: context.userId,
+          updated_by: context.userId,
+          updated_at: new Date().toISOString(),
+          version: 1,
+        } as any;
+      }
+    }
 
     return { row: row ?? null, canEdit, isAdmin, occurrences };
   });

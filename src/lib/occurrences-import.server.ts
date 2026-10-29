@@ -361,33 +361,63 @@ export async function processSpreadsheetBuffer(
     }
   }
 
-  // Mapear cabeçalho
-  const header = rawRows[0].map((c) => String(c ?? "").trim().toLowerCase());
+  // Mapear cabeçalho com normalização profunda (ignora maiúsculas, pontuação, acentos e espaços)
+  const normKey = (s: unknown) =>
+    String(s ?? "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]/g, "");
+
+  const header = rawRows[0].map(normKey);
   const colIndex = (keys: string[]) => {
-    return header.findIndex((h) => keys.some((k) => h.includes(k.toLowerCase())));
+    const normalizedKeys = keys.map(normKey);
+    return header.findIndex((h) =>
+      normalizedKeys.some((k) => h === k || h.includes(k) || k.includes(h)),
+    );
   };
 
-  const idxId = colIndex(["_id", "id", "código", "codigo"]);
-  const idxProtocolo = colIndex(["protocolo", "número", "numero", "nº"]);
-  const idxDataFato = colIndex(["data fato", "data do fato", "datafato"]);
-  const idxDataHoraFato = colIndex(["data/hora fato", "data/hora do fato", "data hora fato"]);
-  const idxDataReg = colIndex(["data registro", "data do registro", "data/hora registro"]);
+  const idxId = colIndex(["id", "uuid", "codigo", "cid", "_id"]);
+  const idxProtocolo = colIndex(["nrprotocolo", "protocolo", "numero", "nº"]);
+  const idxDataHoraFato = colIndex(["datahorafato", "data/hora fato", "data/hora do fato", "data hora fato", "datahoradofato"]);
+  const idxDataFato = colIndex(["datafato", "data fato", "data do fato"]);
+  const idxDataReg = colIndex(["datahoraregistroutc", "data registro", "data do registro", "data/hora registro"]);
   const idxDataGeneric = colIndex(["data", "dia"]);
   const idxHora = colIndex(["hora", "horário", "horario"]);
-  const idxMunicipio = colIndex(["município", "municipio", "cidade"]);
+  const idxMunicipio = colIndex(["nomemunicipio", "municipio", "cidade"]);
   const idxBairro = colIndex(["bairro"]);
-  const idxEndereco = colIndex(["endereço", "endereco", "logradouro", "rua"]);
-  const idxNatureza = colIndex(["natureza", "evento", "ocorrência"]);
-  const idxTipo = colIndex(["tipo"]);
-  const idxFocos = colIndex(["foco", "focos"]);
-  const idxArea = colIndex(["área", "area"]);
-  const idxAgua = colIndex(["água", "agua", "litros"]);
+  const idxEndereco = colIndex(["logradouro", "endereco", "endereço", "rua"]);
+  const idxNatureza = colIndex([
+    "naturezainicialdescricao",
+    "naturezafinalizacaoobjectnomenaturezafinal",
+    "naturezasfinais",
+    "natureza",
+    "evento",
+    "ocorrência",
+    "ocorrencia"
+  ]);
+  const idxTipo = colIndex(["naturezafinalizacaoobjectnomegruponatureza", "tipo"]);
+  const idxFocos = colIndex([
+    "gruposadicionaisdadosincendioflorestalvegetacaodadosincendioflorestalvegetacaonumerofocoscombatidos",
+    "numerofocoscombatidos",
+    "focoscombatidos",
+    "focos",
+    "foco"
+  ]);
+  const idxArea = colIndex([
+    "gruposadicionaisdadosincendioflorestalvegetacaodadosincendioflorestalvegetacaoareaqueimadacombatidaha",
+    "areaqueimadacombatidaha",
+    "areaqueimada",
+    "área",
+    "area"
+  ]);
+  const idxAgua = colIndex(["litrosdeagua", "litros", "água", "agua"]);
   const idxLat = colIndex(["latitude", "lat"]);
   const idxLon = colIndex(["longitude", "lon", "lng"]);
   const idxCoords = colIndex(["coordenadas", "localização", "coordenada"]);
-  const idxUnidade = colIndex(["unidade", "batalhão", "batalhao", "cia"]);
-  const idxEquipes = colIndex(["equipe", "equipes", "efetivo", "guarnição", "guarnicao"]);
-  const idxNarrativa = colIndex(["narrativa", "histórico", "historico", "relato", "descrição", "descricao"]);
+  const idxUnidade = colIndex(["filtronomeunidadeservico", "regiaoatuacaodescricao", "unidade", "batalhão", "batalhao", "cia"]);
+  const idxEquipes = colIndex(["membrosequipes", "equipe", "equipes", "efetivo", "guarnição", "guarnicao"]);
+  const idxNarrativa = colIndex(["narrativa", "relatosrelato", "relato", "histórico", "historico", "descrição", "descricao"]);
 
   const totalRows = rawRows.length - 1;
   const fireOccurrences: StoredOccurrence[] = [];
@@ -405,17 +435,17 @@ export async function processSpreadsheetBuffer(
       continue;
     }
 
-    // Identificação de Data
+    // Identificação de Data & Hora (Prioridade: dataHoraFato local)
     const rawDateCandidates = [
       idxDataHoraFato >= 0 ? row[idxDataHoraFato] : "",
       idxDataFato >= 0 ? row[idxDataFato] : "",
-      idxDataReg >= 0 ? row[idxDataReg] : "",
       idxDataGeneric >= 0 ? row[idxDataGeneric] : "",
+      idxDataReg >= 0 ? row[idxDataReg] : "",
     ];
 
     let parsedDate: { iso: string; br: string; time: string } | null = null;
     for (const cand of rawDateCandidates) {
-      if (cand && String(cand).trim() !== "-") {
+      if (cand && String(cand).trim() !== "-" && String(cand).trim() !== "null") {
         parsedDate = parseDateAny(String(cand));
         if (parsedDate) break;
       }
@@ -424,7 +454,14 @@ export async function processSpreadsheetBuffer(
     if (!parsedDate) continue;
 
     let timeStr = parsedDate.time;
-    if ((!timeStr || timeStr === "—") && idxHora >= 0) {
+    // Se a hora estiver zerada ou não detectada, tenta o campo específico de dataHoraFato ou hora
+    if ((!timeStr || timeStr === "—" || timeStr === "00:00") && idxDataHoraFato >= 0) {
+      const pFato = parseDateAny(String(row[idxDataHoraFato]));
+      if (pFato && pFato.time && pFato.time !== "—" && pFato.time !== "00:00") {
+        timeStr = pFato.time;
+      }
+    }
+    if ((!timeStr || timeStr === "—" || timeStr === "00:00") && idxHora >= 0) {
       const hCand = cleanStr(row[idxHora]);
       if (hCand && hCand.includes(":")) timeStr = hCand.slice(0, 5);
     }
@@ -435,9 +472,34 @@ export async function processSpreadsheetBuffer(
     const bairro = cleanStr(idxBairro >= 0 ? row[idxBairro] : "");
     const endereco = cleanStr(idxEndereco >= 0 ? row[idxEndereco] : (bairro ? `${bairro}, ${municipio}` : municipio));
 
-    const focos = Math.max(1, cleanNum(idxFocos >= 0 ? row[idxFocos] : 1));
-    const area = cleanNum(idxArea >= 0 ? row[idxArea] : 0);
-    const agua = cleanNum(idxAgua >= 0 ? row[idxAgua] : 0);
+    let focos = cleanNum(idxFocos >= 0 ? row[idxFocos] : 0);
+    let area = cleanNum(idxArea >= 0 ? row[idxArea] : 0);
+    let agua = cleanNum(idxAgua >= 0 ? row[idxAgua] : 0);
+
+    // Se focos, área ou água estiverem vazios/zerados na coluna, busca na narrativa ou relatos
+    const combinedContext = `${rawNarrativa} ${(row as any[]).map((c) => String(c ?? "")).join(" ")}`;
+    if (focos <= 0) {
+      const fMatch = combinedContext.match(/(?:apresentando|com|total(?:izando)?\s*de|havia|foram\s*identificados)?\s*(\d+)\s*focos?/i);
+      if (fMatch) {
+        focos = parseInt(fMatch[1], 10);
+      } else {
+        focos = 1;
+      }
+    }
+    if (area <= 0) {
+      const aMatch = combinedContext.match(/(?:área|area)[^0-9]{0,25}([\d.,]+)\s*(m²|ha|hectares?|metros)/i);
+      if (aMatch) {
+        const val = parseFloat(aMatch[1].replace(/\./g, "").replace(",", "."));
+        if (!isNaN(val)) area = val;
+      }
+    }
+    if (agua <= 0) {
+      const wMatch = combinedContext.match(/([\d.,]+)\s*(?:litros|l)\s*(?:de\s*água|de\s*agua)/i);
+      if (wMatch) {
+        const val = parseFloat(wMatch[1].replace(/\./g, "").replace(",", "."));
+        if (!isNaN(val)) agua = val;
+      }
+    }
 
     let coordenadas = "";
     if (idxCoords >= 0 && row[idxCoords]) {
@@ -503,6 +565,109 @@ export async function processSpreadsheetBuffer(
       }
     } catch (err) {
       console.warn("[occurrences-import] Aviso: inserção no Supabase retornou:", err);
+    }
+  }
+
+  // Sincronização automática e persistência com a tabela daily_reports para cada data afetada
+  if (addResult.datesAffected.length > 0) {
+    try {
+      const { getOccurrencesForDate } = await import("./occurrences-store.server");
+      const { isFlorestalAmbiental } = await import("./fire-classification");
+      const { canonicalMunicipio, harmonizeMunicipalitySections } = await import("./municipio-order");
+      const { fetchOperationalDonor } = await import("./sheets-fallback.server");
+
+      for (const d of addResult.datesAffected) {
+        const dayOccs = getOccurrencesForDate(d);
+        if (dayOccs.length === 0) continue;
+
+        // Agrupa por município
+        const muniFires = new Map<string, { urb: number; flor: number; focos: number }>();
+        for (const occ of dayOccs) {
+          const mun = canonicalMunicipio(occ.municipio);
+          const cur = muniFires.get(mun) || { urb: 0, flor: 0, focos: 0 };
+          if (isFlorestalAmbiental(occ.natureza)) {
+            cur.flor += 1;
+          } else {
+            cur.urb += 1;
+          }
+          cur.focos += Math.max(1, occ.focos || 1);
+          muniFires.set(mun, cur);
+        }
+
+        const targetIncendiosList = Array.from(muniFires.entries()).map(([mun, vals]) => ({
+          mun,
+          urb: vals.urb,
+          flor: vals.flor,
+          focos: vals.focos,
+          total_periodo: vals.urb + vals.flor,
+        }));
+
+        if (supabaseClient) {
+          const { data: existingReport } = await supabaseClient
+            .from("daily_reports")
+            .select("id, shift, efetivo, recursos, incendios, outras, notes")
+            .eq("report_date", d)
+            .eq("shift", "noturno")
+            .maybeSingle();
+
+          if (existingReport) {
+            const incMap = new Map<string, any>();
+            for (const r of existingReport.incendios || []) {
+              if (r?.mun) incMap.set(canonicalMunicipio(r.mun), { ...r });
+            }
+            for (const item of targetIncendiosList) {
+              const ex = incMap.get(item.mun);
+              if (ex) {
+                ex.urb = Math.max(Number(ex.urb) || 0, item.urb);
+                ex.flor = Math.max(Number(ex.flor) || 0, item.flor);
+                ex.focos = Math.max(Number(ex.focos) || 0, item.focos);
+                ex.total_periodo = (Number(ex.urb) || 0) + (Number(ex.flor) || 0);
+              } else {
+                incMap.set(item.mun, item);
+              }
+            }
+            const updatedInc = Array.from(incMap.values());
+            const harmonized = harmonizeMunicipalitySections(
+              existingReport.efetivo || [],
+              existingReport.recursos || [],
+              updatedInc,
+              (mun) => ({ mun, ord: 0, cbmam: 0, seg: 0, brig: 0 }),
+              (mun) => ({ mun, viaturas: 0, aeronaves: 0, embarcacoes: 0 }),
+              (mun) => ({ mun, urb: 0, flor: 0, focos: 0, total_periodo: 0 }),
+            );
+
+            await supabaseClient
+              .from("daily_reports")
+              .update({
+                incendios: harmonized.incendios,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", existingReport.id);
+          } else {
+            const donor = await fetchOperationalDonor(supabaseClient, d);
+            const harmonized = harmonizeMunicipalitySections(
+              donor?.efetivo || [],
+              donor?.recursos || [],
+              targetIncendiosList,
+              (mun) => ({ mun, ord: 0, cbmam: 0, seg: 0, brig: 0 }),
+              (mun) => ({ mun, viaturas: 0, aeronaves: 0, embarcacoes: 0 }),
+              (mun) => ({ mun, urb: 0, flor: 0, focos: 0, total_periodo: 0 }),
+            );
+
+            await supabaseClient.from("daily_reports").insert({
+              report_date: d,
+              shift: "noturno",
+              efetivo: harmonized.efetivo,
+              recursos: harmonized.recursos,
+              incendios: harmonized.incendios,
+              outras: donor?.outras || [],
+              notes: JSON.stringify({ occurrences: dayOccs }),
+            });
+          }
+        }
+      }
+    } catch (syncErr) {
+      console.warn("[occurrences-import] Aviso: sincronização com daily_reports retornou:", syncErr);
     }
   }
 

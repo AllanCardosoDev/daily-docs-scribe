@@ -36,6 +36,7 @@ import { useExporters } from "@/hooks/use-exporters";
 import { getLatestReportDate } from "@/lib/daily-reports.functions";
 import { EMPTY_SHEETS_DATA, type SheetsData, type EfetivoRow } from "@/lib/sheets.types";
 import { fmtDateBR } from "@/lib/report-date";
+import { canonicalMunicipio, isNonMunicipioTroop } from "@/lib/municipio-order";
 import {
   buildEfetivoMapasData,
   exportEfetivoMapasXlsx,
@@ -112,9 +113,11 @@ function EfetivoPage() {
 
   // Aplica edições locais em tempo real para recálculo instantâneo
   const effectiveSheetsData = useMemo(() => {
-    if (Object.keys(localEdits).length === 0) return rawData;
-    const currentEfetivo = [...(rawData.efetivo || [])];
+    const baseEfetivo = [...(rawData.efetivo || [])].filter((r) => !isNonMunicipioTroop(r?.mun));
+    if (Object.keys(localEdits).length === 0) return { ...rawData, efetivo: baseEfetivo };
+    const currentEfetivo = [...baseEfetivo];
     for (const [nome, edits] of Object.entries(localEdits)) {
+      if (isNonMunicipioTroop(nome)) continue;
       const idx = currentEfetivo.findIndex((r) => norm(r.mun) === norm(nome));
       if (idx >= 0) {
         currentEfetivo[idx] = { ...currentEfetivo[idx], ...edits, _custom: true };
@@ -190,7 +193,7 @@ function EfetivoPage() {
 
       const savedNames = new Set(allItems.map((it) => norm(it.nome)));
       for (const extra of rawData.efetivo || []) {
-        if (extra?.mun && !savedNames.has(norm(extra.mun))) {
+        if (extra?.mun && !isNonMunicipioTroop(extra.mun) && !savedNames.has(norm(extra.mun))) {
           rowsToSave.push(extra);
         }
       }
