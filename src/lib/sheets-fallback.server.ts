@@ -584,11 +584,13 @@ export async function loadReportByDate(
       const k = (o.protocolo && o.protocolo !== "-" ? o.protocolo : "") || `${o.horario}|${o.municipio}|${o.endereco}`;
       officialMap.set(k, o);
     }
-    dayOccurrences = notesEnv.occurrences.map((saved: any) => {
-      const k = (saved.protocolo && saved.protocolo !== "-" ? saved.protocolo : "") || `${saved.horario}|${saved.municipio}|${saved.endereco}`;
-      const match = officialMap.get(k);
-      return match ? { ...match, ...saved } : saved;
-    });
+    dayOccurrences = notesEnv.occurrences
+      .filter((s: any) => !isNonMunicipioTroop(s?.municipio) && !/^[0-9a-f-]{15,}$/i.test(s?.municipio))
+      .map((saved: any) => {
+        const k = (saved.protocolo && saved.protocolo !== "-" ? saved.protocolo : "") || `${saved.horario}|${saved.municipio}|${saved.endereco}`;
+        const match = officialMap.get(k);
+        return match ? { ...saved, ...match } : saved;
+      });
     const savedKeys = new Set(
       notesEnv.occurrences.map((s: any) =>
         (s.protocolo && s.protocolo !== "-" ? s.protocolo : "") || `${s.horario}|${s.municipio}|${s.endereco}`
@@ -603,8 +605,15 @@ export async function loadReportByDate(
   }
 
   // Apenas ocorrências reais de combate a incêndio (florestal, vegetal e urbano)
-  // devem constar no relatório da Operação Amazonas + Verde.
-  dayOccurrences = dayOccurrences.filter((occ) => isIncendio(occ.natureza));
+  // com municípios legítimos do Amazonas devem constar no relatório da Operação Amazonas + Verde.
+  dayOccurrences = dayOccurrences.filter(
+    (occ) =>
+      isIncendio(occ.natureza) &&
+      !isNonMunicipioTroop(occ.municipio) &&
+      !/^[0-9a-f]{8}-[0-9a-f]{4}/i.test(occ.municipio) &&
+      !/^[0-9a-f-]{15,}$/i.test(occ.municipio) &&
+      (occ.municipio?.length ?? 0) <= 35,
+  );
 
   // Sempre que há ocorrências do CAD para a data, sintetizamos e harmonizamos
   // as contagens municipais de incêndio a partir das ocorrências oficiais:

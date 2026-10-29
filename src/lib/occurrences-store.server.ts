@@ -7,7 +7,7 @@
  */
 import occurrencesData from "../data/occurrences.json";
 import type { OccurrenceRow } from "./sheets.types";
-import { canonicalMunicipio } from "./municipio-order";
+import { canonicalMunicipio, isNonMunicipioTroop } from "./municipio-order";
 import { isIncendio } from "./fire-classification";
 import fs from "fs";
 import path from "path";
@@ -36,16 +36,21 @@ export type StoredOccurrence = {
 };
 
 // O banco de dados oficial da Operação Amazonas + Verde armazena exclusivamente
-// ocorrências reais de combate a incêndio (florestal, ambiental e urbano).
+// ocorrências reais de combate a incêndio (florestal, ambiental e urbano)
+// e descarta rigorosamente qualquer identificador corrompido ou tropa externa.
 const allOccurrences: StoredOccurrence[] = (occurrencesData as StoredOccurrence[]).filter(
-  (occ) => isIncendio(occ.natureza),
+  (occ) =>
+    isIncendio(occ.natureza) &&
+    !isNonMunicipioTroop(occ.municipio) &&
+    !/^[0-9a-f]{8}-[0-9a-f]{4}/i.test(occ.municipio) &&
+    !/^[0-9a-f-]{15,}$/i.test(occ.municipio),
 );
 
 export function makeOccurrenceKey(occ: Partial<StoredOccurrence>): string {
   if (occ.protocolo && occ.protocolo !== "-" && occ.protocolo.length > 3) {
     return `proto:${occ.protocolo.trim().toUpperCase()}`;
   }
-  if (occ.id && occ.id.length > 5 && !occ.id.startsWith("occ-")) {
+  if (occ.id && occ.id.length > 5 && !occ.id.startsWith("occ-") && !/^[0-9a-f-]{15,}$/i.test(occ.id)) {
     return `id:${occ.id.trim()}`;
   }
   const d = occ.data || "";
@@ -63,15 +68,19 @@ for (const item of allOccurrences) {
 
 // Índice por data YYYY-MM-DD para busca O(1)
 const byDate = new Map<string, StoredOccurrence[]>();
-for (const item of allOccurrences) {
-  if (!item.data) continue;
-  const list = byDate.get(item.data);
-  if (list) {
-    list.push(item);
-  } else {
-    byDate.set(item.data, [item]);
+function rebuildDateIndex() {
+  byDate.clear();
+  for (const item of allOccurrences) {
+    if (!item.data) continue;
+    const list = byDate.get(item.data);
+    if (list) {
+      list.push(item);
+    } else {
+      byDate.set(item.data, [item]);
+    }
   }
 }
+rebuildDateIndex();
 
 /**
  * Retorna todas as datas ordenadas (YYYY-MM-DD) disponíveis no banco de ocorrências.
@@ -100,30 +109,53 @@ export function addOccurrences(newItems: StoredOccurrence[]): {
   const datesAffectedSet = new Set<string>();
   const toAdd: StoredOccurrence[] = [];
   let duplicatesSkipped = 0;
+  let updatedCount = 0;
 
   for (const item of newItems) {
     if (!isIncendio(item.natureza)) continue;
-    const key = makeOccurrenceKey(item);
-    if (existingKeys.has(key)) {
-      duplicatesSkipped++;
+    // Descarta estritamente se município for UUID ou tropa externa
+    if (isNonMunicipioTroop(item.municipio)) continue;
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}/i.test(item.municipio) || /^[0-9a-f-]{15,}$/i.test(item.municipio)) {
       continue;
     }
+
+    const key = makeOccurrenceKey(item);
+    const existingIndex = allOccurrences.findIndex((ex) => {
+      if (item.protocolo && item.protocolo !== "-" && ex.protocolo && ex.protocolo !== "-") {
+        return ex.protocolo.trim().toUpperCase() === item.protocolo.trim().toUpperCase();
+      }
+      if (item.id && ex.id && !item.id.startsWith("occ-") && !ex.id.startsWith("occ-")) {
+        return ex.id.trim() === item.id.trim();
+      }
+      return makeOccurrenceKey(ex) === key;
+    });
+
+    if (existingIndex >= 0) {
+      const existing = allOccurrences[existingIndex];
+      // Se o registro existente tem município inválido, ou o novo tem mais informações detalhadas, atualizamos
+      const existingHasBadMun = isNonMunicipioTroop(existing.municipio) || /^[0-9a-f-]{10,}$/i.test(existing.municipio);
+      const isNewMoreDetailed = (item.focos > 0 && existing.focos <= 1) || (item.area > 0 && existing.area <= 0) || (item.agua > 0 && existing.agua <= 0);
+
+      if (existingHasBadMun || isNewMoreDetailed) {
+        allOccurrences[existingIndex] = { ...existing, ...item };
+        updatedCount++;
+        if (item.data) datesAffectedSet.add(item.data);
+      } else {
+        duplicatesSkipped++;
+      }
+      continue;
+    }
+
     existingKeys.add(key);
     toAdd.push(item);
     if (item.data) datesAffectedSet.add(item.data);
   }
 
-  if (toAdd.length > 0) {
-    allOccurrences.unshift(...toAdd);
-    for (const item of toAdd) {
-      if (!item.data) continue;
-      const list = byDate.get(item.data);
-      if (list) {
-        list.unshift(item);
-      } else {
-        byDate.set(item.data, [item]);
-      }
+  if (toAdd.length > 0 || updatedCount > 0) {
+    if (toAdd.length > 0) {
+      allOccurrences.unshift(...toAdd);
     }
+    rebuildDateIndex();
 
     try {
       const filePath = path.resolve(process.cwd(), "src/data/occurrences.json");
@@ -134,7 +166,7 @@ export function addOccurrences(newItems: StoredOccurrence[]): {
   }
 
   return {
-    insertedCount: toAdd.length,
+    insertedCount: toAdd.length + updatedCount,
     duplicatesSkipped,
     datesAffected: Array.from(datesAffectedSet).sort(),
   };

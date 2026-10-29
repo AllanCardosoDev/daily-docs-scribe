@@ -7,7 +7,7 @@
  * Deduplicação estrita: nunca duplica ocorrências existentes.
  */
 import * as XLSX from "xlsx";
-import { canonicalMunicipio } from "./municipio-order";
+import { canonicalMunicipio, isNonMunicipioTroop } from "./municipio-order";
 import {
   addOccurrences,
   type StoredOccurrence,
@@ -200,8 +200,12 @@ function cleanStr(val: unknown): string {
 function cleanNum(val: unknown): number {
   if (val == null) return 0;
   if (typeof val === "number") return isNaN(val) ? 0 : val;
-  const s = String(val).replace(/[^0-9.-]/g, "").trim();
-  const n = parseFloat(s);
+  const s = String(val).trim();
+  if (!s || s === "-" || s === "null" || s === "undefined") return 0;
+  // Se contém caracteres alfabéticos (ex: UUID, hash ou identificador), NUNCA é um número!
+  if (/[a-zA-Z]/.test(s)) return 0;
+  const cleaned = s.replace(/[^0-9.,-]/g, "").replace(",", ".");
+  const n = parseFloat(cleaned);
   return isNaN(n) ? 0 : n;
 }
 
@@ -372,8 +376,13 @@ export async function processSpreadsheetBuffer(
   const header = rawRows[0].map(normKey);
   const colIndex = (keys: string[]) => {
     const normalizedKeys = keys.map(normKey);
+    // 1. Busca correspondência exata primeiro
+    const exact = header.findIndex((h) => normalizedKeys.includes(h));
+    if (exact >= 0) return exact;
+    // 2. Busca por substring apenas se a chave procurada tiver 4+ caracteres
+    // NUNCA avaliar k.includes(h), pois headers curtos como "id" dariam match indevido em "cidade"!
     return header.findIndex((h) =>
-      normalizedKeys.some((k) => h === k || h.includes(k) || k.includes(h)),
+      normalizedKeys.some((k) => k.length >= 4 && h.includes(k)),
     );
   };
 
@@ -401,23 +410,21 @@ export async function processSpreadsheetBuffer(
     "gruposadicionaisdadosincendioflorestalvegetacaodadosincendioflorestalvegetacaonumerofocoscombatidos",
     "numerofocoscombatidos",
     "focoscombatidos",
-    "focos",
-    "foco"
   ]);
   const idxArea = colIndex([
     "gruposadicionaisdadosincendioflorestalvegetacaodadosincendioflorestalvegetacaoareaqueimadacombatidaha",
     "areaqueimadacombatidaha",
     "areaqueimada",
-    "área",
-    "area"
   ]);
-  const idxAgua = colIndex(["litrosdeagua", "litros", "água", "agua"]);
+  const idxAgua = colIndex(["litrosdeagua", "litrosdeaguaestimados", "litrosagua", "litros", "água", "agua"]);
   const idxLat = colIndex(["latitude", "lat"]);
   const idxLon = colIndex(["longitude", "lon", "lng"]);
   const idxCoords = colIndex(["coordenadas", "localização", "coordenada"]);
-  const idxUnidade = colIndex(["filtronomeunidadeservico", "regiaoatuacaodescricao", "unidade", "batalhão", "batalhao", "cia"]);
+  const idxUnidade = colIndex(["filtronomeunidadeservico", "unidade", "batalhão", "batalhao", "cia"]);
+  const idxRegiao = colIndex(["regiaoatuacaodescricao", "regiao", "região"]);
   const idxEquipes = colIndex(["membrosequipes", "equipe", "equipes", "efetivo", "guarnição", "guarnicao"]);
-  const idxNarrativa = colIndex(["narrativa", "relatosrelato", "relato", "histórico", "historico", "descrição", "descricao"]);
+  const idxNarrativa = colIndex(["narrativa", "histórico", "historico", "descrição", "descricao"]);
+  const idxRelato = colIndex(["relatosrelato", "relatos", "relato"]);
 
   const totalRows = rawRows.length - 1;
   const fireOccurrences: StoredOccurrence[] = [];
@@ -429,9 +436,10 @@ export async function processSpreadsheetBuffer(
     const rawNatureza = cleanStr(idxNatureza >= 0 ? row[idxNatureza] : "");
     const rawTipo = cleanStr(idxTipo >= 0 ? row[idxTipo] : "");
     const rawNarrativa = cleanStr(idxNarrativa >= 0 ? row[idxNarrativa] : "");
+    const rawRelato = cleanStr(idxRelato >= 0 ? row[idxRelato] : "");
 
     // Filtro obrigatório: SOMENTE INCÊNDIOS
-    if (!isStrictFireNature(rawNatureza, rawTipo, rawNarrativa)) {
+    if (!isStrictFireNature(rawNatureza, rawTipo, `${rawNarrativa} ${rawRelato}`)) {
       continue;
     }
 
@@ -466,20 +474,51 @@ export async function processSpreadsheetBuffer(
       if (hCand && hCand.includes(":")) timeStr = hCand.slice(0, 5);
     }
 
-    const munRaw = cleanStr(idxMunicipio >= 0 ? row[idxMunicipio] : "Manaus");
-    const municipio = canonicalMunicipio(munRaw || "Manaus");
+    let munRaw = cleanStr(idxMunicipio >= 0 ? row[idxMunicipio] : "");
+    // Validação estrita do município: NUNCA permitir UUIDs, hashes ou tropas externas
+    const isBadMun =
+      !munRaw ||
+      munRaw.length > 35 ||
+      /^[0-9a-f]{8}-[0-9a-f]{4}/i.test(munRaw) ||
+      /^[0-9a-f-]{10,}$/i.test(munRaw) ||
+      isNonMunicipioTroop(munRaw);
+
+    if (isBadMun) {
+      // Tenta recuperar da região de atuação, unidade ou narrativa/relato
+      const regTxt = cleanStr(idxRegiao >= 0 ? row[idxRegiao] : "");
+      const uniTxt = cleanStr(idxUnidade >= 0 ? row[idxUnidade] : "");
+      const fallbackPool = `${regTxt} ${uniTxt} ${rawNarrativa} ${rawRelato}`.toLowerCase();
+      
+      const { STANDARD_OPERATIONAL_MUNICIPIOS } = await import("./sheets-fallback.server");
+      const foundMun = STANDARD_OPERATIONAL_MUNICIPIOS.find((m) =>
+        fallbackPool.includes(m.toLowerCase()),
+      );
+      munRaw = foundMun || "Manaus";
+    }
+
+    const municipio = canonicalMunicipio(munRaw);
 
     const bairro = cleanStr(idxBairro >= 0 ? row[idxBairro] : "");
-    const endereco = cleanStr(idxEndereco >= 0 ? row[idxEndereco] : (bairro ? `${bairro}, ${municipio}` : municipio));
+    let endereco = cleanStr(idxEndereco >= 0 ? row[idxEndereco] : "");
+    // Limpa UUIDs acidentais que possam constar em campos de endereço
+    if (/^[0-9a-f-]{15,}$/i.test(endereco)) {
+      endereco = "";
+    } else {
+      endereco = endereco.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, "").trim();
+      endereco = endereco.replace(/,\s*,/g, ",").replace(/,\s*$/, "").trim();
+    }
+    if (!endereco) {
+      endereco = bairro ? `${bairro}, ${municipio}` : municipio;
+    }
 
     let focos = cleanNum(idxFocos >= 0 ? row[idxFocos] : 0);
     let area = cleanNum(idxArea >= 0 ? row[idxArea] : 0);
     let agua = cleanNum(idxAgua >= 0 ? row[idxAgua] : 0);
 
     // Se focos, área ou água estiverem vazios/zerados na coluna, busca na narrativa ou relatos
-    const combinedContext = `${rawNarrativa} ${(row as any[]).map((c) => String(c ?? "")).join(" ")}`;
+    const combinedContext = `${rawNarrativa} ${rawRelato}`;
     if (focos <= 0) {
-      const fMatch = combinedContext.match(/(?:apresentando|com|total(?:izando)?\s*de|havia|foram\s*identificados)?\s*(\d+)\s*focos?/i);
+      const fMatch = combinedContext.match(/(?:apresentando|com|total(?:izando)?\s*de|havia|foram\s*(?:extintos\s*e\s*)?identificados|extintos)?\s*(\d+)\s*focos?/i);
       if (fMatch) {
         focos = parseInt(fMatch[1], 10);
       } else {
@@ -487,17 +526,24 @@ export async function processSpreadsheetBuffer(
       }
     }
     if (area <= 0) {
-      const aMatch = combinedContext.match(/(?:área|area)[^0-9]{0,25}([\d.,]+)\s*(m²|ha|hectares?|metros)/i);
+      const aMatch = combinedContext.match(/(?:área|area)(?:\s*(?:queimada|afetada|atingida))?[^0-9]{0,25}([\d.,]+)\s*(m²|m2|ha|hectares?|metros)/i);
       if (aMatch) {
-        const val = parseFloat(aMatch[1].replace(/\./g, "").replace(",", "."));
-        if (!isNaN(val)) area = val;
+        const unit = aMatch[2].toLowerCase();
+        let val = parseFloat(aMatch[1].replace(/\./g, "").replace(",", "."));
+        if (!isNaN(val)) {
+          if (unit.includes("ha") || unit.includes("hectare")) val = val * 10000;
+          area = val;
+        }
       }
     }
     if (agua <= 0) {
-      const wMatch = combinedContext.match(/([\d.,]+)\s*(?:litros|l)\s*(?:de\s*água|de\s*agua)/i);
+      const wMatch = combinedContext.match(/(?:gastos?|utilizad[oa]s?|uso\s*de|com)?\s*([\d.,]+)\s*(?:mil\s*)?(?:litros|l)\s*(?:de\s*água|de\s*agua)?/i);
       if (wMatch) {
-        const val = parseFloat(wMatch[1].replace(/\./g, "").replace(",", "."));
-        if (!isNaN(val)) agua = val;
+        let val = parseFloat(wMatch[1].replace(/\./g, "").replace(",", "."));
+        if (!isNaN(val) && val !== 193) {
+          if (wMatch[0].toLowerCase().includes("mil") && val < 1000) val = val * 1000;
+          agua = val;
+        }
       }
     }
 
@@ -539,6 +585,16 @@ export async function processSpreadsheetBuffer(
   // Se houver cliente Supabase configurado, grava também na tabela de ocorrências
   if (supabaseClient && addResult.insertedCount > 0) {
     try {
+      // Purga registros corrompidos com UUIDs ou tropas externas antes da nova inserção
+      try {
+        await supabaseClient
+          .from("occurrences")
+          .delete()
+          .or("municipio.ilike.*-*-*-*,municipio.ilike.Militares São Paulo*");
+      } catch {
+        // silencioso
+      }
+
       const recordsToInsert = fireOccurrences.map((occ) => ({
         id: occ.id,
         protocolo: occ.protocolo,
@@ -561,7 +617,7 @@ export async function processSpreadsheetBuffer(
         const batch = recordsToInsert.slice(i, i + 100);
         await supabaseClient
           .from("occurrences")
-          .upsert(batch, { onConflict: "id", ignoreDuplicates: true });
+          .upsert(batch, { onConflict: "id", ignoreDuplicates: false });
       }
     } catch (err) {
       console.warn("[occurrences-import] Aviso: inserção no Supabase retornou:", err);
@@ -573,7 +629,7 @@ export async function processSpreadsheetBuffer(
     try {
       const { getOccurrencesForDate } = await import("./occurrences-store.server");
       const { isFlorestalAmbiental } = await import("./fire-classification");
-      const { canonicalMunicipio, harmonizeMunicipalitySections } = await import("./municipio-order");
+      const { canonicalMunicipio, harmonizeMunicipalitySections, isNonMunicipioTroop } = await import("./municipio-order");
       const { fetchOperationalDonor } = await import("./sheets-fallback.server");
 
       for (const d of addResult.datesAffected) {
@@ -613,7 +669,7 @@ export async function processSpreadsheetBuffer(
           if (existingReport) {
             const incMap = new Map<string, any>();
             for (const r of existingReport.incendios || []) {
-              if (r?.mun) incMap.set(canonicalMunicipio(r.mun), { ...r });
+              if (r?.mun && !isNonMunicipioTroop(r.mun)) incMap.set(canonicalMunicipio(r.mun), { ...r });
             }
             for (const item of targetIncendiosList) {
               const ex = incMap.get(item.mun);
@@ -627,9 +683,11 @@ export async function processSpreadsheetBuffer(
               }
             }
             const updatedInc = Array.from(incMap.values());
+            const cleanEf = (existingReport.efetivo || []).filter((r: any) => !isNonMunicipioTroop(r?.mun ?? r?.municipio));
+            const cleanRec = (existingReport.recursos || []).filter((r: any) => !isNonMunicipioTroop(r?.mun ?? r?.municipio));
             const harmonized = harmonizeMunicipalitySections(
-              existingReport.efetivo || [],
-              existingReport.recursos || [],
+              cleanEf,
+              cleanRec,
               updatedInc,
               (mun) => ({ mun, ord: 0, cbmam: 0, seg: 0, brig: 0 }),
               (mun) => ({ mun, viaturas: 0, aeronaves: 0, embarcacoes: 0 }),
@@ -639,15 +697,18 @@ export async function processSpreadsheetBuffer(
             await supabaseClient
               .from("daily_reports")
               .update({
+                efetivo: harmonized.efetivo,
+                recursos: harmonized.recursos,
                 incendios: harmonized.incendios,
+                notes: JSON.stringify({ occurrences: dayOccs }),
                 updated_at: new Date().toISOString(),
               })
               .eq("id", existingReport.id);
           } else {
             const donor = await fetchOperationalDonor(supabaseClient, d);
             const harmonized = harmonizeMunicipalitySections(
-              donor?.efetivo || [],
-              donor?.recursos || [],
+              (donor?.efetivo || []).filter((r: any) => !isNonMunicipioTroop(r?.mun ?? r?.municipio)),
+              (donor?.recursos || []).filter((r: any) => !isNonMunicipioTroop(r?.mun ?? r?.municipio)),
               targetIncendiosList,
               (mun) => ({ mun, ord: 0, cbmam: 0, seg: 0, brig: 0 }),
               (mun) => ({ mun, viaturas: 0, aeronaves: 0, embarcacoes: 0 }),

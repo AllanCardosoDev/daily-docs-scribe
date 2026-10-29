@@ -116,6 +116,11 @@ export function canonicalMunicipio(mun: unknown): string {
     .replace(/Guajar\?\?/gi, "Guajará")
     .replace(/Eirunep\?\?/gi, "Eirunepé");
 
+  // Rejeita identificadores UUID ou hashes acidentais
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}/i.test(raw) || /^[0-9a-f-]{15,}$/i.test(raw) || (raw.length > 30 && raw.includes("-"))) {
+    return "Manaus";
+  }
+
   const normKey = raw.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
   if (CANONICAL_MUNICIPIOS[normKey]) return CANONICAL_MUNICIPIOS[normKey];
   return raw.charAt(0).toUpperCase() + raw.slice(1);
@@ -130,10 +135,14 @@ const norm = (v: unknown) =>
 
 export const isManaus = (mun: unknown) => norm(mun) === "manaus";
 
-/** Identifica tropas ou forças externas que não são municípios do Amazonas. */
+/** Identifica tropas, forças externas ou strings inválidas/UUIDs que não são municípios do Amazonas. */
 export function isNonMunicipioTroop(mun: unknown): boolean {
   if (!mun) return false;
   const s = String(mun).trim().toLowerCase();
+  // UUIDs e identificadores de sistema NUNCA são municípios
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}/i.test(s) || /^[0-9a-f-]{15,}$/i.test(s) || (s.length > 30 && s.includes("-"))) {
+    return true;
+  }
   // Atenção: São Paulo de Olivença é um município legítimo do Amazonas e DEVE ser preservado!
   if (s.includes("olivença") || s.includes("olivenca")) return false;
   return (
