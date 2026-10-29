@@ -490,17 +490,17 @@ function EfetivoPage() {
                               ) : null}
                               <span className="font-medium text-foreground">{m.nome}</span>
                             </td>
-                            <td className="p-2.5 text-right font-mono">{m.serv_ord || "—"}</td>
-                            <td className="p-2.5 text-right font-mono">{m.opamv || "—"}</td>
-                            <td className="p-2.5 text-right font-mono">{m.opam_ref || "—"}</td>
-                            <td className="p-2.5 text-right font-mono">{m.inc1 || "—"}</td>
-                            <td className="p-2.5 text-right font-mono">{m.inc2 || "—"}</td>
-                            <td className="p-2.5 text-right font-mono">{m.inc3 || "—"}</td>
-                            <td className="p-2.5 text-right font-mono">{m.cbmsp || "—"}</td>
-                            <td className="p-2.5 text-right font-mono">{m.prevfogo || "—"}</td>
-                            <td className="p-2.5 text-right font-mono">{m.fn || "—"}</td>
-                            <td className="p-2.5 text-right font-mono">{m.brig_mun || "—"}</td>
-                            <td className="p-2.5 text-right font-mono">{m.brig_semas || "—"}</td>
+                            <td className="p-2.5 text-right font-mono">{m.serv_ord ?? 0}</td>
+                            <td className="p-2.5 text-right font-mono">{m.opamv ?? 0}</td>
+                            <td className="p-2.5 text-right font-mono">{m.opam_ref ?? 0}</td>
+                            <td className="p-2.5 text-right font-mono">{m.inc1 ?? 0}</td>
+                            <td className="p-2.5 text-right font-mono">{m.inc2 ?? 0}</td>
+                            <td className="p-2.5 text-right font-mono">{m.inc3 ?? 0}</td>
+                            <td className="p-2.5 text-right font-mono">{m.cbmsp ?? 0}</td>
+                            <td className="p-2.5 text-right font-mono">{m.prevfogo ?? 0}</td>
+                            <td className="p-2.5 text-right font-mono">{m.fn ?? 0}</td>
+                            <td className="p-2.5 text-right font-mono">{m.brig_mun ?? 0}</td>
+                            <td className="p-2.5 text-right font-mono">{m.brig_semas ?? 0}</td>
                             <td className="p-2.5 pr-3 text-right font-mono font-bold text-foreground bg-muted/40">
                               {m.total}
                             </td>
@@ -597,17 +597,17 @@ function EfetivoPage() {
                             <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" />
                             {b.nome}
                           </td>
-                          <td className="p-2.5 text-right font-mono">{b.opamv || "—"}</td>
-                          <td className="p-2.5 text-right font-mono">{b.opam_ref || "—"}</td>
-                          <td className="p-2.5 text-right font-mono">{b.inc1 || "—"}</td>
-                          <td className="p-2.5 text-right font-mono">{b.inc2 || "—"}</td>
-                          <td className="p-2.5 text-right font-mono">{b.inc3 || "—"}</td>
-                          <td className="p-2.5 text-right font-mono">{b.cbmsp || "—"}</td>
-                          <td className="p-2.5 text-right font-mono">{b.prevfogo || "—"}</td>
-                          <td className="p-2.5 text-right font-mono">{b.marinha || "—"}</td>
-                          <td className="p-2.5 text-right font-mono">{b.fn || "—"}</td>
-                          <td className="p-2.5 text-right font-mono">{b.brig_mun || "—"}</td>
-                          <td className="p-2.5 text-right font-mono">{b.brig_semas || "—"}</td>
+                          <td className="p-2.5 text-right font-mono">{b.opamv ?? 0}</td>
+                          <td className="p-2.5 text-right font-mono">{b.opam_ref ?? 0}</td>
+                          <td className="p-2.5 text-right font-mono">{b.inc1 ?? 0}</td>
+                          <td className="p-2.5 text-right font-mono">{b.inc2 ?? 0}</td>
+                          <td className="p-2.5 text-right font-mono">{b.inc3 ?? 0}</td>
+                          <td className="p-2.5 text-right font-mono">{b.cbmsp ?? 0}</td>
+                          <td className="p-2.5 text-right font-mono">{b.prevfogo ?? 0}</td>
+                          <td className="p-2.5 text-right font-mono">{b.marinha ?? 0}</td>
+                          <td className="p-2.5 text-right font-mono">{b.fn ?? 0}</td>
+                          <td className="p-2.5 text-right font-mono">{b.brig_mun ?? 0}</td>
+                          <td className="p-2.5 text-right font-mono">{b.brig_semas ?? 0}</td>
                           <td className="p-2.5 pr-3 text-right font-mono font-bold text-foreground bg-muted/40">
                             {b.total}
                           </td>
