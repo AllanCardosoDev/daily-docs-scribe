@@ -130,7 +130,7 @@ export interface EfetivoMapasCalculado {
   };
 }
 
-const norm = (s: unknown) =>
+export const norm = (s: unknown) =>
   String(s ?? "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -153,9 +153,107 @@ function extractEfetivoValues(
   nome: string,
   tipo: "capital" | "interior" | "base",
   fallbackBenchmark?: Partial<EfetivoMapasItem>,
+  mode: "diario" | "consolidado" = "diario",
 ): EfetivoMapasItem {
+  const isExplicitCustom = !!r?._custom;
   const hasData = r && Object.keys(r).some((k) => k !== "mun" && k !== "municipio" && Number(r[k]) > 0);
   const fb = fallbackBenchmark || {};
+
+  // Se foi explicitamente salvo/editado pelo usuário com _custom: true, respeita fielmente os valores gravados
+  if (isExplicitCustom) {
+    const serv_ord = Number(r.serv_ord ?? r.cbmam ?? r.servico ?? r.ord ?? 0);
+    const opamv = Number(r.opamv ?? 0);
+    const opam_ref = Number(r.opam_ref ?? 0);
+    const inc1 = Number(r.inc1 ?? 0);
+    const inc2 = Number(r.inc2 ?? 0);
+    const inc3 = Number(r.inc3 ?? 0);
+    const cbmsp = Number(r.cbmsp ?? 0);
+    const prevfogo = Number(r.prevfogo ?? 0);
+    const fn = Number(r.fn ?? 0);
+    const marinha = Number(r.marinha ?? 0);
+    const brig_mun = Number(r.brig_mun ?? 0);
+    const brig_semas = Number(r.brig_semas ?? 0);
+    const total =
+      serv_ord +
+      opamv +
+      opam_ref +
+      inc1 +
+      inc2 +
+      inc3 +
+      cbmsp +
+      prevfogo +
+      fn +
+      marinha +
+      brig_mun +
+      brig_semas;
+
+    return {
+      id: `muni_${norm(nome).replace(/\s+/g, "_")}`,
+      nome,
+      tipo,
+      serv_ord,
+      opamv,
+      opam_ref,
+      inc1,
+      inc2,
+      inc3,
+      cbmsp,
+      prevfogo,
+      fn,
+      marinha,
+      brig_mun,
+      brig_semas,
+      total,
+    };
+  }
+
+  // Se estiver em modo consolidado e não houver customização explícita, usa o benchmark oficial 1.533
+  if (mode === "consolidado") {
+    const serv_ord = fb.serv_ord ?? 0;
+    const opamv = fb.opamv ?? 0;
+    const opam_ref = fb.opam_ref ?? 0;
+    const inc1 = fb.inc1 ?? 0;
+    const inc2 = fb.inc2 ?? 0;
+    const inc3 = fb.inc3 ?? 0;
+    const cbmsp = fb.cbmsp ?? 0;
+    const prevfogo = fb.prevfogo ?? 0;
+    const fn = fb.fn ?? 0;
+    const marinha = fb.marinha ?? 0;
+    const brig_mun = fb.brig_mun ?? 0;
+    const brig_semas = fb.brig_semas ?? 0;
+    const total =
+      serv_ord +
+      opamv +
+      opam_ref +
+      inc1 +
+      inc2 +
+      inc3 +
+      cbmsp +
+      prevfogo +
+      fn +
+      marinha +
+      brig_mun +
+      brig_semas;
+
+    return {
+      id: `muni_${norm(nome).replace(/\s+/g, "_")}`,
+      nome,
+      tipo,
+      serv_ord,
+      opamv,
+      opam_ref,
+      inc1,
+      inc2,
+      inc3,
+      cbmsp,
+      prevfogo,
+      fn,
+      marinha,
+      brig_mun,
+      brig_semas,
+      total,
+    };
+  }
 
   const serv_ord = hasData ? getRowValue(r, "cbmam", "servico", "ord", "serv_ord") : (fb.serv_ord ?? 0);
   const opamv = hasData ? getRowValue(r, "opamv") : (fb.opamv ?? 0);
@@ -230,9 +328,9 @@ export function buildEfetivoMapasData(
   // 1. Monta as 9 Bases Temporárias
   const baseNormalizedSet = new Set(EFETIVO_BASES_PADRAO.map((b) => norm(b)));
   const bases: EfetivoMapasItem[] = EFETIVO_BASES_PADRAO.map((baseName) => {
-    const raw = mode === "consolidado" ? null : rowMap.get(norm(baseName));
+    const raw = rowMap.get(norm(baseName));
     const fb = BENCHMARK_BASES_1533[baseName] || {};
-    return extractEfetivoValues(raw, baseName, "base", fb);
+    return extractEfetivoValues(raw, baseName, "base", fb, mode);
   });
 
   // 2. Monta os Municípios
@@ -248,10 +346,10 @@ export function buildEfetivoMapasData(
   }
 
   const municipios: EfetivoMapasItem[] = muniNames.map((muniName) => {
-    const raw = mode === "consolidado" ? null : rowMap.get(norm(muniName));
+    const raw = rowMap.get(norm(muniName));
     const tipo = isManaus(muniName) ? "capital" : "interior";
     const fb = BENCHMARK_MUNICIPIOS_1533[muniName] || {};
-    return extractEfetivoValues(raw, muniName, tipo, fb);
+    return extractEfetivoValues(raw, muniName, tipo, fb, mode);
   });
 
   // 3. Resumo por Missão (Capital x Interior x Total)

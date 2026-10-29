@@ -218,7 +218,12 @@ export const getDailyReport = createServerFn({ method: "GET" })
         return Array.from(map.values()).sort((a, b) => compareMunicipios(a.mun, b.mun));
       };
 
-      (row as any).efetivo = cleanList((row as any).efetivo, ["ord", "seg", "brig"]);
+      const EFETIVO_NUMERIC_KEYS = [
+        "ord", "seg", "brig", "servico", "cbmam", "serv_ord",
+        "opamv", "opam_ref", "inc1", "inc2", "inc3", "cbmsp",
+        "prevfogo", "fn", "marinha", "sec", "brig_mun", "brig_semas", "total"
+      ];
+      (row as any).efetivo = cleanList((row as any).efetivo, EFETIVO_NUMERIC_KEYS);
       (row as any).incendios = cleanList((row as any).incendios, ["urb", "flor", "focos"]);
       (row as any).outras = cleanList((row as any).outras, ["salvamento", "acidentes", "aph", "prevencao", "servicos"]);
 

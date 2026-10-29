@@ -25,17 +25,22 @@ import {
   Radio,
   CheckCircle2,
   Copy,
+  Edit3,
+  Save,
+  X,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useSheetsDashboard } from "@/hooks/use-sheets";
 import { useExporters } from "@/hooks/use-exporters";
 import { getLatestReportDate } from "@/lib/daily-reports.functions";
-import { EMPTY_SHEETS_DATA, type SheetsData } from "@/lib/sheets.types";
+import { EMPTY_SHEETS_DATA, type SheetsData, type EfetivoRow } from "@/lib/sheets.types";
 import { fmtDateBR } from "@/lib/report-date";
 import {
   buildEfetivoMapasData,
   exportEfetivoMapasXlsx,
   exportEfetivoMapasJson,
+  norm,
   type EfetivoMapasItem,
 } from "@/lib/efetivo-mapas";
 
@@ -49,11 +54,38 @@ export const Route = createFileRoute("/_authenticated/efetivo")({
   component: EfetivoPage,
 });
 
+function EditableCell({
+  value,
+  isEditing,
+  onChange,
+}: {
+  value: number;
+  isEditing: boolean;
+  onChange: (val: number) => void;
+}) {
+  if (!isEditing) {
+    return <>{value ?? 0}</>;
+  }
+  return (
+    <input
+      type="number"
+      min={0}
+      value={value ?? 0}
+      onChange={(e) => onChange(Number(e.target.value) || 0)}
+      onFocus={(e) => e.target.select()}
+      className="w-14 h-7 text-right font-mono text-xs px-1 py-0.5 rounded border border-input bg-background text-foreground focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none transition-colors"
+    />
+  );
+}
+
 function EfetivoPage() {
   const [reportDate, setReportDate] = useState<Date | null>(new Date());
   const [viewMode, setViewMode] = useState<"consolidado" | "diario">("consolidado");
   const [activeTab, setActiveTab] = useState<"todos" | "municipios" | "bases" | "resumo">("todos");
   const [copiedApi, setCopiedApi] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [localEdits, setLocalEdits] = useState<Record<string, Record<string, number>>>({});
 
   const getLatest = useServerFn(getLatestReportDate);
 
@@ -70,7 +102,7 @@ function EfetivoPage() {
       });
   }, [getLatest]);
 
-  const { configQuery, dataQuery, refresh } = useSheetsDashboard(reportDate, reportDate);
+  const { configQuery, dataQuery, savers, refresh } = useSheetsDashboard(reportDate, reportDate);
 
   const cfg = configQuery.data;
   const rawPayload = dataQuery.data;
@@ -78,32 +110,133 @@ function EfetivoPage() {
 
   const { exportXlsx } = useExporters(rawData, reportDate);
 
+  // Aplica edições locais em tempo real para recálculo instantâneo
+  const effectiveSheetsData = useMemo(() => {
+    if (Object.keys(localEdits).length === 0) return rawData;
+    const currentEfetivo = [...(rawData.efetivo || [])];
+    for (const [nome, edits] of Object.entries(localEdits)) {
+      const idx = currentEfetivo.findIndex((r) => norm(r.mun) === norm(nome));
+      if (idx >= 0) {
+        currentEfetivo[idx] = { ...currentEfetivo[idx], ...edits, _custom: true };
+      } else {
+        currentEfetivo.push({ mun: nome, ...edits, _custom: true });
+      }
+    }
+    return { ...rawData, efetivo: currentEfetivo };
+  }, [rawData, localEdits]);
+
   // Calcula o efetivo segregado por municípios, bases e resumo consolidado
   const efetivoCalculado = useMemo(() => {
-    return buildEfetivoMapasData(rawData, viewMode);
-  }, [rawData, viewMode]);
+    return buildEfetivoMapasData(effectiveSheetsData, viewMode);
+  }, [effectiveSheetsData, viewMode]);
+
+  const handleCellChange = useCallback((nome: string, colKey: string, val: number) => {
+    const currentItem = [...efetivoCalculado.municipios, ...efetivoCalculado.bases].find(
+      (it) => norm(it.nome) === norm(nome)
+    );
+
+    setLocalEdits((prev) => {
+      const existingRow = prev[nome] || {
+        serv_ord: currentItem?.serv_ord ?? 0,
+        opamv: currentItem?.opamv ?? 0,
+        opam_ref: currentItem?.opam_ref ?? 0,
+        inc1: currentItem?.inc1 ?? 0,
+        inc2: currentItem?.inc2 ?? 0,
+        inc3: currentItem?.inc3 ?? 0,
+        cbmsp: currentItem?.cbmsp ?? 0,
+        prevfogo: currentItem?.prevfogo ?? 0,
+        fn: currentItem?.fn ?? 0,
+        marinha: currentItem?.marinha ?? 0,
+        brig_mun: currentItem?.brig_mun ?? 0,
+        brig_semas: currentItem?.brig_semas ?? 0,
+      };
+
+      return {
+        ...prev,
+        [nome]: {
+          ...existingRow,
+          [colKey]: Math.max(0, val),
+        },
+      };
+    });
+  }, [efetivoCalculado]);
+
+  const handleSaveEdits = useCallback(async () => {
+    try {
+      setIsSaving(true);
+      const allItems = [...efetivoCalculado.municipios, ...efetivoCalculado.bases];
+
+      const rowsToSave: EfetivoRow[] = allItems.map((item) => ({
+        mun: item.nome,
+        tipo: item.tipo,
+        serv_ord: item.serv_ord,
+        cbmam: item.serv_ord,
+        ord: item.serv_ord,
+        servico: item.serv_ord,
+        opamv: item.opamv,
+        opam_ref: item.opam_ref,
+        inc1: item.inc1,
+        inc2: item.inc2,
+        inc3: item.inc3,
+        cbmsp: item.cbmsp,
+        prevfogo: item.prevfogo,
+        fn: item.fn,
+        marinha: item.marinha,
+        brig_mun: item.brig_mun,
+        brig_semas: item.brig_semas,
+        total: item.total,
+        _custom: true,
+      }));
+
+      const savedNames = new Set(allItems.map((it) => norm(it.nome)));
+      for (const extra of rawData.efetivo || []) {
+        if (extra?.mun && !savedNames.has(norm(extra.mun))) {
+          rowsToSave.push(extra);
+        }
+      }
+
+      await savers.efetivo(rowsToSave);
+      toast.success("Efetivo operacional atualizado e gravado com sucesso!");
+      setIsEditing(false);
+      setLocalEdits({});
+      await refresh();
+    } catch (err) {
+      console.error("Erro ao salvar efetivo:", err);
+      toast.error("Falha ao salvar alterações no efetivo", {
+        description: (err as Error)?.message,
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }, [efetivoCalculado, rawData.efetivo, savers, refresh]);
+
+  const handleCancelEdits = useCallback(() => {
+    setLocalEdits({});
+    setIsEditing(false);
+    toast.info("Edições descartadas.");
+  }, []);
 
   const handleExportXlsx = useCallback(() => {
     try {
-      exportEfetivoMapasXlsx(rawData, reportDate);
+      exportEfetivoMapasXlsx(effectiveSheetsData, reportDate);
       toast.success("Planilha EFETIVO.xlsx (Mapas) exportada com sucesso!");
     } catch (e) {
       toast.error("Falha ao exportar planilha de efetivo", {
         description: (e as Error)?.message,
       });
     }
-  }, [rawData, reportDate]);
+  }, [effectiveSheetsData, reportDate]);
 
   const handleExportJson = useCallback(() => {
     try {
-      exportEfetivoMapasJson(rawData, reportDate);
+      exportEfetivoMapasJson(effectiveSheetsData, reportDate);
       toast.success("Arquivo JSON para o Projeto Mapas exportado com sucesso!");
     } catch (e) {
       toast.error("Falha ao exportar JSON de efetivo", {
         description: (e as Error)?.message,
       });
     }
-  }, [rawData, reportDate]);
+  }, [effectiveSheetsData, reportDate]);
 
   const handleCopyApiUrl = useCallback(() => {
     const origin = typeof window !== "undefined" ? window.location.origin : "";
@@ -218,6 +351,45 @@ function EfetivoPage() {
                     <span>JSON (Mapas)</span>
                   </Button>
 
+                  {/* Botão de Edição de Efetivo */}
+                  {!isEditing ? (
+                    <Button
+                      variant="default"
+                      onClick={() => setIsEditing(true)}
+                      className="h-10 px-4 bg-amber-600 hover:bg-amber-700 text-white font-bold gap-2 shadow-sm"
+                      title="Ativar edição direta dos valores de efetivo nas tabelas"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                      <span>Editar Efetivo</span>
+                    </Button>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        onClick={handleSaveEdits}
+                        disabled={isSaving}
+                        className="h-10 px-4 bg-emerald-700 hover:bg-emerald-800 text-white font-bold gap-2 shadow-sm"
+                        title="Salvar alterações no banco de dados"
+                      >
+                        {isSaving ? (
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Save className="w-4 h-4" />
+                        )}
+                        <span>{isSaving ? "Salvando..." : "Salvar Alterações"}</span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={handleCancelEdits}
+                        disabled={isSaving}
+                        className="h-10 px-3.5 border-border hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 font-medium gap-1.5"
+                        title="Descartar alterações locais e sair do modo de edição"
+                      >
+                        <X className="w-4 h-4" />
+                        <span>Cancelar</span>
+                      </Button>
+                    </div>
+                  )}
+
                   {/* Copiar API */}
                   <Button
                     variant="ghost"
@@ -235,6 +407,49 @@ function EfetivoPage() {
                 </div>
               </div>
             </div>
+
+            {/* BANNER INFORMATIVO DE EDIÇÃO ATIVA */}
+            {isEditing && (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-amber-500/10 border-2 border-amber-500/40 rounded-2xl text-amber-950 dark:text-amber-100 shadow-sm animate-fade-in-soft">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-300 shrink-0">
+                    <Edit3 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold flex items-center gap-2">
+                      Modo de Edição de Efetivo Ativado
+                      <Badge variant="secondary" className="bg-amber-500/20 text-amber-800 dark:text-amber-300 text-[10px] uppercase font-bold">
+                        Edição Direta
+                      </Badge>
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Altere os números nas células das tabelas abaixo. Subtotais, totais e o resumo por missão são recalculados em tempo real. Clique em <strong>Salvar Alterações</strong> para persistir no banco de dados.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    size="sm"
+                    onClick={handleSaveEdits}
+                    disabled={isSaving}
+                    className="h-9 px-4 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs gap-1.5 shadow-sm"
+                  >
+                    {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                    {isSaving ? "Salvando..." : "Salvar"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleCancelEdits}
+                    disabled={isSaving}
+                    className="h-9 px-3 text-xs border-border hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <X className="w-3.5 h-3.5 mr-1" />
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {/* SELETOR DE MODO: CONSOLIDADO (1.533) vs DIÁRIO */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-card border border-border/80 rounded-2xl p-3.5 sm:p-4 shadow-sm">
@@ -490,17 +705,83 @@ function EfetivoPage() {
                               ) : null}
                               <span className="font-medium text-foreground">{m.nome}</span>
                             </td>
-                            <td className="p-2.5 text-right font-mono">{m.serv_ord ?? 0}</td>
-                            <td className="p-2.5 text-right font-mono">{m.opamv ?? 0}</td>
-                            <td className="p-2.5 text-right font-mono">{m.opam_ref ?? 0}</td>
-                            <td className="p-2.5 text-right font-mono">{m.inc1 ?? 0}</td>
-                            <td className="p-2.5 text-right font-mono">{m.inc2 ?? 0}</td>
-                            <td className="p-2.5 text-right font-mono">{m.inc3 ?? 0}</td>
-                            <td className="p-2.5 text-right font-mono">{m.cbmsp ?? 0}</td>
-                            <td className="p-2.5 text-right font-mono">{m.prevfogo ?? 0}</td>
-                            <td className="p-2.5 text-right font-mono">{m.fn ?? 0}</td>
-                            <td className="p-2.5 text-right font-mono">{m.brig_mun ?? 0}</td>
-                            <td className="p-2.5 text-right font-mono">{m.brig_semas ?? 0}</td>
+                            <td className="p-2 text-right font-mono">
+                              <EditableCell
+                                value={m.serv_ord}
+                                isEditing={isEditing}
+                                onChange={(v) => handleCellChange(m.nome, "serv_ord", v)}
+                              />
+                            </td>
+                            <td className="p-2 text-right font-mono">
+                              <EditableCell
+                                value={m.opamv}
+                                isEditing={isEditing}
+                                onChange={(v) => handleCellChange(m.nome, "opamv", v)}
+                              />
+                            </td>
+                            <td className="p-2 text-right font-mono">
+                              <EditableCell
+                                value={m.opam_ref}
+                                isEditing={isEditing}
+                                onChange={(v) => handleCellChange(m.nome, "opam_ref", v)}
+                              />
+                            </td>
+                            <td className="p-2 text-right font-mono">
+                              <EditableCell
+                                value={m.inc1}
+                                isEditing={isEditing}
+                                onChange={(v) => handleCellChange(m.nome, "inc1", v)}
+                              />
+                            </td>
+                            <td className="p-2 text-right font-mono">
+                              <EditableCell
+                                value={m.inc2}
+                                isEditing={isEditing}
+                                onChange={(v) => handleCellChange(m.nome, "inc2", v)}
+                              />
+                            </td>
+                            <td className="p-2 text-right font-mono">
+                              <EditableCell
+                                value={m.inc3}
+                                isEditing={isEditing}
+                                onChange={(v) => handleCellChange(m.nome, "inc3", v)}
+                              />
+                            </td>
+                            <td className="p-2 text-right font-mono">
+                              <EditableCell
+                                value={m.cbmsp}
+                                isEditing={isEditing}
+                                onChange={(v) => handleCellChange(m.nome, "cbmsp", v)}
+                              />
+                            </td>
+                            <td className="p-2 text-right font-mono">
+                              <EditableCell
+                                value={m.prevfogo}
+                                isEditing={isEditing}
+                                onChange={(v) => handleCellChange(m.nome, "prevfogo", v)}
+                              />
+                            </td>
+                            <td className="p-2 text-right font-mono">
+                              <EditableCell
+                                value={m.fn}
+                                isEditing={isEditing}
+                                onChange={(v) => handleCellChange(m.nome, "fn", v)}
+                              />
+                            </td>
+                            <td className="p-2 text-right font-mono">
+                              <EditableCell
+                                value={m.brig_mun}
+                                isEditing={isEditing}
+                                onChange={(v) => handleCellChange(m.nome, "brig_mun", v)}
+                              />
+                            </td>
+                            <td className="p-2 text-right font-mono">
+                              <EditableCell
+                                value={m.brig_semas}
+                                isEditing={isEditing}
+                                onChange={(v) => handleCellChange(m.nome, "brig_semas", v)}
+                              />
+                            </td>
                             <td className="p-2.5 pr-3 text-right font-mono font-bold text-foreground bg-muted/40">
                               {m.total}
                             </td>
@@ -597,17 +878,83 @@ function EfetivoPage() {
                             <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" />
                             {b.nome}
                           </td>
-                          <td className="p-2.5 text-right font-mono">{b.opamv ?? 0}</td>
-                          <td className="p-2.5 text-right font-mono">{b.opam_ref ?? 0}</td>
-                          <td className="p-2.5 text-right font-mono">{b.inc1 ?? 0}</td>
-                          <td className="p-2.5 text-right font-mono">{b.inc2 ?? 0}</td>
-                          <td className="p-2.5 text-right font-mono">{b.inc3 ?? 0}</td>
-                          <td className="p-2.5 text-right font-mono">{b.cbmsp ?? 0}</td>
-                          <td className="p-2.5 text-right font-mono">{b.prevfogo ?? 0}</td>
-                          <td className="p-2.5 text-right font-mono">{b.marinha ?? 0}</td>
-                          <td className="p-2.5 text-right font-mono">{b.fn ?? 0}</td>
-                          <td className="p-2.5 text-right font-mono">{b.brig_mun ?? 0}</td>
-                          <td className="p-2.5 text-right font-mono">{b.brig_semas ?? 0}</td>
+                          <td className="p-2 text-right font-mono">
+                            <EditableCell
+                              value={b.opamv}
+                              isEditing={isEditing}
+                              onChange={(v) => handleCellChange(b.nome, "opamv", v)}
+                            />
+                          </td>
+                          <td className="p-2 text-right font-mono">
+                            <EditableCell
+                              value={b.opam_ref}
+                              isEditing={isEditing}
+                              onChange={(v) => handleCellChange(b.nome, "opam_ref", v)}
+                            />
+                          </td>
+                          <td className="p-2 text-right font-mono">
+                            <EditableCell
+                              value={b.inc1}
+                              isEditing={isEditing}
+                              onChange={(v) => handleCellChange(b.nome, "inc1", v)}
+                            />
+                          </td>
+                          <td className="p-2 text-right font-mono">
+                            <EditableCell
+                              value={b.inc2}
+                              isEditing={isEditing}
+                              onChange={(v) => handleCellChange(b.nome, "inc2", v)}
+                            />
+                          </td>
+                          <td className="p-2 text-right font-mono">
+                            <EditableCell
+                              value={b.inc3}
+                              isEditing={isEditing}
+                              onChange={(v) => handleCellChange(b.nome, "inc3", v)}
+                            />
+                          </td>
+                          <td className="p-2 text-right font-mono">
+                            <EditableCell
+                              value={b.cbmsp}
+                              isEditing={isEditing}
+                              onChange={(v) => handleCellChange(b.nome, "cbmsp", v)}
+                            />
+                          </td>
+                          <td className="p-2 text-right font-mono">
+                            <EditableCell
+                              value={b.prevfogo}
+                              isEditing={isEditing}
+                              onChange={(v) => handleCellChange(b.nome, "prevfogo", v)}
+                            />
+                          </td>
+                          <td className="p-2 text-right font-mono">
+                            <EditableCell
+                              value={b.marinha}
+                              isEditing={isEditing}
+                              onChange={(v) => handleCellChange(b.nome, "marinha", v)}
+                            />
+                          </td>
+                          <td className="p-2 text-right font-mono">
+                            <EditableCell
+                              value={b.fn}
+                              isEditing={isEditing}
+                              onChange={(v) => handleCellChange(b.nome, "fn", v)}
+                            />
+                          </td>
+                          <td className="p-2 text-right font-mono">
+                            <EditableCell
+                              value={b.brig_mun}
+                              isEditing={isEditing}
+                              onChange={(v) => handleCellChange(b.nome, "brig_mun", v)}
+                            />
+                          </td>
+                          <td className="p-2 text-right font-mono">
+                            <EditableCell
+                              value={b.brig_semas}
+                              isEditing={isEditing}
+                              onChange={(v) => handleCellChange(b.nome, "brig_semas", v)}
+                            />
+                          </td>
                           <td className="p-2.5 pr-3 text-right font-mono font-bold text-foreground bg-muted/40">
                             {b.total}
                           </td>
