@@ -189,22 +189,7 @@ export function exportTotaisToXlsx(
 ) {
   const wb = XLSX.utils.book_new();
 
-  // 1. Painel Oficial SINESP Benchmark (Comparativo COBOM 2025 x 2026)
-  const sinespRows = [
-    ["COBOM · Comparativo Oficial de Incêndios Ambientais · SINESP"],
-    ["Filtro Oficial: jan 1, 2025 a 2026 (Consolidado Estadual)"],
-    [],
-    ["Indicador", "2025", "2026", "Variação Absoluta", "Variação %"],
-    ["01 · Ocorrências Ambientais", 508, 3969, "+3.461", "+681,3%"],
-    ["02 · Focos Combatidos", 81, 42004, "+41.923", "+51.756,8%"],
-    ["03 · Área Combatida (m²)", 566903, 108634269, "+108.067.366 m²", "+19.062,7%"],
-    ["Área Combatida em Hectares (ha)", "56,69 ha", "10.863,43 ha", "+10.806,74 ha", "+19.062,7%"],
-    [],
-    ["Fonte: SINESP / COBOM — Painel Oficial de Monitoramento Ambiental CBMAM"],
-  ];
-  const wsSinesp = XLSX.utils.aoa_to_sheet(sinespRows);
-  wsSinesp["!cols"] = [{ wch: 34 }, { wch: 16 }, { wch: 18 }, { wch: 22 }, { wch: 16 }];
-  XLSX.utils.book_append_sheet(wb, wsSinesp, "Comparativo SINESP");
+  // Comparativo Anual Consolidado
 
   const addSheet = (name: string, headers: string[], keys: string[], rows: any[]) => {
     const dataRows = rows.map((r) => {

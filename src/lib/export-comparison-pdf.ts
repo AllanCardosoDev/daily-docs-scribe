@@ -143,72 +143,16 @@ export function exportComparisonPdf(params: ComparisonExportParams) {
 
   let startY = 78;
 
-  // 1. Painel Oficial SINESP · Comparativo de Incêndios Ambientais (COBOM 2025 x 2026)
-  const is2025vs2026 = (year1 === 2025 && year2 === 2026) || (year1 === 2026 && year2 === 2025);
-  if (is2025vs2026) {
-    autoTable(doc, {
-      startY,
-      head: [
-        [
-          {
-            content: "COBOM · COMPARATIVO OFICIAL DE INCÊNDIOS AMBIENTAIS · SINESP (2025 x 2026)",
-            colSpan: 5,
-            styles: {
-              fillColor: [BRAND.r, BRAND.g, BRAND.b],
-              textColor: 255,
-              fontStyle: "bold",
-              halign: "center",
-              fontSize: 8,
-            },
-          },
-        ],
-        [
-          "INDICADOR OFICIAL",
-          "2025 (BASE)",
-          "2026 (ATUAL)",
-          "VARIAÇÃO ABSOLUTA",
-          "VARIAÇÃO %",
-        ],
-      ],
-      body: [
-        ["01 · Ocorrências Ambientais", "508", "3.969", "+3.461", "+681,3%"],
-        ["02 · Focos Combatidos", "81", "42.004", "+41.923", "+51.756,8%"],
-        ["03 · Área Combatida (m²)", "566.903 m²", "108.634.269 m²", "+108.067.366 m²", "+19.062,7%"],
-        ["Área em Hectares (ha)", "56,69 ha", "10.863,43 ha", "+10.806,74 ha", "+19.062,7%"],
-      ],
-      styles: {
-        fontSize: 7.5,
-        cellPadding: 3.5,
-        lineColor: [220, 226, 222],
-        lineWidth: 0.25,
-        valign: "middle",
-      },
-      headStyles: {
-        fillColor: [BRAND_LIGHT.r, BRAND_LIGHT.g, BRAND_LIGHT.b],
-        textColor: 255,
-        fontStyle: "bold",
-        fontSize: 7,
-        halign: "center",
-      },
-      bodyStyles: { textColor: [INK.r, INK.g, INK.b], halign: "center" },
-      columnStyles: {
-        0: { halign: "left", fontStyle: "bold" },
-        3: { fontStyle: "bold" },
-        4: { fontStyle: "bold", textColor: [180, 40, 20] },
-      },
-      margin: { left: 24, right: 24, top: 78, bottom: 32 },
-    });
-    startY = (doc as any).lastAutoTable.finalY + 12;
-  }
+  // 1. Resumo Executivo dos Anos Comparados
 
   // 2. Resumo Executivo dos Anos Comparados
-  const row1Flor = year1 === 2025 && is2025vs2026 ? 508 : totals1.flor;
-  const row1Focos = year1 === 2025 && is2025vs2026 ? 81 : totals1.focos;
-  const row1Total = year1 === 2025 && is2025vs2026 ? 508 + totals1.urb : totals1.incendios;
+  const row1Flor = totals1.flor;
+  const row1Focos = totals1.focos;
+  const row1Total = totals1.incendios;
 
-  const row2Flor = year2 === 2026 && is2025vs2026 ? 3969 : totals2.flor;
-  const row2Focos = year2 === 2026 && is2025vs2026 ? 42004 : totals2.focos;
-  const row2Total = year2 === 2026 && is2025vs2026 ? 3969 + totals2.urb : totals2.incendios;
+  const row2Flor = totals2.flor;
+  const row2Focos = totals2.focos;
+  const row2Total = totals2.incendios;
 
   autoTable(doc, {
     startY,
