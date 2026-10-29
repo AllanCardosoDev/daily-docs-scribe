@@ -7,6 +7,7 @@ import type { ComparisonResult } from "./comparison";
 import { NF } from "./formatters";
 import { fmtDateBR, fmtDateStamp, filterOccurrencesByDate } from "./report-date";
 import { CBMAM_LOGO_BASE64 } from "./cbmam-logo";
+import { isIncendio } from "./fire-classification";
 
 
 export function reportFilename(reportDate: Date | null, generatedAt: Date = new Date()) {
@@ -633,141 +634,17 @@ export function buildSheetsPdfDoc(
   });
 
   // ----------------------------------------------------
-  // OUTRAS OCORRÊNCIAS DIÁRIAS (Página 3 - Centro / Base)
+  // CONSOLIDADO GERAL DE COMBATE A INCÊNDIOS (Página 3 - Centro)
   // ----------------------------------------------------
-  const outrasList = data.outras_diarias ?? [];
-  const outrasBody = outrasList.map((r) => {
-    const salv = num(r.salvamento);
-    const acid = num(r.acidentes);
-    const aph = num(r.aph);
-    const prev = num(r.prevencao);
-    const serv = num(r.servicos);
-    const tot = salv + acid + aph + prev + serv;
-    return [r.mun, salv || "", acid || "", aph || "", prev || "", serv || "", tot || ""];
-  });
-
-  const totSalv = outrasList.reduce((s, r) => s + num(r.salvamento), 0);
-  const totAcid = outrasList.reduce((s, r) => s + num(r.acidentes), 0);
-  const totAph = outrasList.reduce((s, r) => s + num(r.aph), 0);
-  const totPrev = outrasList.reduce((s, r) => s + num(r.prevencao), 0);
-  const totServ = outrasList.reduce((s, r) => s + num(r.servicos), 0);
-  const grandOutras = totSalv + totAcid + totAph + totPrev + totServ;
-
-  // Tabela Outras Ocorrências Diárias
   autoTable(doc, {
-    startY: 135,
+    startY: 140,
     margin: { left: 16 },
-    tableWidth: 460,
+    tableWidth: 809,
     head: [
       [
         {
-          content: `OUTRAS OCORRÊNCIAS DIÁRIAS EM ${opDateStr}`,
-          colSpan: 7,
-          styles: {
-            fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b],
-            textColor: 255,
-            fontStyle: "bold",
-            halign: "center",
-          },
-        },
-      ],
-      ["MUNICÍPIO", "SALVAMENTO", "ACIDENTES", "APH", "AÇÃO DE PREVENÇÃO", "SERVIÇOS TÉCNICOS", "TOTAL"],
-    ],
-    body: [
-      ...outrasBody,
-      ["TOTAL", totSalv, totAcid, totAph, totPrev, totServ, grandOutras],
-    ],
-    styles: { fontSize: 5.5, cellPadding: 1, lineColor: BORDER_COLOR, lineWidth: 0.25 },
-    headStyles: {
-      fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b],
-      textColor: 255,
-      fontStyle: "bold",
-      fontSize: 5.5,
-      halign: "center",
-    },
-    columnStyles: {
-      0: { fontStyle: "bold", cellWidth: 100 },
-      1: { halign: "center" },
-      2: { halign: "center" },
-      3: { halign: "center" },
-      4: { halign: "center" },
-      5: { halign: "center" },
-      6: { halign: "center", fontStyle: "bold" },
-    },
-  });
-
-  // Resumo Regional de Outras Ocorrências (Direita)
-  const manausOutras = outrasList.find((r) => r.mun?.toLowerCase() === "manaus");
-  const interiorOutras = outrasList.filter((r) => r.mun?.toLowerCase() !== "manaus");
-
-  const capSalv = num(manausOutras?.salvamento);
-  const capAcid = num(manausOutras?.acidentes);
-  const capAph = num(manausOutras?.aph);
-  const capPrev = num(manausOutras?.prevencao);
-  const capServ = num(manausOutras?.servicos);
-  const capTot = capSalv + capAcid + capAph + capPrev + capServ;
-
-  const intSalv = interiorOutras.reduce((s, r) => s + num(r.salvamento), 0);
-  const intAcid = interiorOutras.reduce((s, r) => s + num(r.acidentes), 0);
-  const intAph = interiorOutras.reduce((s, r) => s + num(r.aph), 0);
-  const intPrev = interiorOutras.reduce((s, r) => s + num(r.prevencao), 0);
-  const intServ = interiorOutras.reduce((s, r) => s + num(r.servicos), 0);
-  const intTot = intSalv + intAcid + intAph + intPrev + intServ;
-
-  autoTable(doc, {
-    startY: 135,
-    margin: { left: 486 },
-    tableWidth: 339,
-    head: [
-      [
-        {
-          content: `RESUMO DE OUTRAS OCORRÊNCIAS EM ${opDateStr}`,
-          colSpan: 7,
-          styles: {
-            fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b],
-            textColor: 255,
-            fontStyle: "bold",
-            halign: "center",
-          },
-        },
-      ],
-      ["REGIÃO / TIPO", "SALV.", "ACID.", "APH", "PREV.", "SERV.", "TOTAL"],
-    ],
-    body: [
-      ["CAPITAL", capSalv, capAcid, capAph, capPrev, capServ, capTot],
-      ["INTERIOR", intSalv, intAcid, intAph, intPrev, intServ, intTot],
-      ["TOTAL", totSalv, totAcid, totAph, totPrev, totServ, grandOutras],
-    ],
-    styles: { fontSize: 6.5, cellPadding: 2, lineColor: BORDER_COLOR, lineWidth: 0.3 },
-    headStyles: {
-      fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b],
-      textColor: 255,
-      fontStyle: "bold",
-      fontSize: 6,
-      halign: "center",
-    },
-    columnStyles: {
-      0: { fontStyle: "bold" },
-      1: { halign: "center" },
-      2: { halign: "center" },
-      3: { halign: "center" },
-      4: { halign: "center" },
-      5: { halign: "center" },
-      6: { halign: "center", fontStyle: "bold" },
-    },
-  });
-
-  // Card Total Geral de Atendimentos Diários
-  const totalGeralDia = totDiarioOcorrencias + grandOutras;
-  autoTable(doc, {
-    startY: 235,
-    margin: { left: 486 },
-    tableWidth: 339,
-    head: [
-      [
-        {
-          content: "CONSOLIDADO GERAL DE ATENDIMENTOS DO DIA",
-          colSpan: 3,
+          content: "CONSOLIDADO GERAL DA OPERAÇÃO AMAZONAS + VERDE",
+          colSpan: 4,
           styles: {
             fillColor: [BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b],
             textColor: 255,
@@ -776,32 +653,39 @@ export function buildSheetsPdfDoc(
           },
         },
       ],
-      ["INCÊNDIOS COMBATIDOS", "ATENDIMENTOS DIVERSOS", "TOTAL GERAL NO ESTADO"],
+      [
+        "INCÊNDIOS DO DIA — CAPITAL",
+        "INCÊNDIOS DO DIA — INTERIOR",
+        "TOTAL DE INCÊNDIOS NO DIA",
+        "ACUMULADO DESDE 01/06/2026",
+      ],
     ],
     body: [
       [
-        `${totDiarioOcorrencias} ocorrências`,
-        `${grandOutras} atendimentos`,
-        `${totalGeralDia} atendimentos CBMAM`,
+        `${capUrbD + capFlorD} ocorrências (${capUrbD} urbanos / ${capFlorD} florestais)`,
+        `${intUrbD + intFlorD} ocorrências (${intUrbD} urbanos / ${intFlorD} florestais)`,
+        `${totDiarioOcorrencias} ocorrências (${totDiarioFocos} focos combatidos)`,
+        `${totAcumOcorrencias} ocorrências (${totAcumFocos} focos / ${NF.format(totAcumArea)} m²)`,
       ],
     ],
-    styles: { fontSize: 7, cellPadding: 3, lineColor: BORDER_COLOR, lineWidth: 0.3 },
+    styles: { fontSize: 7.5, cellPadding: 4, lineColor: BORDER_COLOR, lineWidth: 0.3 },
     headStyles: {
       fillColor: [BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b],
       textColor: 255,
       fontStyle: "bold",
-      fontSize: 6.5,
+      fontSize: 7,
       halign: "center",
     },
     columnStyles: {
       0: { halign: "center" },
       1: { halign: "center" },
       2: { halign: "center", fontStyle: "bold" },
+      3: { halign: "center", fontStyle: "bold" },
     },
   });
 
   // BLOCO DE ASSINATURAS (Página 3 - Base)
-  const sigY = 500;
+  const sigY = 280;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(0, 0, 0);
@@ -830,7 +714,8 @@ export function buildSheetsPdfDoc(
   // PÁGINA 4+: OCORRÊNCIAS DETALHADAS DE INCÊNDIO (CAD)
   // ====================================================
   const { rows: filteredOccs } = filterOccurrencesByDate(data.occurrences ?? [], reportDate);
-  const occsToRender = filteredOccs.length > 0 ? filteredOccs : (data.occurrences ?? []);
+  const rawOccsToRender = filteredOccs.length > 0 ? filteredOccs : (data.occurrences ?? []);
+  const occsToRender = rawOccsToRender.filter((occ) => isIncendio(occ.natureza));
 
   if (occsToRender.length > 0) {
     doc.addPage();

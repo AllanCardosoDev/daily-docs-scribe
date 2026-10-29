@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireBackendAuth } from "@/integrations/backend/auth-middleware";
 import { dbFail } from "./server-errors";
 import { ShiftEnum } from "./report-shift";
-import { canonicalMunicipio, compareMunicipios, harmonizeMunicipalitySections } from "./municipio-order";
+import { canonicalMunicipio, compareMunicipios, harmonizeMunicipalitySections, isNonMunicipioTroop } from "./municipio-order";
 
 // ---------- Schemas ----------
 
@@ -202,7 +202,7 @@ export const getDailyReport = createServerFn({ method: "GET" })
         const map = new Map<string, T>();
         for (const r of list) {
           const rawMun = r?.mun ?? r?.municipio;
-          if (!rawMun) continue;
+          if (!rawMun || isNonMunicipioTroop(rawMun)) continue;
           const mun = canonicalMunicipio(rawMun);
           const existing = map.get(mun);
           if (!existing) {
@@ -227,7 +227,7 @@ export const getDailyReport = createServerFn({ method: "GET" })
         const recMap = new Map<string, Record<string, any>>();
         for (const item of (row as any).recursos) {
           const rawMun = item?.mun ?? item?.municipio;
-          if (!rawMun) continue;
+          if (!rawMun || isNonMunicipioTroop(rawMun)) continue;
           const mun = canonicalMunicipio(rawMun);
           const existing = recMap.get(mun);
           if (!existing) {

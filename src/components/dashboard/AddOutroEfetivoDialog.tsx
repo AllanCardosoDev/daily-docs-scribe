@@ -21,8 +21,6 @@ import {
 } from "@/components/ui/select";
 
 const PRESET_EFETIVO_TYPES = [
-  "Militares São Paulo-SP",
-  "Militares Outro Estado",
   "Força Nacional",
   "Brigada Florestal Voluntária",
   "Defesa Civil Estadual",

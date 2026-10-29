@@ -134,11 +134,16 @@ export const isManaus = (mun: unknown) => norm(mun) === "manaus";
 export function isNonMunicipioTroop(mun: unknown): boolean {
   if (!mun) return false;
   const s = String(mun).trim().toLowerCase();
+  // Atenção: São Paulo de Olivença é um município legítimo do Amazonas e DEVE ser preservado!
+  if (s.includes("olivença") || s.includes("olivenca")) return false;
   return (
     s.includes("militares são paulo") ||
     s.includes("militares sao paulo") ||
     s.includes("são paulo-sp") ||
     s.includes("sao paulo-sp") ||
+    s.includes("são paulo") ||
+    s.includes("sao paulo") ||
+    s.includes("cbmsp") ||
     s.includes("militares outro estado")
   );
 }
@@ -168,7 +173,7 @@ export function deduplicateAndOrderMunicipios<T extends Record<string, any>>(row
 
   for (const r of rows) {
     const rawMun = r?.mun ?? r?.municipio;
-    if (!rawMun) continue;
+    if (!rawMun || isNonMunicipioTroop(rawMun)) continue;
     const mun = canonicalMunicipio(rawMun);
     const key = mun.toLowerCase();
 
@@ -211,10 +216,7 @@ export function manausFirstSheets<T extends Record<string, any>>(data: T): T {
   const out: Record<string, any> = { ...data };
   for (const s of sections) {
     if (Array.isArray(out[s])) {
-      let list = out[s];
-      if (s === "recursos" || s === "incendios_diario" || s === "incendios_acumulado") {
-        list = list.filter((r: any) => !isNonMunicipioTroop(r?.mun ?? r?.municipio));
-      }
+      const list = out[s].filter((r: any) => !isNonMunicipioTroop(r?.mun ?? r?.municipio));
       out[s] = deduplicateAndOrderMunicipios(list);
     }
   }
@@ -288,7 +290,7 @@ export function harmonizeMunicipalitySections<
 
   const efMap = new Map<string, E>();
   for (const r of efetivo ?? []) {
-    if (r?.mun) efMap.set(canonicalMunicipio(r.mun).toLowerCase(), r);
+    if (r?.mun && !isNonMunicipioTroop(r.mun)) efMap.set(canonicalMunicipio(r.mun).toLowerCase(), r);
   }
 
   const recMap = new Map<string, R>();
@@ -306,13 +308,8 @@ export function harmonizeMunicipalitySections<
     return existing ? { ...defaultEfetivo(mun), ...existing, mun } : defaultEfetivo(mun);
   });
 
-  // Preserva qualquer tropa extra de efetivo que estava originalmente em efetivo
-  const extraTroops = (efetivo ?? []).filter((r) => isNonMunicipioTroop(r?.mun));
-  for (const t of extraTroops) {
-    outEfetivo.push(t);
-  }
-
-  // Recursos e Incêndios JAMAIS recebem tropas externas como se fossem municípios
+  // Tropas externas (ex: Militares São Paulo) NUNCA devem aparecer como linha de município
+  // em nenhuma das seções (Efetivo, Recursos ou Incêndios).
   const outRecursos = orderedMuns.map((mun) => {
     const existing = recMap.get(mun.toLowerCase());
     return existing ? { ...defaultRecursos(mun), ...existing, mun } : defaultRecursos(mun);

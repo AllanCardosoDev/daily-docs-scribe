@@ -6,6 +6,7 @@ import { fmtDateStamp as fmtDateStampGeneric } from "./formatters";
 import { fmtDateBR, fmtDateStamp, filterOccurrencesByDate } from "./report-date";
 import { DASHBOARD_COLUMNS, resolveEfetivoColumns, calculateRowTotal } from "./dashboard-columns";
 import { manausFirstSheets } from "./municipio-order";
+import { isIncendio } from "./fire-classification";
 
 export function exportSheetsToXlsx(
   rawData: SheetsData,
@@ -157,21 +158,8 @@ export function exportSheetsToXlsx(
     "area",
   );
 
-  addSheet(
-    "Outras Ocorrências",
-    [
-      { key: "mun", label: "Município" },
-      { key: "salvamento", label: "Salvamento" },
-      { key: "acidentes", label: "Acidentes" },
-      { key: "aph", label: "APH" },
-      { key: "prevencao", label: "Prevenção" },
-      { key: "servicos", label: "Serviços Técnicos" },
-      { key: "total_periodo", label: "Total" },
-    ],
-    data.outras_diarias ?? [],
-  );
-
-  const { rows: occurrences } = filterOccurrencesByDate(data.occurrences, reportDate);
+  const { rows: rawOccurrences } = filterOccurrencesByDate(data.occurrences, reportDate);
+  const occurrences = (rawOccurrences || []).filter((occ) => isIncendio(occ.natureza));
   addSheet(
     "Ocorrências detalhadas",
     [
@@ -309,15 +297,6 @@ export function exportTotaisToXlsx(
     ],
     recursos,
   );
-
-  if (outras && outras.length > 0) {
-    addSheet(
-      "Outras Ocorrências",
-      ["Município", "Salvamento", "Acidentes", "APH", "Prevenção", "Serviços Técnicos", "Total"],
-      ["salvamento", "acidentes", "aph", "prevencao", "servicos", "total_periodo"],
-      outras,
-    );
-  }
 
   const cleanPeriodo = periodoLabel.replace(/[^a-z0-9]/gi, "-").toLowerCase();
   XLSX.writeFile(wb, `totais-acumulados-cbmam-${cleanPeriodo}.xlsx`);

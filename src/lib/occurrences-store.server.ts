@@ -8,6 +8,7 @@
 import occurrencesData from "../data/occurrences.json";
 import type { OccurrenceRow } from "./sheets.types";
 import { canonicalMunicipio } from "./municipio-order";
+import { isIncendio } from "./fire-classification";
 import fs from "fs";
 import path from "path";
 
@@ -34,7 +35,11 @@ export type StoredOccurrence = {
   relato?: string;
 };
 
-const allOccurrences: StoredOccurrence[] = [...(occurrencesData as StoredOccurrence[])];
+// O banco de dados oficial da Operação Amazonas + Verde armazena exclusivamente
+// ocorrências reais de combate a incêndio (florestal, ambiental e urbano).
+const allOccurrences: StoredOccurrence[] = (occurrencesData as StoredOccurrence[]).filter(
+  (occ) => isIncendio(occ.natureza),
+);
 
 export function makeOccurrenceKey(occ: Partial<StoredOccurrence>): string {
   if (occ.protocolo && occ.protocolo !== "-" && occ.protocolo.length > 3) {
@@ -97,6 +102,7 @@ export function addOccurrences(newItems: StoredOccurrence[]): {
   let duplicatesSkipped = 0;
 
   for (const item of newItems) {
+    if (!isIncendio(item.natureza)) continue;
     const key = makeOccurrenceKey(item);
     if (existingKeys.has(key)) {
       duplicatesSkipped++;
@@ -139,7 +145,7 @@ export function addOccurrences(newItems: StoredOccurrence[]): {
  */
 export function getOccurrencesForDate(dateIso: string): OccurrenceRow[] {
   const list = byDate.get(dateIso) ?? [];
-  return list.map(toOccurrenceRow);
+  return list.filter((occ) => isIncendio(occ.natureza)).map(toOccurrenceRow);
 }
 
 /**
@@ -152,7 +158,7 @@ export function getOccurrencesForRange(
 ): OccurrenceRow[] {
   const result: OccurrenceRow[] = [];
   for (const item of allOccurrences) {
-    if (item.data >= startIso && item.data <= endIso) {
+    if (item.data >= startIso && item.data <= endIso && isIncendio(item.natureza)) {
       result.push(toOccurrenceRow(item));
       if (result.length >= limit) break;
     }
@@ -164,7 +170,7 @@ export function getOccurrencesForRange(
  * Retorna todas ou as N mais recentes ocorrências de incêndio.
  */
 export function getRecentOccurrences(limit = 200): OccurrenceRow[] {
-  return allOccurrences.slice(0, limit).map(toOccurrenceRow);
+  return allOccurrences.filter((occ) => isIncendio(occ.natureza)).slice(0, limit).map(toOccurrenceRow);
 }
 
 /**
@@ -179,10 +185,10 @@ export function searchOccurrences(filters: {
   limit?: number;
   offset?: number;
 }): { rows: StoredOccurrence[]; total: number } {
-  let list = allOccurrences;
+  let list = allOccurrences.filter((r) => isIncendio(r.natureza));
 
   if (filters.date) {
-    list = byDate.get(filters.date) ?? [];
+    list = (byDate.get(filters.date) ?? []).filter((r) => isIncendio(r.natureza));
   } else if (filters.startDate && filters.endDate) {
     list = list.filter((r) => r.data >= filters.startDate! && r.data <= filters.endDate!);
   }

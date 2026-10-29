@@ -7,7 +7,7 @@ import type { SectionSavers } from "@/hooks/use-sheets";
 import { manausFirstSheets } from "@/lib/municipio-order";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import { Flame, Users, ClipboardList, BarChart3, LifeBuoy } from "lucide-react";
+import { Flame, Users, ClipboardList, BarChart3 } from "lucide-react";
 
 interface Props {
   data: SheetsData;
@@ -194,24 +194,6 @@ export const DashboardSections = memo(function DashboardSections({
           occurrence={selectedOccurrence}
           open={!!selectedOccurrence}
           onOpenChange={(open) => !open && setSelectedOccurrence(null)}
-        />
-      </section>
-
-      <section className="space-y-3">
-        <SectionHeader
-          index="05"
-          title="Outras ocorrências / Atendimentos diversos"
-          subtitle="Salvamento, Acidentes, APH, Ações de Prevenção e Serviços Técnicos"
-          icon={<LifeBuoy className="w-4 h-4" aria-hidden="true" />}
-        />
-        <DataTable
-          title="Atendimentos diversos"
-          badgeText="41 municípios"
-          editable={canEdit}
-          onRowsChange={savers.outras_diarias}
-          columns={DASHBOARD_COLUMNS.outras_diarias}
-          rows={data.outras_diarias}
-          emptyMessage="Sem atendimentos diversos registrados."
         />
       </section>
     </div>
