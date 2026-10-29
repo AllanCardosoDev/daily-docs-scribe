@@ -61,7 +61,7 @@ export function buildDailySheetsData(
     recursos: (row?.recursos ?? []) as SheetsData["recursos"],
     incendios_diario: (row?.incendios ?? []) as SheetsData["incendios_diario"],
     incendios_acumulado: accumulated ? aggregateIncendios(accumulated) : [],
-    outras_diarias: (row?.outras ?? []) as SheetsData["outras_diarias"],
+    outras_diarias: [],
     occurrences: [],
   };
 }
