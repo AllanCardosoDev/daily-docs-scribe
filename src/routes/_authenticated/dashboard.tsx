@@ -248,10 +248,12 @@ function DashboardPage() {
     setPreviewOpen(true);
   }, []);
 
-  const { exportXlsx, exportPdf } = useExporters(
+  const { exportXlsx, exportPdf, exportEfetivoPdf } = useExporters(
     filteredData,
     filters.reportDate,
-    pdfQuality
+    pdfQuality,
+    undefined,
+    filters.endDate,
   );
 
   const isBooting = configQuery.isLoading || (dataQuery.isLoading && !dataQuery.isPlaceholderData);
@@ -281,6 +283,7 @@ function DashboardPage() {
               onRefresh={refresh}
               onExportXlsx={exportXlsx}
               onExportPdf={exportPdf}
+              onExportEfetivoPdf={exportEfetivoPdf}
             />
 
             {/* Editor diário do documento */}

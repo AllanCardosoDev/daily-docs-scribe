@@ -10,16 +10,24 @@ import { fmtDateBR, fmtDateStamp, filterOccurrencesByDate } from "./report-date"
 import { CBMAM_LOGO_BASE64 } from "./cbmam-logo";
 import { isIncendio } from "./fire-classification";
 
-export function reportFilename(reportDate: Date | null, generatedAt: Date = new Date()) {
+export function reportFilename(
+  reportDate: Date | null,
+  generatedAt: Date = new Date(),
+  periodoStr?: string,
+) {
+  if (periodoStr && periodoStr.includes(" a ")) {
+    const slug = periodoStr.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "");
+    return `relatorio-operacional-cbmam-periodo-${slug}.pdf`;
+  }
   const suffix = reportDate ? `-${fmtDateStamp(reportDate)}` : `-${fmtDateStamp(generatedAt)}`;
   return `relatorio-operacional-cbmam${suffix}.pdf`;
 }
 
-// Cores Institucionais Militares CBMAM
+// Cores Institucionais Militares CBMAM 100% Verde
 const BRAND_DARK = { r: 8, g: 46, b: 31 };     // #082e1f - Verde Floresta Amazônica Profundo
-const BRAND_GREEN = { r: 16, g: 78, b: 46 };   // #104e2e - Verde CBMAM
-const HEADER_NAVY = { r: 18, g: 50, b: 84 };   // #123254 - Azul Marinho Tático Institucional
-const HEADER_BLUE = { r: 28, g: 78, b: 128 };  // #1c4e80 - Azul Operacional
+const BRAND_GREEN = { r: 16, g: 78, b: 46 };   // #104e2e - Verde Oficial CBMAM
+const HEADER_NAVY = { r: 8, g: 46, b: 31 };    // #082e1f - Verde CBMAM Escuro Institucional
+const HEADER_BLUE = { r: 16, g: 78, b: 46 };   // #104e2e - Verde CBMAM Operacional
 const ACCENT_GOLD = { r: 180, g: 130, b: 20 }; // #b48214 - Ouro Militar
 const BG_LIGHT_ROW = [248, 250, 248] as [number, number, number];
 const BORDER_COLOR: [number, number, number] = [185, 200, 190];
@@ -33,7 +41,7 @@ export function exportSheetsToPdf(
   comparisonData?: ComparisonResult,
 ) {
   const doc = buildSheetsPdfDoc(data, reportDate, quality, comparisonData);
-  doc.save(reportFilename(reportDate));
+  doc.save(reportFilename(reportDate, new Date(), data.header?.periodo));
 }
 
 export function buildSheetsPdfDoc(
@@ -846,16 +854,18 @@ export function buildSheetsPdfDoc(
   const totAcumArea = incAcumulados.reduce((s, r) => s + num(r.area), 0);
   const totAcumOcorrencias = totAcumUrb + totAcumFlor;
 
+  const isPeriodRange = Boolean(data.isRange || (header.periodo && header.periodo.includes(" a ")));
+
   // Cards de Ocorrências (Y: 62)
   drawKpiCards(62, [
     {
-      label: "Incêndios no Dia",
+      label: isPeriodRange ? "Incêndios no Período" : "Incêndios no Dia",
       value: NF.format(totDiarioOcorrencias),
       subtext: `${totDiarioUrb} Urb. / ${totDiarioFlor} Flor.`,
       highlight: true,
     },
     {
-      label: "Focos Extintos no Dia",
+      label: isPeriodRange ? "Focos no Período" : "Focos Extintos no Dia",
       value: NF.format(totDiarioFocos),
       subtext: "Combates in loco",
     },
@@ -1010,8 +1020,12 @@ export function buildSheetsPdfDoc(
   // ===========================================================================
   // OCORRÊNCIAS DETALHADAS DE INCÊNDIO (CAD)
   // ===========================================================================
-  const { rows: filteredOccs } = filterOccurrencesByDate(data.occurrences ?? [], reportDate);
-  const rawOccsToRender = filteredOccs.length > 0 ? filteredOccs : (data.occurrences ?? []);
+  const rawOccsToRender = isPeriodRange
+    ? (data.occurrences ?? [])
+    : (() => {
+        const { rows: filteredOccs } = filterOccurrencesByDate(data.occurrences ?? [], reportDate);
+        return filteredOccs.length > 0 ? filteredOccs : (data.occurrences ?? []);
+      })();
   const occsToRender = rawOccsToRender.filter((occ) => isIncendio(occ.natureza));
 
   if (occsToRender.length > 0) {

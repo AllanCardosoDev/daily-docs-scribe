@@ -16,6 +16,7 @@ import {
   MapPin,
   Flame,
   FileSpreadsheet,
+  FileText,
   Download,
   Share2,
   CalendarIcon,
@@ -219,6 +220,27 @@ function EfetivoPage() {
     toast.info("Edições descartadas.");
   }, []);
 
+  const handleExportPdf = useCallback(async () => {
+    try {
+      const { exportEfetivoPdf } = await import("@/lib/export-efetivo-pdf");
+      const dateLabel = reportDate ? fmtDateBR(reportDate) : "Data de Hoje";
+      exportEfetivoPdf({
+        efetivo: effectiveSheetsData.efetivo || [],
+        periodoLabel: dateLabel,
+        reportDate,
+        comandante: rawData.header?.comandante,
+        coordenador: rawData.header?.coordenador,
+      });
+      toast.success("Relatório Oficial do Efetivo (PDF) gerado com sucesso!", {
+        description: `Período: ${dateLabel}`,
+      });
+    } catch (e) {
+      toast.error("Falha ao gerar Relatório do Efetivo", {
+        description: (e as Error)?.message,
+      });
+    }
+  }, [effectiveSheetsData, reportDate, rawData.header]);
+
   const handleExportXlsx = useCallback(() => {
     try {
       exportEfetivoMapasXlsx(effectiveSheetsData, reportDate);
@@ -332,6 +354,16 @@ function EfetivoPage() {
                     title="Atualizar dados"
                   >
                     <RefreshCw className="w-4 h-4 text-muted-foreground" />
+                  </Button>
+
+                  {/* Gerar Relatório PDF do Efetivo */}
+                  <Button
+                    onClick={handleExportPdf}
+                    className="h-10 px-4 bg-emerald-800 hover:bg-emerald-900 text-white font-bold gap-2 shadow-sm"
+                    title="Gerar Relatório Oficial do Efetivo CBMAM em formato PDF"
+                  >
+                    <FileText className="w-4 h-4" />
+                    <span>Relatório Efetivo (PDF)</span>
                   </Button>
 
                   {/* Exportar XLSX (Mapas) */}
@@ -493,7 +525,7 @@ function EfetivoPage() {
                     Matriz Oficial Consolidada · 1.533 Operacionais (26 Municípios + 9 Bases)
                   </Badge>
                 ) : (
-                  <Badge variant="outline" className="bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/30 font-semibold py-1">
+                  <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 font-semibold py-1">
                     Efetivo Diário da Sala de Situação ({reportDate ? fmtDateBR(reportDate) : "Hoje"})
                   </Badge>
                 )}
@@ -535,12 +567,12 @@ function EfetivoPage() {
                     <span className="text-xs uppercase tracking-wider font-bold text-muted-foreground">
                       Capital (Manaus)
                     </span>
-                    <div className="p-2 rounded-xl bg-blue-100 dark:bg-blue-950/50 text-blue-800 dark:text-blue-300">
+                    <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300">
                       <Building2 className="w-5 h-5" />
                     </div>
                   </div>
                   <div className="mt-3 flex items-baseline gap-2">
-                    <span className="text-3xl sm:text-4xl font-extrabold font-display text-blue-700 dark:text-blue-400">
+                    <span className="text-3xl sm:text-4xl font-extrabold font-display text-emerald-700 dark:text-emerald-400">
                       {totals.capital}
                     </span>
                     <span className="text-xs text-muted-foreground">
@@ -1032,7 +1064,7 @@ function EfetivoPage() {
                       <thead className="bg-muted/80 text-[11px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border">
                         <tr>
                           <th className="p-2.5 pl-3">Missão / Força Operacional</th>
-                          <th className="p-2.5 text-right font-mono text-blue-700 dark:text-blue-400">Capital</th>
+                          <th className="p-2.5 text-right font-mono text-emerald-700 dark:text-emerald-400">Capital</th>
                           <th className="p-2.5 text-right font-mono text-amber-700 dark:text-amber-400">Interior</th>
                           <th className="p-2.5 text-right font-mono font-bold text-foreground">Total</th>
                           <th className="p-2.5 pr-3 text-right font-mono">Participação</th>
@@ -1045,7 +1077,7 @@ function EfetivoPage() {
                               <div className="font-bold text-foreground">{r.missao}</div>
                               <div className="text-[11px] text-muted-foreground">{r.label}</div>
                             </td>
-                            <td className="p-2.5 text-right font-mono font-semibold text-blue-700 dark:text-blue-400">
+                            <td className="p-2.5 text-right font-mono font-semibold text-emerald-700 dark:text-emerald-400">
                               {r.capital}
                             </td>
                             <td className="p-2.5 text-right font-mono font-semibold text-amber-700 dark:text-amber-400">
@@ -1063,7 +1095,7 @@ function EfetivoPage() {
                       <tfoot className="bg-muted font-bold text-foreground border-t-2 border-border text-[11px]">
                         <tr>
                           <td className="p-2.5 pl-3 uppercase">Total Geral Integrado</td>
-                          <td className="p-2.5 text-right font-mono text-blue-700 dark:text-blue-400 text-sm">
+                          <td className="p-2.5 text-right font-mono text-emerald-700 dark:text-emerald-400 text-sm font-bold">
                             {totals.capital}
                           </td>
                           <td className="p-2.5 text-right font-mono text-amber-700 dark:text-amber-400 text-sm">

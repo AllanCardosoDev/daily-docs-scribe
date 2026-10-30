@@ -20,14 +20,18 @@ export function exportSheetsToXlsx(
   const wb = XLSX.utils.book_new();
 
   const header = data.header ?? {};
-  const opDateLabel = reportDate ? fmtDateBR(reportDate) : "—";
+  const isPeriod = Boolean(data.isRange || (header.periodo && header.periodo.includes(" a ")));
+  const opDateLabel = header.periodo
+    ? header.periodo
+    : reportDate
+    ? fmtDateBR(reportDate)
+    : "—";
   const headerRows = [
     ["CBMAM · Comando Integrado · Operação Amazonas + Verde"],
-    ["Relatório Operacional Diário"],
+    [isPeriod ? "Relatório Consolidado de Período" : "Relatório Operacional Diário"],
     [],
-    ["Data operacional", opDateLabel],
+    ["Período Operacional", opDateLabel],
     ["Título", header.titulo ?? ""],
-    ["Período Operacional", header.periodo ?? ""],
     ["Próximo Período", header.proximoPeriodo ?? ""],
     ["Reunião de Planejamento", header.reuniaoPlanejamento ?? ""],
     ["Reunião de Briefing", header.reuniaoBriefing ?? ""],
@@ -35,7 +39,7 @@ export function exportSheetsToXlsx(
     ["Chefe de Operações — Capital", header.chefeCapital ?? ""],
     ["Chefe de Operações — Interior", header.chefeInterior ?? ""],
     ["Coordenador — Sala de Situação", header.coordSituacao ?? ""],
-    ["Coordenador", header.coordenador ?? ""],
+    ["Coordenador Geral", header.coordenador ?? ""],
     ["Subcomandante", header.subcomandante ?? ""],
     [],
     ["Emitido em", new Date().toLocaleString("pt-BR")],
@@ -102,12 +106,15 @@ export function exportSheetsToXlsx(
         });
 
     const aoa = [
+      [`CBMAM · ${name.toUpperCase()} · OPERAÇÃO AMAZONAS + VERDE`],
+      [`Período / Data: ${opDateLabel}`, "", "", `Gerado em: ${new Date().toLocaleString("pt-BR")}`],
+      [],
       finalCols.map((c) => c.label),
       ...finalRows.map((r) => finalCols.map((c) => r[c.key] ?? "")),
       ...(totalRow ? [totalRow] : []),
     ];
     const ws = XLSX.utils.aoa_to_sheet(aoa);
-    ws["!cols"] = finalCols.map((c) => ({ wch: Math.max(c.label.length + 2, 14) }));
+    ws["!cols"] = finalCols.map((c) => ({ wch: Math.max(c.label.length + 3, 15) }));
     XLSX.utils.book_append_sheet(wb, ws, name);
   };
 
@@ -190,13 +197,28 @@ export function exportTotaisToXlsx(
 ) {
   const wb = XLSX.utils.book_new();
 
-  // Comparativo Anual Consolidado
+  // 1. Aba de Identificação Institucional CBMAM
+  const headerRows = [
+    ["CORPO DE BOMBEIROS MILITAR DO ESTADO DO AMAZONAS — CBMAM"],
+    ["COMANDO OPERACIONAL INTEGRADO · SALA DE SITUAÇÃO"],
+    ["OPERAÇÃO AMAZONAS + VERDE"],
+    [],
+    ["RELATÓRIO:", "TOTAIS ACUMULADOS E CONSOLIDADOS DO PERÍODO"],
+    ["PERÍODO OPERACIONAL:", periodoLabel || "Consolidado Geral"],
+    ["DATA DE EMISSÃO:", new Date().toLocaleString("pt-BR")],
+    ["COMANDANTE DO INCIDENTE:", "CEL QOBM BORGES"],
+    ["COORD. GERAL DA OPERAÇÃO:", "CEL QOBM CRISTIANO BRAZ FERREIRA"],
+    ["SALA DE SITUAÇÃO:", "CEL QOBM FERREIRA"],
+  ];
+  const wsHeader = XLSX.utils.aoa_to_sheet(headerRows);
+  wsHeader["!cols"] = [{ wch: 28 }, { wch: 60 }];
+  XLSX.utils.book_append_sheet(wb, wsHeader, "Identificação");
 
   const addSheet = (name: string, headers: string[], keys: string[], rows: any[]) => {
     const dataRows = rows.map((r) => {
-      const rowData = [r.mun];
+      const rowData = [r.mun || r.municipio || ""];
       for (const k of keys) {
-        rowData.push(r[k] ?? 0);
+        rowData.push(Number(r[k]) || 0);
       }
       return rowData;
     });
@@ -206,9 +228,16 @@ export function exportTotaisToXlsx(
       ...keys.map((k) => rows.reduce((s, r) => s + (Number(r[k]) || 0), 0)),
     ];
 
-    const aoa = [headers, ...dataRows, totalRow];
+    const aoa = [
+      [`CBMAM · ${name.toUpperCase()} · TOTAIS DO PERÍODO`],
+      [`Período Operacional: ${periodoLabel || "Consolidado Geral"}`, "", "", `Emissão: ${new Date().toLocaleString("pt-BR")}`],
+      [],
+      headers,
+      ...dataRows,
+      totalRow,
+    ];
     const ws = XLSX.utils.aoa_to_sheet(aoa);
-    ws["!cols"] = headers.map((h) => ({ wch: Math.max(h.length + 2, 14) }));
+    ws["!cols"] = headers.map((h) => ({ wch: Math.max(h.length + 3, 16) }));
     XLSX.utils.book_append_sheet(wb, ws, name);
   };
 
@@ -284,8 +313,19 @@ export function exportTotaisToXlsx(
     recursos,
   );
 
-  const cleanPeriodo = periodoLabel.replace(/[^a-z0-9]/gi, "-").toLowerCase();
-  XLSX.writeFile(wb, `totais-acumulados-cbmam-${cleanPeriodo}.xlsx`);
+  if (outras && outras.length > 0) {
+    addSheet(
+      "Outras Ocorrências",
+      ["Município", "Salvamento", "Acidentes", "APH", "Prevenção", "Serviços"],
+      ["salvamento", "acidentes", "aph", "prevencao", "servicos"],
+      outras,
+    );
+  }
+
+  const cleanPeriodo = (periodoLabel || "geral")
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  XLSX.writeFile(wb, `relatorio-totais-cbmam-${cleanPeriodo}.xlsx`);
 }
 
 export { exportEfetivoMapasXlsx, exportEfetivoMapasJson } from "./efetivo-mapas";

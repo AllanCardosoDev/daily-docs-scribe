@@ -57,6 +57,8 @@ import { exportComparisonPdf } from "@/lib/export-comparison-pdf";
 import { MonthMultiSelectDropdown } from "@/components/dashboard/TerritorialFireSummary";
 import { SHIFTS, SHIFT_TAB, type ReportShift } from "@/lib/report-shift";
 import { exportTotaisToXlsx } from "@/lib/export-xlsx";
+import { fmtDateBR } from "@/lib/report-date";
+import { sanitizeSheetsData } from "@/lib/report-validation";
 
 export const Route = createFileRoute("/_authenticated/totais")({
   head: () => ({
@@ -561,17 +563,91 @@ ${topIncendios || "  Nenhum registro no período."}
   };
 
   const handleExportXlsx = () => {
-    const label = !isAnnualComparison
-      ? scope === "periodo" ? `${from}-ate-${to}` : "geral"
-      : `comparativo-${compYear1}-vs-${compYear2}-${MONTH_NAMES[compStartMonth]}-${MONTH_NAMES[compEndMonth]}`;
+    const formattedPeriodLabel = !isAnnualComparison
+      ? scope === "periodo"
+        ? `${fmtDateBR(new Date(from + "T12:00:00Z"))} a ${fmtDateBR(new Date(to + "T12:00:00Z"))}`
+        : "Período Geral Consolidado"
+      : `Comparativo ${compYear1} vs ${compYear2} (${MONTH_NAMES[compStartMonth]} a ${MONTH_NAMES[compEndMonth]})`;
     exportTotaisToXlsx(
       !isAnnualComparison ? incendiosFull : incendiosComp2,
       !isAnnualComparison ? efetivoFull : efetivoComp2,
       !isAnnualComparison ? recursosFull : recursosComp2,
-      label,
+      formattedPeriodLabel,
       !isAnnualComparison ? outrasFull : []
     );
-    toast.success("Planilha Excel (.xlsx) baixada com sucesso!");
+    toast.success("Planilha Excel (.xlsx) baixada com sucesso!", {
+      description: `Período: ${formattedPeriodLabel}`,
+    });
+  };
+
+  const handleExportPeriodPdf = async () => {
+    try {
+      const periodLabel = scope === "periodo"
+        ? `${fmtDateBR(new Date(from + "T12:00:00Z"))} a ${fmtDateBR(new Date(to + "T12:00:00Z"))}`
+        : "Consolidado Geral";
+
+      const periodSheetsData = {
+        header: {
+          titulo: "Relatório Consolidado de Período",
+          periodo: periodLabel,
+          comandante: "CEL QOBM BORGES",
+          coordenador: "CEL QOBM CRISTIANO BRAZ FERREIRA",
+          coordSituacao: "CEL QOBM FERREIRA",
+          chefeCapital: "CEL QOBM MENEZES",
+          chefeInterior: "CEL QOBM MONTEIRO",
+          proximoPeriodo: "D+1 — 08H00",
+          reuniaoPlanejamento: "Diária — 08H15",
+          reuniaoBriefing: "Diária — 08H30",
+        },
+        efetivo: !isAnnualComparison ? efetivoFull : efetivoComp2,
+        recursos: !isAnnualComparison ? recursosFull : recursosComp2,
+        incendios_diario: !isAnnualComparison ? incendiosFull : incendiosComp2,
+        incendios_acumulado: (!isAnnualComparison ? incendiosFull : incendiosComp2).map((r) => ({
+          mun: r.mun,
+          urb: r.urb ?? 0,
+          flor: r.flor ?? 0,
+          focos: r.focos ?? 0,
+          sat: 0,
+          area: 0,
+        })),
+        outras_diarias: !isAnnualComparison ? outrasFull : [],
+        occurrences: [],
+        isRange: true,
+      };
+
+      const cleanData = sanitizeSheetsData(periodSheetsData);
+      const { exportSheetsToPdf } = await import("@/lib/export-pdf");
+      exportSheetsToPdf(cleanData, new Date(from + "T12:00:00Z"));
+      toast.success("Relatório Oficial em PDF gerado com sucesso!", {
+        description: `Período: ${periodLabel}`,
+      });
+    } catch (e) {
+      toast.error("Falha ao gerar o relatório em PDF", {
+        description: (e as Error)?.message,
+      });
+    }
+  };
+
+  const handleExportEfetivoPdf = async () => {
+    try {
+      const periodLabel = scope === "periodo"
+        ? `${fmtDateBR(new Date(from + "T12:00:00Z"))} a ${fmtDateBR(new Date(to + "T12:00:00Z"))}`
+        : "Consolidado Geral";
+
+      const { exportEfetivoPdf } = await import("@/lib/export-efetivo-pdf");
+      exportEfetivoPdf({
+        efetivo: !isAnnualComparison ? efetivoFull : efetivoComp2,
+        periodoLabel: periodLabel,
+        reportDate: new Date(from + "T12:00:00Z"),
+      });
+      toast.success("Relatório Oficial do Efetivo gerado com sucesso!", {
+        description: `Período: ${periodLabel}`,
+      });
+    } catch (e) {
+      toast.error("Falha ao gerar o Relatório do Efetivo", {
+        description: (e as Error)?.message,
+      });
+    }
   };
 
   const handleExportExactComparisonPdf = () => {
@@ -631,6 +707,24 @@ ${topIncendios || "  Nenhum registro no período."}
             </h1>
           </div>
           <div className="col-span-2 flex flex-wrap items-center gap-2 md:col-auto md:ml-auto">
+            <Button
+              onClick={handleExportPeriodPdf}
+              size="sm"
+              className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold gap-1.5 shadow-sm"
+              title="Gerar Relatório Oficial Consolidado em PDF"
+            >
+              <FileText className="w-4 h-4" />
+              Relatório PDF
+            </Button>
+            <Button
+              onClick={handleExportEfetivoPdf}
+              size="sm"
+              className="bg-emerald-800 hover:bg-emerald-900 text-white font-bold gap-1.5 shadow-sm"
+              title="Gerar Relatório Oficial do Efetivo em PDF"
+            >
+              <Users className="w-4 h-4" />
+              Relatório do Efetivo
+            </Button>
             <Button
               onClick={copyWhatsAppSummary}
               variant="secondary"
@@ -820,7 +914,7 @@ ${topIncendios || "  Nenhum registro no período."}
                         {incendiosStats.munsAfetados}
                       </div>
                     </div>
-                    <div className="w-9 h-9 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center">
+                    <div className="w-9 h-9 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                       <MapPin className="w-4 h-4" />
                     </div>
                   </div>
@@ -984,6 +1078,20 @@ ${topIncendios || "  Nenhum registro no período."}
                   />
                 </TabsContent>
                 <TabsContent value="efetivo">
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <span className="text-xs font-semibold text-muted-foreground">
+                      Quadro consolidado de bombeiros militares e forças auxiliares
+                    </span>
+                    <Button
+                      onClick={handleExportEfetivoPdf}
+                      size="sm"
+                      className="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold gap-1.5 shadow-sm text-xs h-8"
+                      title="Gerar Relatório Oficial do Efetivo em PDF"
+                    >
+                      <Users className="w-3.5 h-3.5" />
+                      Gerar Relatório do Efetivo (PDF)
+                    </Button>
+                  </div>
                   <AggTable
                     title="Efetivo por município"
                     headers={["Município", "CBMAM", "SEG", "Brigadista", "Brigadista SEMA", "Total"]}

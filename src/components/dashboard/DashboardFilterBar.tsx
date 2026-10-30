@@ -89,6 +89,7 @@ interface Props {
   onRefresh?: () => void;
   onExportXlsx?: () => void;
   onExportPdf?: () => void;
+  onExportEfetivoPdf?: () => void;
 }
 
 export const DashboardFilterBar = memo(function DashboardFilterBar({
@@ -100,6 +101,7 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
   onRefresh,
   onExportXlsx,
   onExportPdf,
+  onExportEfetivoPdf,
 }: Props) {
   // Lista ordenada de municípios únicos disponíveis
   const sortedMunicipios = useMemo(() => {
@@ -491,11 +493,25 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
               type="button"
               variant="outline"
               size="sm"
-              className="h-9 text-xs flex items-center gap-1.5 text-rose-700 dark:text-rose-400 border-rose-300 dark:border-rose-800 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+              className="h-9 text-xs flex items-center gap-1.5 text-emerald-800 dark:text-emerald-300 border-emerald-600/40 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 bg-emerald-50/40 font-semibold"
               onClick={onExportPdf}
             >
-              <FileText className="w-3.5 h-3.5 text-rose-600" />
+              <FileText className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
               Relatório PDF
+            </Button>
+          )}
+
+          {onExportEfetivoPdf && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 text-xs flex items-center gap-1.5 text-emerald-800 dark:text-emerald-300 border-emerald-600/40 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 font-semibold"
+              onClick={onExportEfetivoPdf}
+              title="Gerar Relatório Oficial do Efetivo em PDF"
+            >
+              <Users className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
+              Relatório Efetivo
             </Button>
           )}
 
