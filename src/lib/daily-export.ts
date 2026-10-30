@@ -3,6 +3,7 @@ import { buildSheetsPdfDoc, type PdfQuality } from "./export-pdf";
 import { exportSheetsToXlsx } from "./export-xlsx";
 import type { SheetsData } from "./sheets.types";
 import { SHIFT_LABEL, SHIFT_TAB, type ReportShift } from "./report-shift";
+import { sanitizeSheetsData } from "./report-validation";
 
 /** Linha bruta de `daily_reports` (as seções são JSONB). */
 export type DailyRowLike = {
@@ -13,7 +14,7 @@ export type DailyRowLike = {
   notes?: string | null;
 };
 
-const num = (v: unknown) => Number(v) || 0;
+const num = (v: unknown) => Math.max(0, Math.abs(Number(v) || 0));
 
 /** Soma por município as listas de incêndios de vários relatórios. */
 export function aggregateIncendios(rows: Array<{ incendios?: any[] | null }>) {
@@ -51,7 +52,7 @@ export function buildDailySheetsData(
   row: DailyRowLike | null | undefined,
   accumulated?: Array<{ incendios?: any[] | null }> | null,
 ): SheetsData {
-  return {
+  return sanitizeSheetsData({
     header: {
       titulo: `RELATÓRIO DIÁRIO — ${SHIFT_TAB[shift].toUpperCase()}`,
       periodo: SHIFT_LABEL[shift],
@@ -63,7 +64,7 @@ export function buildDailySheetsData(
     incendios_acumulado: accumulated ? aggregateIncendios(accumulated) : [],
     outras_diarias: [],
     occurrences: [],
-  };
+  });
 }
 
 function baseName(date: string, shift: ReportShift, complete: boolean) {

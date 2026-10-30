@@ -200,14 +200,14 @@ function cleanStr(val: unknown): string {
 
 function cleanNum(val: unknown): number {
   if (val == null) return 0;
-  if (typeof val === "number") return isNaN(val) ? 0 : val;
+  if (typeof val === "number") return isNaN(val) ? 0 : Math.abs(val);
   const s = String(val).trim();
   if (!s || s === "-" || s === "null" || s === "undefined") return 0;
   // Se contém caracteres alfabéticos (ex: UUID, hash ou identificador), NUNCA é um número!
   if (/[a-zA-Z]/.test(s)) return 0;
   const cleaned = s.replace(/[^0-9.,-]/g, "").replace(",", ".");
   const n = parseFloat(cleaned);
-  return isNaN(n) ? 0 : n;
+  return isNaN(n) ? 0 : Math.abs(n);
 }
 
 export async function processSpreadsheetBuffer(
@@ -499,7 +499,7 @@ export async function processSpreadsheetBuffer(
       const regTxt = cleanStr(idxRegiao >= 0 ? row[idxRegiao] : "");
       const uniTxt = cleanStr(idxUnidade >= 0 ? row[idxUnidade] : "");
       const fallbackPool = `${regTxt} ${uniTxt} ${rawNarrativa} ${rawRelato}`.toLowerCase();
-      
+
       const { STANDARD_OPERATIONAL_MUNICIPIOS } = await import("./sheets-fallback.server");
       const foundMun = STANDARD_OPERATIONAL_MUNICIPIOS.find((m) =>
         fallbackPool.includes(m.toLowerCase()),

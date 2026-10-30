@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { toast } from "sonner";
 import type { SheetsData } from "@/lib/sheets.types";
 import type { ComparisonResult } from "@/lib/comparison";
-import { validateForExport, formatIssues } from "@/lib/report-validation";
+import { validateForExport, formatIssues, sanitizeSheetsData } from "@/lib/report-validation";
 import type { PdfQuality } from "@/lib/export-pdf";
 
 
@@ -24,8 +24,9 @@ export function useExporters(
   const exportXlsx = useCallback(async () => {
     if (!data) return;
     try {
+      const cleanData = sanitizeSheetsData(data);
       const { exportSheetsToXlsx } = await import("@/lib/export-xlsx");
-      exportSheetsToXlsx(data, reportDate, undefined, comparisonData);
+      exportSheetsToXlsx(cleanData, reportDate, undefined, comparisonData);
       toast.success("Excel gerado. Verifique seus downloads.");
 
     } catch (e) {
@@ -36,7 +37,9 @@ export function useExporters(
   const exportPdf = useCallback(async () => {
     if (!data) return;
 
-    const check = validateForExport(data);
+    // Autocorrige e sanitiza quaisquer células negativas ou valores ausentes
+    const cleanData = sanitizeSheetsData(data);
+    const check = validateForExport(cleanData);
     if (!check.ok) {
       toast.error("Não é possível gerar o PDF oficial", {
         description: formatIssues(check.issues),
@@ -47,7 +50,7 @@ export function useExporters(
 
     try {
       const { exportSheetsToPdf } = await import("@/lib/export-pdf");
-      exportSheetsToPdf(data, reportDate, quality, comparisonData);
+      exportSheetsToPdf(cleanData, reportDate, quality, comparisonData);
       toast.success(
 
         quality === "high"
@@ -62,8 +65,9 @@ export function useExporters(
   const exportMunicipioPdf = useCallback(async (municipioName: string) => {
     if (!data) return;
     try {
+      const cleanData = sanitizeSheetsData(data);
       const { exportMunicipioToPdf } = await import("@/lib/export-municipio");
-      exportMunicipioToPdf(data, municipioName, reportDate);
+      exportMunicipioToPdf(cleanData, municipioName, reportDate);
       toast.success(`PDF de ${municipioName} gerado.`);
     } catch (e) {
       toast.error("Falha ao gerar PDF do município");
@@ -73,8 +77,9 @@ export function useExporters(
   const exportMunicipioCsv = useCallback(async (municipioName: string) => {
     if (!data) return;
     try {
+      const cleanData = sanitizeSheetsData(data);
       const { exportMunicipioToCsv } = await import("@/lib/export-municipio");
-      exportMunicipioToCsv(data, municipioName, reportDate);
+      exportMunicipioToCsv(cleanData, municipioName, reportDate);
       toast.success(`CSV de ${municipioName} gerado.`);
     } catch (e) {
       toast.error("Falha ao gerar CSV do município");

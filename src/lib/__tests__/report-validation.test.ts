@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validateForExport, formatIssues } from "../report-validation";
+import { validateForExport, formatIssues, sanitizeSheetsData } from "../report-validation";
 import type { SheetsData } from "../sheets.types";
 
 describe("report-validation", () => {
@@ -62,5 +62,41 @@ describe("report-validation", () => {
     const formatted = formatIssues(issues);
     expect(formatted).toContain("• Período Operacional: Obrigatório");
     expect(formatted).toContain("• Comandante do Incidente: Obrigatório");
+  });
+
+  it("sanitizeSheetsData deve autocorrige valores negativos para valores absolutos válidos", () => {
+    const rawDataWithNegatives: SheetsData = {
+      header: validHeader,
+      efetivo: [{ mun: "Manaus", ord: -5, seg: 5, brig: 0 }],
+      incendios_diario: [{ mun: "Manaus", urb: 1, flor: -2, focos: 0 }],
+      incendios_acumulado: [{ mun: "Manaus", urb: 10, flor: 5, focos: -20, sat: 0, area: -500 }],
+      outras_diarias: [],
+      occurrences: [
+        {
+          id: "test-neg-1",
+          data: "2026-10-14",
+          horario: "10:00",
+          municipio: "Parintins",
+          natureza: "Incêndio Florestal",
+          focos: -20,
+          area: -4000,
+          agua: -15000,
+        },
+      ],
+      recursos: [],
+    };
+
+    const sanitized = sanitizeSheetsData(rawDataWithNegatives);
+    expect(sanitized.efetivo[0].ord).toBe(5);
+    expect(sanitized.incendios_diario[0].flor).toBe(2);
+    expect(sanitized.incendios_acumulado[0].focos).toBe(20);
+    expect(sanitized.incendios_acumulado[0].area).toBe(500);
+    expect(sanitized.occurrences[0].focos).toBe(20);
+    expect(sanitized.occurrences[0].area).toBe(4000);
+    expect(sanitized.occurrences[0].agua).toBe(15000);
+
+    const validationResult = validateForExport(sanitized);
+    expect(validationResult.ok).toBe(true);
+    expect(validationResult.issues).toHaveLength(0);
   });
 });

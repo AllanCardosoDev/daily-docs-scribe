@@ -201,9 +201,9 @@ export function addOccurrences(newItems: StoredOccurrence[]): AddOccurrencesResu
           ...item,
           id: existing.id || item.id,
           municipio: item.municipio || existing.municipio,
-          area: Number(item.area) || 0,
-          focos: Number(item.focos) || existing.focos || 1,
-          agua: Number(item.agua) || 0,
+          area: Math.abs(Number(item.area)) || 0,
+          focos: Math.max(1, Math.abs(Number(item.focos)) || existing.focos || 1),
+          agua: Math.abs(Number(item.agua)) || 0,
         };
         updatedCount++;
         if (item.data) datesAffectedSet.add(item.data);
@@ -213,6 +213,10 @@ export function addOccurrences(newItems: StoredOccurrence[]): AddOccurrencesResu
       }
       continue;
     }
+
+    item.area = Math.abs(Number(item.area)) || 0;
+    item.focos = Math.max(1, Math.abs(Number(item.focos)) || 1);
+    item.agua = Math.abs(Number(item.agua)) || 0;
 
     existingKeys.add(key);
     toAdd.push(item);
@@ -338,11 +342,11 @@ function toOccurrenceRow(item: StoredOccurrence): OccurrenceRow {
     municipio: mun,
     horario: item.horario && item.horario !== "0" ? item.horario : "—",
     natureza: item.natureza && item.natureza !== "0" ? item.natureza : "Incêndio em Vegetação",
-    focos: Number(item.focos) || 0,
+    focos: Math.max(0, Math.abs(Number(item.focos)) || 0),
     coordenadas: item.coordenadas && item.coordenadas !== "0" ? item.coordenadas : "—",
     endereco: end || "—",
-    area: Number(item.area) || 0,
-    agua: Number(item.agua) || 0,
+    area: Math.max(0, Math.abs(Number(item.area)) || 0),
+    agua: Math.max(0, Math.abs(Number(item.agua)) || 0),
     bairro: item.bairro,
     grupoNatureza: item.grupoNatureza,
     situacao: item.situacao,

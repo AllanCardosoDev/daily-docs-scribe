@@ -84,4 +84,73 @@ export function formatIssues(issues: ValidationIssue[]): string {
   return issues.map((i) => `• ${i.label}: ${i.message}`).join("\n");
 }
 
+/**
+ * Sanitiza e autocorrige todas as células numéricas de SheetsData, garantindo
+ * que nenhum valor negativo seja exportado ou cause bloqueio na geração do PDF.
+ * Converte valores negativos para o seu valor absoluto real (Math.abs) e preenche cabeçalho padrão se ausente.
+ */
+export function sanitizeSheetsData(data: SheetsData): SheetsData {
+  if (!data) return data;
+
+  const sanitizeNumber = (val: unknown): number => {
+    if (val === null || val === undefined || val === "" || val === "—" || val === "-") return 0;
+    const n = Number(val);
+    if (!Number.isFinite(n) || isNaN(n)) return 0;
+    return Math.abs(n);
+  };
+
+  const sanitizeRows = <T extends Record<string, any>>(
+    rows: readonly T[] | undefined,
+    numericKeys: string[],
+  ): T[] => {
+    if (!Array.isArray(rows)) return [];
+    return rows.map((row) => {
+      const copy: any = { ...row };
+      for (const k of numericKeys) {
+        if (k in copy && copy[k] !== undefined && copy[k] !== null && copy[k] !== "—" && copy[k] !== "-") {
+          const numVal = Number(copy[k]);
+          if (Number.isFinite(numVal) && numVal < 0) {
+            copy[k] = Math.abs(numVal);
+          }
+        }
+      }
+      return copy as T;
+    });
+  };
+
+  const efetivoKeys = [
+    "cbmam", "ord", "seg", "brig", "servico", "opamv", "opam_ref",
+    "inc1", "inc2", "inc3", "cbmsp", "prevfogo", "fn", "brig_mun", "brig_semas"
+  ];
+  const recursosKeys = [
+    "viaturas", "aeronaves", "embarcacoes", "abt", "at", "aem", "atp", "ata", "abf", "ar",
+    "ur", "abs", "aca", "atb", "asa", "acp", "atc", "jetski", "embarcacao", "quadriciclo",
+    "autoarp", "picape_fn", "picape_muni", "picape_esfron", "helicoptero", "aviao", "abtf"
+  ];
+  const incendiosKeys = ["urb", "flor", "focos", "sat", "area", "total_periodo"];
+  const occKeys = ["focos", "area", "agua"];
+
+  return {
+    ...data,
+    header: {
+      titulo: data.header?.titulo || "Relatório Consolidado de Período",
+      periodo: data.header?.periodo || "Período Operacional",
+      comandante: data.header?.comandante || "CEL QOBM BORGES",
+      coordenador: data.header?.coordenador || "CEL QOBM CRISTIANO BRAZ FERREIRA",
+      coordSituacao: data.header?.coordSituacao || "Sala de Situação — CBMAM",
+      ...data.header,
+    },
+    efetivo: sanitizeRows(data.efetivo, efetivoKeys),
+    recursos: sanitizeRows(data.recursos, recursosKeys),
+    incendios_diario: sanitizeRows(data.incendios_diario, incendiosKeys),
+    incendios_acumulado: sanitizeRows(data.incendios_acumulado, incendiosKeys),
+    occurrences: sanitizeRows(data.occurrences, occKeys).map((occ: any) => ({
+      ...occ,
+      focos: sanitizeNumber(occ.focos),
+      area: sanitizeNumber(occ.area),
+      agua: sanitizeNumber(occ.agua),
+    })),
+  };
+}
+
 export type { SheetsHeader };

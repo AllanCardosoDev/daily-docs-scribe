@@ -19,6 +19,7 @@ import {
 import { useSheetsDashboard } from "@/hooks/use-sheets";
 import { EMPTY_SHEETS_DATA, type SheetsData } from "@/lib/sheets.types";
 import { getComparisonData } from "@/lib/sheets.functions";
+import { sanitizeSheetsData } from "@/lib/report-validation";
 import { useExporters } from "@/hooks/use-exporters";
 import { useServerFn } from "@tanstack/react-start";
 import { getLatestReportDate } from "@/lib/daily-reports.functions";
@@ -120,7 +121,7 @@ function DashboardPage() {
       return true;
     };
 
-    return {
+    return sanitizeSheetsData({
       header: rawData.header,
       incendios_diario: (rawData.incendios_diario ?? []).filter((r) => matchesFilter(r.mun)),
       incendios_acumulado: (rawData.incendios_acumulado ?? []).filter((r) => matchesFilter(r.mun)),
@@ -128,7 +129,7 @@ function DashboardPage() {
       efetivo: (rawData.efetivo ?? []).filter((r) => matchesFilter(r.mun)),
       recursos: (rawData.recursos ?? []).filter((r) => matchesFilter(r.mun)),
       occurrences: (rawData.occurrences ?? []).filter((r) => matchesFilter(r.municipio || (r as any).mun)),
-    };
+    });
   }, [rawData, filters]);
 
   // Monta as linhas consolidadas da tabela de municípios

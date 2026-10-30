@@ -5,10 +5,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { EMPTY_SHEETS_DATA, type SheetsData, type OccurrenceRow, type OutrasDiariasRow } from "./sheets.types";
 import { getOccurrencesForDate, getOccurrencesForRange } from "./occurrences-store.server";
+import { sanitizeSheetsData } from "./report-validation";
 
 export const num = (v: unknown) => {
   const n = Number(v ?? 0);
-  return Number.isFinite(n) ? n : 0;
+  return Number.isFinite(n) ? Math.max(0, Math.abs(n)) : 0;
 };
 const str = (v: unknown) => (v == null ? "" : String(v));
 
@@ -714,7 +715,7 @@ export async function loadReportByDate(
     custom_columns: notesEnv.custom_columns ?? undefined,
   };
 
-  return { data, found: isFound || dayOccurrences.length > 0 || !!donor };
+  return { data: sanitizeSheetsData(data), found: isFound || dayOccurrences.length > 0 || !!donor };
 }
 
 /**
@@ -827,7 +828,7 @@ export async function loadReportRange(
     (mun) => createDefaultRecursosRow(mun),
   );
 
-  return {
+  return sanitizeSheetsData({
     header: {
       titulo: "Relatório Consolidado de Período",
       periodo: `${formatDateBR(startIso)} a ${formatDateBR(endIso)}`,
@@ -844,5 +845,5 @@ export async function loadReportRange(
     isRange: true,
     startDate: startIso,
     endDate: endIso,
-  };
+  });
 }

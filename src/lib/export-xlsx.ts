@@ -7,6 +7,7 @@ import { fmtDateBR, fmtDateStamp, filterOccurrencesByDate } from "./report-date"
 import { DASHBOARD_COLUMNS, resolveEfetivoColumns, calculateRowTotal } from "./dashboard-columns";
 import { manausFirstSheets } from "./municipio-order";
 import { isIncendio } from "./fire-classification";
+import { sanitizeSheetsData } from "./report-validation";
 
 export function exportSheetsToXlsx(
   rawData: SheetsData,
@@ -14,8 +15,8 @@ export function exportSheetsToXlsx(
   filename?: string,
   comparisonData?: ComparisonResult,
 ) {
-  // Manaus (capital) sempre na primeira linha de todas as planilhas.
-  const data = manausFirstSheets(rawData);
+  // Manaus (capital) sempre na primeira linha de todas as planilhas e sanitiza células numéricas.
+  const data = manausFirstSheets(sanitizeSheetsData(rawData));
   const wb = XLSX.utils.book_new();
 
   const header = data.header ?? {};

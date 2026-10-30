@@ -1,5 +1,6 @@
 import { manausFirstSheets, canonicalMunicipio } from "./municipio-order";
 import { resolveEfetivoColumns, calculateRowTotal } from "./dashboard-columns";
+import { sanitizeSheetsData } from "./report-validation";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { SheetsData } from "./sheets.types";
@@ -41,7 +42,7 @@ export function buildSheetsPdfDoc(
   _quality: PdfQuality = "standard",
   _comparisonData?: ComparisonResult,
 ): jsPDF {
-  const data = manausFirstSheets(rawData);
+  const data = manausFirstSheets(sanitizeSheetsData(rawData));
   const DocConstructor = (jsPDF as any).jsPDF || jsPDF;
   const doc = new DocConstructor({ orientation: "landscape", unit: "pt", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth(); // ~841.89 pt
@@ -51,7 +52,7 @@ export function buildSheetsPdfDoc(
   const opDate = reportDate ?? generatedAt;
   const opDateStr = fmtDateBR(opDate);
 
-  const num = (v: any) => (typeof v === "number" && !isNaN(v) ? v : Number(v) || 0);
+  const num = (v: any) => Math.max(0, Math.abs(typeof v === "number" && !isNaN(v) ? v : Number(v) || 0));
 
   // ---------------------------------------------------------------------------
   // CABEÇALHO INSTITUCIONAL OFICIAL (Topo de Todas as Páginas)
