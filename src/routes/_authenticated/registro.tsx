@@ -23,7 +23,6 @@ import {
 import { getDailyReport, saveDailyReport, listAvailableReportDates } from "@/lib/daily-reports.functions";
 import { SHIFTS, SHIFT_LABEL, SHIFT_TAB, type ReportShift } from "@/lib/report-shift";
 import { DailyReportAuditDialog } from "@/components/dashboard/DailyReportAuditDialog";
-import { DriveImportDialog } from "@/components/dashboard/DriveImportDialog";
 import { ImportPlanilhaDialog } from "@/components/dashboard/ImportPlanilhaDialog";
 import { MunicipioPicker } from "@/components/dashboard/MunicipiosDialog";
 import {
@@ -530,15 +529,6 @@ function RegistroPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2 [&>*]:flex-1 [&>*]:min-w-[10rem] sm:[&>*]:flex-none">
-              <DriveImportDialog
-                disabled={!canEdit}
-                onImported={(importedDate, importedShift) => {
-                  dirtyRef.current = false;
-                  setDate(importedDate);
-                  setShift(importedShift);
-                }}
-              />
-
               <ImportPlanilhaDialog
                 triggerButton={
                   <Button variant="outline" size="sm" disabled={!canEdit} className="gap-2 min-h-10">

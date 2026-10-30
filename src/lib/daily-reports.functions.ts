@@ -266,7 +266,17 @@ export const getDailyReport = createServerFn({ method: "GET" })
     const canEdit = true; // Usuários autenticados podem editar no módulo de Inserção
 
     const { getOccurrencesForDate } = await import("./occurrences-store.server");
-    const occurrences = getOccurrencesForDate(data.date);
+    let occurrences = getOccurrencesForDate(data.date);
+
+    // Se occurrences-store em memória não possuir registros para a data, busca de row.notes no Supabase:
+    if (occurrences.length === 0 && row && (row as any).notes) {
+      try {
+        const n = typeof (row as any).notes === "string" ? JSON.parse((row as any).notes) : (row as any).notes;
+        if (Array.isArray(n.occurrences) && n.occurrences.length > 0) {
+          occurrences = n.occurrences;
+        }
+      } catch {}
+    }
 
     // Se houver ocorrências CAD para esta data, garantir integração com a tabela de incêndios
     if (occurrences.length > 0) {

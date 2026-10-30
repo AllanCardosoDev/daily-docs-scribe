@@ -34,13 +34,14 @@ describe("occurrences-import", () => {
 
     const { getOccurrencesForDate } = await import("../occurrences-store.server");
 
-    // Dia 29/10/2026 deve conter 3 ocorrências: Barcelos, Rio Preto da Eva e Manaus
+    // Dia 29/10/2026 deve conter 4 ocorrências: Barcelos, Rio Preto da Eva, Manaus e Iranduba
     const occs29 = getOccurrencesForDate("2026-10-29");
-    expect(occs29.length).toBe(3);
+    expect(occs29.length).toBe(4);
     const muns29 = occs29.map((o) => o.municipio);
     expect(muns29).toContain("Barcelos");
     expect(muns29).toContain("Rio Preto da Eva");
     expect(muns29).toContain("Manaus");
+    expect(muns29).toContain("Iranduba");
 
     const barcelos = occs29.find((o) => o.municipio === "Barcelos");
     expect(barcelos).toBeDefined();

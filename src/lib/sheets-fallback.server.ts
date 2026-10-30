@@ -328,42 +328,16 @@ function parseNotesEnvelope(notes: unknown): Record<string, any> {
 export async function fetchOperationalDonor(
   supabase: SupabaseClient<any>,
   dateIso: string,
-): Promise<{ efetivo: any[]; recursos: any[]; outras: any[]; header?: Record<string, any> } | null> {
-  // Modelo oficial de referência: 25 de outubro de 2026 (2026-10-25) em diante
-  const { data: day25Row } = await supabase
-    .from("daily_reports")
-    .select("report_date, shift, efetivo, recursos, outras, notes")
-    .eq("report_date", "2026-10-25")
-    .order("shift", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  const isDay25Valid =
-    day25Row &&
-    Array.isArray(day25Row.efetivo) &&
-    day25Row.efetivo.length > 5 &&
-    Array.isArray(day25Row.recursos) &&
-    day25Row.recursos.length > 5;
-
-  if (dateIso >= "2026-10-25" && isDay25Valid) {
-    const notesEnv = parseNotesEnvelope(day25Row.notes);
-    return {
-      efetivo: day25Row.efetivo,
-      recursos: day25Row.recursos,
-      outras: day25Row.outras,
-      header: notesEnv.header,
-    };
-  }
-
+): Promise<{ efetivo: any[]; recursos: any[]; outras: any[]; header?: Record<string, any>; occurrences?: any[] } | null> {
   // 1. Tentar encontrar o dia anterior mais recente que possua dados operacionais
   const { data: prevRows } = await supabase
     .from("daily_reports")
     .select("report_date, shift, efetivo, recursos, outras, notes")
-    .lte("report_date", dateIso)
+    .lt("report_date", dateIso)
     .not("efetivo", "is", null)
     .order("report_date", { ascending: false })
     .order("shift", { ascending: false })
-    .limit(10);
+    .limit(5);
 
   const validPrev = prevRows?.find(
     (r: any) =>
@@ -379,6 +353,34 @@ export async function fetchOperationalDonor(
       recursos: validPrev.recursos,
       outras: validPrev.outras,
       header: notesEnv.header,
+      occurrences: Array.isArray(notesEnv.occurrences) ? notesEnv.occurrences : undefined,
+    };
+  }
+
+  // 2. Modelo oficial de referência: 25 de outubro de 2026 (2026-10-25)
+  const { data: day25Row } = await supabase
+    .from("daily_reports")
+    .select("report_date, shift, efetivo, recursos, outras, notes")
+    .eq("report_date", "2026-10-25")
+    .order("shift", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const isDay25Valid =
+    day25Row &&
+    Array.isArray(day25Row.efetivo) &&
+    day25Row.efetivo.length > 5 &&
+    Array.isArray(day25Row.recursos) &&
+    day25Row.recursos.length > 5;
+
+  if (isDay25Valid) {
+    const notesEnv = parseNotesEnvelope(day25Row.notes);
+    return {
+      efetivo: day25Row.efetivo,
+      recursos: day25Row.recursos,
+      outras: day25Row.outras,
+      header: notesEnv.header,
+      occurrences: Array.isArray(notesEnv.occurrences) ? notesEnv.occurrences : undefined,
     };
   }
 
@@ -615,6 +617,20 @@ export async function loadReportByDate(
       !/^[0-9a-f-]{15,}$/i.test(occ.municipio) &&
       (occ.municipio?.length ?? 0) <= 35,
   );
+
+  // Se a data consultada ainda não tiver ocorrências próprias (ex.: início de turno),
+  // herda as ocorrências do ciclo operacional anterior mais recente (doador):
+  if (dayOccurrences.length === 0) {
+    if (donor && Array.isArray((donor as any).occurrences) && (donor as any).occurrences.length > 0) {
+      dayOccurrences = (donor as any).occurrences;
+    } else {
+      const { getLatestOccurrenceDate } = await import("./occurrences-store.server");
+      const latestDate = getLatestOccurrenceDate();
+      if (latestDate && latestDate <= dateIso) {
+        dayOccurrences = getOccurrencesForDate(latestDate);
+      }
+    }
+  }
 
   // Sempre que há ocorrências do CAD para a data, sintetizamos e harmonizamos
   // as contagens municipais de incêndio a partir das ocorrências oficiais:

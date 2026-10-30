@@ -618,7 +618,7 @@ ${topIncendios || "  Nenhum registro no período."}
 
       const { exportRelatorioCompletoAmvPdf } = await import("@/lib/export-completo-amv-pdf");
       exportRelatorioCompletoAmvPdf({
-        periodoLabel,
+        periodoLabel: periodLabel,
         dataDiariaLabel,
         reportDate: latestRow?.report_date ? new Date(latestRow.report_date + "T12:00:00Z") : new Date(),
         ocorrenciasDiarias: occDiarias,
@@ -630,7 +630,7 @@ ${topIncendios || "  Nenhum registro no período."}
       });
 
       toast.success("Relatório Completo AM+V (PDF) gerado com sucesso!", {
-        description: `Período: ${periodoLabel} · Diário: ${dataDiariaLabel}`,
+        description: `Período: ${periodLabel} · Diário: ${dataDiariaLabel}`,
       });
     } catch (e) {
       toast.error("Falha ao gerar o Relatório Completo AM+V", {
