@@ -68,4 +68,39 @@ describe("occurrences-import", () => {
       expect(occ.area).toBeLessThan(100000);
     }
   });
+
+  it("deve atualizar ocorrência existente quando a área ou outros valores forem modificados", async () => {
+    const protoId = `TEST-PROTO-${Date.now()}`;
+    const csvContent = [
+      "Protocolo,Data,Horario,Municipio,Natureza,Area,Focos,Agua,Endereco",
+      `${protoId},31/12/2099,10:00,Barcelos,Incêndio em Vegetação,4000,2,5000,Estrada Mariuá`,
+    ].join("\n");
+
+    const res1 = await processSpreadsheetBuffer(Buffer.from(csvContent, "utf-8"), "test1.csv");
+    expect(res1.success).toBe(true);
+    expect(res1.insertedCount).toBe(1);
+
+    // Agora reimporta a mesma ocorrência (mesmo protocolo), mas com a área alterada para 8500 e focos para 5
+    const csvContentUpdated = [
+      "Protocolo,Data,Horario,Municipio,Natureza,Area,Focos,Agua,Endereco",
+      `${protoId},31/12/2099,10:00,Barcelos,Incêndio em Vegetação,8500,5,5000,Estrada Mariuá`,
+    ].join("\n");
+
+    const res2 = await processSpreadsheetBuffer(Buffer.from(csvContentUpdated, "utf-8"), "test2.csv");
+    expect(res2.success).toBe(true);
+    expect(res2.updatedCount).toBe(1);
+    expect(res2.insertedCount).toBe(0);
+
+    const { getOccurrencesForDate } = await import("../occurrences-store.server");
+    const occs = getOccurrencesForDate("2099-12-31");
+    const updated = occs.find((o) => o.protocolo === protoId);
+    expect(updated).toBeDefined();
+    expect(updated?.area).toBe(8500);
+    expect(updated?.focos).toBe(5);
+
+    // Se reimportar sem alterações, deve marcar como duplicado/inalterado sem re-atualizar
+    const res3 = await processSpreadsheetBuffer(Buffer.from(csvContentUpdated, "utf-8"), "test3.csv");
+    expect(res3.updatedCount).toBe(0);
+    expect(res3.duplicatesSkipped).toBe(1);
+  });
 });

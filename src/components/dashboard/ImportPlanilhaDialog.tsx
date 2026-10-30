@@ -124,10 +124,11 @@ export function ImportPlanilhaDialog({
 
         if (res.isDailyReport) {
           toast.success(res.message);
-        } else if (res.insertedCount > 0) {
-          toast.success(
-            `Sucesso! ${res.insertedCount} nova(s) ocorrência(s) de incêndio salva(s) no banco.`,
-          );
+        } else if (res.insertedCount > 0 || (res.updatedCount && res.updatedCount > 0)) {
+          const parts: string[] = [];
+          if (res.insertedCount > 0) parts.push(`${res.insertedCount} nova(s)`);
+          if (res.updatedCount && res.updatedCount > 0) parts.push(`${res.updatedCount} atualizada(s)`);
+          toast.success(`Sucesso! ${parts.join(" e ")} ocorrência(s) de incêndio salva(s) no banco.`);
         } else {
           toast.info(
             `Planilha processada: todas as ocorrências de incêndio já constam no banco de dados.`,
@@ -300,7 +301,7 @@ export function ImportPlanilhaDialog({
                   </div>
                 </div>
               ) : result.success ? (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-border/60">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1 border-t border-border/60">
                   <div className="p-2 rounded-lg bg-muted/40 text-center">
                     <span className="text-[10px] uppercase font-bold text-muted-foreground block">
                       Linhas Lidas
@@ -328,9 +329,18 @@ export function ImportPlanilhaDialog({
                     </span>
                   </div>
 
-                  <div className="p-2 rounded-lg bg-muted/40 text-center">
+                  <div className="p-2 rounded-lg bg-blue-500/10 text-center">
+                    <span className="text-[10px] uppercase font-bold text-blue-600 dark:text-blue-400 block">
+                      Atualizados
+                    </span>
+                    <span className="text-base font-extrabold text-blue-600 dark:text-blue-400 tabular-nums">
+                      {result.updatedCount || 0}
+                    </span>
+                  </div>
+
+                  <div className="p-2 rounded-lg bg-muted/40 text-center col-span-2 sm:col-span-1">
                     <span className="text-[10px] uppercase font-bold text-muted-foreground block">
-                      Duplicados
+                      Inalterados
                     </span>
                     <span className="text-base font-extrabold text-muted-foreground tabular-nums">
                       {result.duplicatesSkipped}
@@ -343,7 +353,7 @@ export function ImportPlanilhaDialog({
                 <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1">
                   <Calendar className="w-3.5 h-3.5 text-primary" />
                   <span>
-                    Datas com novos registros:{" "}
+                    Datas afetadas:{" "}
                     <strong>
                       {result.datesAffected
                         .slice(0, 4)
@@ -357,15 +367,17 @@ export function ImportPlanilhaDialog({
             </div>
           )}
 
-          {/* Dicas de segurança e filtragem */}
+          {/* Dicas de segurança e sincronização */}
           <div className="rounded-xl bg-muted/30 p-3 border border-border/60 space-y-1.5 text-[11px] text-muted-foreground">
             <div className="flex items-center gap-1.5 font-semibold text-foreground">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              Proteção Automática contra Duplicação
+              Sincronização Inteligente e Atualização de Registros
             </div>
             <p>
-              O sistema compara o protocolo oficial ou assinatura única de cada chamado.
-              Se uma ocorrência já estiver no banco, ela é ignorada sem risco de registros duplicados.
+              O sistema compara o protocolo oficial e assinatura de cada chamado.
+              Se uma ocorrência já estiver registrada e algum valor tiver sido modificado na planilha
+              (como <strong>área</strong>, focos, endereço ou água), o registro é <strong>atualizado automaticamente</strong>.
+              Registros sem alterações permanecem intactos.
             </p>
           </div>
         </div>

@@ -98,14 +98,75 @@ export function getLatestOccurrenceDate(): string | null {
 }
 
 /**
- * Insere novas ocorrências garantindo estritamente a não-duplicação.
- * Atualiza o índice em memória e persiste em disco.
+ * Verifica se houve qualquer alteração ou retificação de dados entre o registro
+ * já existente no banco e a nova linha importada (ex: área modificada, focos, água, etc.)
  */
-export function addOccurrences(newItems: StoredOccurrence[]): {
+function hasOccurrenceChanged(existing: StoredOccurrence, item: StoredOccurrence): boolean {
+  // 1. Numéricos vitais: área queimada (se modificada, atualiza!), focos combatidos, água consumida
+  if (item.area !== undefined && item.area !== null && Number(item.area) !== Number(existing.area)) {
+    return true;
+  }
+  if (item.focos !== undefined && item.focos !== null && Number(item.focos) !== Number(existing.focos)) {
+    return true;
+  }
+  if (item.agua !== undefined && item.agua !== null && Number(item.agua) !== Number(existing.agua)) {
+    return true;
+  }
+
+  // 2. Município: retificação de nome ou saneamento de UUID / tropa inválida
+  const existingHasBadMun = isNonMunicipioTroop(existing.municipio) || /^[0-9a-f-]{10,}$/i.test(existing.municipio);
+  if (existingHasBadMun) return true;
+  if (item.municipio && item.municipio !== existing.municipio && !isNonMunicipioTroop(item.municipio)) {
+    return true;
+  }
+
+  // 3. Localização detalhada
+  if (item.endereco && item.endereco !== "-" && item.endereco !== existing.endereco) {
+    return true;
+  }
+  if (item.bairro && item.bairro !== "-" && item.bairro !== existing.bairro) {
+    return true;
+  }
+  if (item.coordenadas && item.coordenadas !== "-" && item.coordenadas !== existing.coordenadas) {
+    return true;
+  }
+
+  // 4. Detalhes operacionais: natureza, horário, viaturas, equipes, narrativa
+  if (item.natureza && item.natureza !== existing.natureza) {
+    return true;
+  }
+  if (item.horario && item.horario !== existing.horario) {
+    return true;
+  }
+  if (item.unidade && item.unidade !== existing.unidade) {
+    return true;
+  }
+  if (item.equipes && item.equipes !== existing.equipes) {
+    return true;
+  }
+  if (item.narrativa && item.narrativa !== existing.narrativa) {
+    return true;
+  }
+  if (item.relato && item.relato !== existing.relato) {
+    return true;
+  }
+
+  return false;
+}
+
+export interface AddOccurrencesResult {
   insertedCount: number;
+  updatedCount: number;
   duplicatesSkipped: number;
   datesAffected: string[];
-} {
+}
+
+/**
+ * Insere novas ocorrências ou atualiza registros existentes que tiveram
+ * valores modificados (área, focos, água, endereço, etc.).
+ * Atualiza o índice em memória e persiste em disco.
+ */
+export function addOccurrences(newItems: StoredOccurrence[]): AddOccurrencesResult {
   const datesAffectedSet = new Set<string>();
   const toAdd: StoredOccurrence[] = [];
   let duplicatesSkipped = 0;
@@ -132,14 +193,21 @@ export function addOccurrences(newItems: StoredOccurrence[]): {
 
     if (existingIndex >= 0) {
       const existing = allOccurrences[existingIndex];
-      // Se o registro existente tem município inválido, ou o novo tem mais informações detalhadas, atualizamos
-      const existingHasBadMun = isNonMunicipioTroop(existing.municipio) || /^[0-9a-f-]{10,}$/i.test(existing.municipio);
-      const isNewMoreDetailed = (item.focos > 0 && existing.focos <= 1) || (item.area > 0 && existing.area <= 0) || (item.agua > 0 && existing.agua <= 0);
+      const hasChanged = hasOccurrenceChanged(existing, item);
 
-      if (existingHasBadMun || isNewMoreDetailed) {
-        allOccurrences[existingIndex] = { ...existing, ...item };
+      if (hasChanged) {
+        allOccurrences[existingIndex] = {
+          ...existing,
+          ...item,
+          id: existing.id || item.id,
+          municipio: item.municipio || existing.municipio,
+          area: Number(item.area) || 0,
+          focos: Number(item.focos) || existing.focos || 1,
+          agua: Number(item.agua) || 0,
+        };
         updatedCount++;
         if (item.data) datesAffectedSet.add(item.data);
+        if (existing.data) datesAffectedSet.add(existing.data);
       } else {
         duplicatesSkipped++;
       }
@@ -166,7 +234,8 @@ export function addOccurrences(newItems: StoredOccurrence[]): {
   }
 
   return {
-    insertedCount: toAdd.length + updatedCount,
+    insertedCount: toAdd.length,
+    updatedCount,
     duplicatesSkipped,
     datesAffected: Array.from(datesAffectedSet).sort(),
   };

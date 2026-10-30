@@ -18,6 +18,7 @@ export interface ImportSpreadsheetResult {
   totalRows: number;
   fireRows: number;
   insertedCount: number;
+  updatedCount?: number;
   duplicatesSkipped: number;
   datesAffected: string[];
   latestDate?: string;
@@ -410,11 +411,21 @@ export async function processSpreadsheetBuffer(
     "gruposadicionaisdadosincendioflorestalvegetacaodadosincendioflorestalvegetacaonumerofocoscombatidos",
     "numerofocoscombatidos",
     "focoscombatidos",
+    "focos",
+    "foco",
+    "focosdecalor",
+    "quantidadedefocos",
   ]);
   const idxArea = colIndex([
     "gruposadicionaisdadosincendioflorestalvegetacaodadosincendioflorestalvegetacaoareaqueimadacombatidaha",
     "areaqueimadacombatidaha",
     "areaqueimada",
+    "areacombatida",
+    "areaatingida",
+    "areaha",
+    "aream2",
+    "area",
+    "área",
   ]);
   const idxAgua = colIndex(["litrosdeagua", "litrosdeaguaestimados", "litrosagua", "litros", "água", "agua"]);
   const idxLat = colIndex(["latitude", "lat"]);
@@ -674,10 +685,10 @@ export async function processSpreadsheetBuffer(
             for (const item of targetIncendiosList) {
               const ex = incMap.get(item.mun);
               if (ex) {
-                ex.urb = Math.max(Number(ex.urb) || 0, item.urb);
-                ex.flor = Math.max(Number(ex.flor) || 0, item.flor);
-                ex.focos = Math.max(Number(ex.focos) || 0, item.focos);
-                ex.total_periodo = (Number(ex.urb) || 0) + (Number(ex.flor) || 0);
+                ex.urb = item.urb;
+                ex.flor = item.flor;
+                ex.focos = item.focos;
+                ex.total_periodo = item.urb + item.flor;
               } else {
                 incMap.set(item.mun, item);
               }
@@ -744,18 +755,29 @@ export async function processSpreadsheetBuffer(
     endereco: o.endereco,
   }));
 
+  const summaryParts: string[] = [];
+  if (addResult.insertedCount > 0) {
+    summaryParts.push(`${addResult.insertedCount} nova(s)`);
+  }
+  if (addResult.updatedCount > 0) {
+    summaryParts.push(`${addResult.updatedCount} atualizada(s)`);
+  }
+
+  const message =
+    summaryParts.length > 0
+      ? `Importação concluída com sucesso! Foram salvas: ${summaryParts.join(" e ")} ocorrência(s) de incêndio (${addResult.duplicatesSkipped} inalteradas).`
+      : `Nenhuma alteração necessária: todas as ${fireOccurrences.length} ocorrências de incêndio da planilha já estão salvas e idênticas no banco.`;
+
   return {
     success: true,
     totalRows,
     fireRows: fireOccurrences.length,
     insertedCount: addResult.insertedCount,
+    updatedCount: addResult.updatedCount,
     duplicatesSkipped: addResult.duplicatesSkipped,
     datesAffected: addResult.datesAffected,
     latestDate,
     sampleImported,
-    message:
-      addResult.insertedCount > 0
-        ? `Importação concluída com sucesso! Foram adicionadas ${addResult.insertedCount} novas ocorrências de incêndio (${addResult.duplicatesSkipped} já existentes foram ignoradas).`
-        : `Nenhuma nova ocorrência necessária: todas as ${fireOccurrences.length} ocorrências de incêndio da planilha já constam no banco de dados.`,
+    message,
   };
 }
