@@ -265,7 +265,9 @@ function TotaisPage() {
 
   const rows = useMemo(() => {
     const raw = (q.data ?? []) as AnyRow[];
-    if (shift !== "ambos") return raw;
+    if (shift !== "ambos") {
+      return [...raw].sort((a, b) => String(a.report_date || "").localeCompare(String(b.report_date || "")));
+    }
     const byDate = new Map<string, AnyRow>();
     for (const r of raw) {
       const d = String(r.report_date || "");
@@ -275,7 +277,7 @@ function TotaisPage() {
         byDate.set(d, r);
       }
     }
-    return Array.from(byDate.values());
+    return Array.from(byDate.values()).sort((a, b) => String(a.report_date || "").localeCompare(String(b.report_date || "")));
   }, [q.data, shift]);
 
   const rowsComp1 = useMemo(() => {
@@ -295,7 +297,7 @@ function TotaisPage() {
         byDate.set(d, r);
       }
     }
-    return Array.from(byDate.values());
+    return Array.from(byDate.values()).sort((a, b) => String(a.report_date || "").localeCompare(String(b.report_date || "")));
   }, [qComp1.data, shift, compMonths]);
 
   const rowsComp2 = useMemo(() => {
@@ -315,7 +317,7 @@ function TotaisPage() {
         byDate.set(d, r);
       }
     }
-    return Array.from(byDate.values());
+    return Array.from(byDate.values()).sort((a, b) => String(a.report_date || "").localeCompare(String(b.report_date || "")));
   }, [qComp2.data, shift, compMonths]);
 
 
@@ -580,6 +582,63 @@ ${topIncendios || "  Nenhum registro no período."}
     });
   };
 
+  const handleExportRelatorioCompletoAmv = async () => {
+    try {
+      const periodLabel = !isAnnualComparison
+        ? scope === "periodo"
+          ? `${fmtDateBR(new Date(from + "T12:00:00Z"))} a ${fmtDateBR(new Date(to + "T12:00:00Z"))}`
+          : "Período Geral Consolidado"
+        : `Comparativo ${compYear1} vs ${compYear2} (${MONTH_NAMES[compStartMonth]} a ${MONTH_NAMES[compEndMonth]})`;
+
+      const targetRows = !isAnnualComparison ? rows : rowsComp2;
+      const latestRow = targetRows.length > 0 ? targetRows[targetRows.length - 1] : null;
+      const dataDiariaLabel = latestRow?.report_date
+        ? fmtDateBR(new Date(latestRow.report_date + "T12:00:00Z"))
+        : (to ? fmtDateBR(new Date(to + "T12:00:00Z")) : "Último Registro");
+
+      // Ocorrências: diário do último dia vs acumulado do período
+      const occDiarias = latestRow
+        ? aggregateSum([latestRow], "incendios", ["urb", "flor", "focos", "sat"])
+        : (!isAnnualComparison ? incendiosFull : incendiosComp2);
+      const occTotais = !isAnnualComparison ? incendiosFull : incendiosComp2;
+
+      // Efetivo: diário do último dia vs geral consolidado
+      const efDiario = latestRow
+        ? aggregateSnapshot([latestRow], "efetivo", ["ord", "seg", "brig", "brig_semas"])
+        : (!isAnnualComparison ? efetivoFull : efetivoComp2);
+      const efGeral = !isAnnualComparison ? efetivoFull : efetivoComp2;
+
+      // Viaturas: diário do último dia vs totais
+      const recDiario = latestRow
+        ? aggregateSnapshot([latestRow], "recursos", [
+            "abt", "at", "aem", "atp", "ata", "abf", "atf", "abs", "pipa", "dosa", "crs", "ar", "ur", "gse", "mt", "ta", "quadriciclo", "embarcacao", "picape_fn", "picape_muni", "autoarp", "picape_esfron", "helicoptero", "aviao", "jetski"
+          ])
+        : (!isAnnualComparison ? recursosFull : recursosComp2);
+      const recTotais = !isAnnualComparison ? recursosFull : recursosComp2;
+
+      const { exportRelatorioCompletoAmvPdf } = await import("@/lib/export-completo-amv-pdf");
+      exportRelatorioCompletoAmvPdf({
+        periodoLabel,
+        dataDiariaLabel,
+        reportDate: latestRow?.report_date ? new Date(latestRow.report_date + "T12:00:00Z") : new Date(),
+        ocorrenciasDiarias: occDiarias,
+        ocorrenciasTotais: occTotais,
+        efetivoDiario: efDiario,
+        efetivoGeral: efGeral,
+        viaturasDiarias: recDiario,
+        viaturasTotais: recTotais,
+      });
+
+      toast.success("Relatório Completo AM+V (PDF) gerado com sucesso!", {
+        description: `Período: ${periodoLabel} · Diário: ${dataDiariaLabel}`,
+      });
+    } catch (e) {
+      toast.error("Falha ao gerar o Relatório Completo AM+V", {
+        description: (e as Error)?.message,
+      });
+    }
+  };
+
   const handleExportPeriodPdf = async () => {
     try {
       const periodLabel = scope === "periodo"
@@ -708,13 +767,13 @@ ${topIncendios || "  Nenhum registro no período."}
           </div>
           <div className="col-span-2 flex flex-wrap items-center gap-2 md:col-auto md:ml-auto">
             <Button
-              onClick={handleExportPeriodPdf}
+              onClick={handleExportRelatorioCompletoAmv}
               size="sm"
               className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold gap-1.5 shadow-sm"
-              title="Gerar Relatório Oficial Consolidado em PDF"
+              title="Gerar Relatório Completo AM+V (Ocorrências, Efetivo e Viaturas — Diário × Totais)"
             >
               <FileText className="w-4 h-4" />
-              Relatório PDF
+              Relatório Completo AM+V
             </Button>
             <Button
               onClick={handleExportEfetivoPdf}
@@ -724,6 +783,16 @@ ${topIncendios || "  Nenhum registro no período."}
             >
               <Users className="w-4 h-4" />
               Relatório do Efetivo
+            </Button>
+            <Button
+              onClick={handleExportPeriodPdf}
+              variant="outline"
+              size="sm"
+              className="bg-white/95 text-foreground font-semibold gap-1.5 shadow-sm hover:bg-emerald-50"
+              title="Gerar Relatório Consolidado de Período (Modelo Padrão)"
+            >
+              <Layers className="w-4 h-4 text-emerald-700" />
+              Relatório Consolidado
             </Button>
             <Button
               onClick={copyWhatsAppSummary}

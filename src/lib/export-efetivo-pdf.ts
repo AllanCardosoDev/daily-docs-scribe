@@ -547,3 +547,4 @@ export function buildEfetivoPdfDoc(options: ExportEfetivoPdfOptions): jsPDF {
 
   return doc;
 }
+

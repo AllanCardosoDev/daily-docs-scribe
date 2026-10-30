@@ -52,3 +52,4 @@ describe("exportEfetivoPdf", () => {
     expect(pageCount).toBeGreaterThanOrEqual(1);
   });
 });
+

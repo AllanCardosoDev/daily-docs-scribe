@@ -17,6 +17,7 @@ import {
   Clock,
   Layers,
   Filter,
+  Users,
   FileSpreadsheet,
   FileText,
   RefreshCw,
@@ -90,6 +91,7 @@ interface Props {
   onExportXlsx?: () => void;
   onExportPdf?: () => void;
   onExportEfetivoPdf?: () => void;
+  onExportCompletoAmvPdf?: () => void;
 }
 
 export const DashboardFilterBar = memo(function DashboardFilterBar({
@@ -102,6 +104,7 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
   onExportXlsx,
   onExportPdf,
   onExportEfetivoPdf,
+  onExportCompletoAmvPdf,
 }: Props) {
   // Lista ordenada de municípios únicos disponíveis
   const sortedMunicipios = useMemo(() => {
@@ -485,6 +488,20 @@ export const DashboardFilterBar = memo(function DashboardFilterBar({
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
               Excel
+            </Button>
+          )}
+
+          {onExportCompletoAmvPdf && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 text-xs flex items-center gap-1.5 text-white bg-emerald-700 hover:bg-emerald-800 border-emerald-600 font-bold shadow-xs"
+              onClick={onExportCompletoAmvPdf}
+              title="Gerar Relatório Completo AM+V (Ocorrências, Efetivo e Viaturas — Diário × Totais)"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              Completo AM+V
             </Button>
           )}
 

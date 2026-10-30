@@ -248,7 +248,7 @@ function DashboardPage() {
     setPreviewOpen(true);
   }, []);
 
-  const { exportXlsx, exportPdf, exportEfetivoPdf } = useExporters(
+  const { exportXlsx, exportPdf, exportEfetivoPdf, exportCompletoAmvPdf } = useExporters(
     filteredData,
     filters.reportDate,
     pdfQuality,
@@ -284,6 +284,7 @@ function DashboardPage() {
               onExportXlsx={exportXlsx}
               onExportPdf={exportPdf}
               onExportEfetivoPdf={exportEfetivoPdf}
+              onExportCompletoAmvPdf={exportCompletoAmvPdf}
             />
 
             {/* Editor diário do documento */}

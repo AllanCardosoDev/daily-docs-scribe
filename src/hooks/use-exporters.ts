@@ -110,6 +110,35 @@ export function useExporters(
     }
   }, [data, reportDate, periodoLabel, getCleanDataWithPeriod]);
 
+  const exportCompletoAmvPdf = useCallback(async () => {
+    if (!data) return;
+    try {
+      const cleanData = getCleanDataWithPeriod()!;
+      const { exportRelatorioCompletoAmvPdf: runExport } = await import("@/lib/export-completo-amv-pdf");
+      runExport({
+        periodoLabel,
+        dataDiariaLabel: reportDate ? fmtDateBR(reportDate) : "Fechamento Diário",
+        reportDate,
+        comandante: cleanData.header?.comandante,
+        coordenador: cleanData.header?.coordenador,
+        chefeCapital: cleanData.header?.chefeCapital,
+        chefeInterior: cleanData.header?.chefeInterior,
+        coordSituacao: cleanData.header?.coordSituacao,
+        ocorrenciasDiarias: cleanData.incendios_diario || [],
+        ocorrenciasTotais: cleanData.incendios_acumulado || cleanData.incendios_diario || [],
+        efetivoDiario: cleanData.efetivo || [],
+        efetivoGeral: cleanData.efetivo || [],
+        viaturasDiarias: cleanData.recursos || [],
+        viaturasTotais: cleanData.recursos || [],
+      });
+      toast.success("Relatório Completo AM+V gerado com sucesso!", {
+        description: `Período: ${periodoLabel}`,
+      });
+    } catch (e) {
+      toast.error("Falha ao gerar Relatório Completo AM+V", { description: (e as Error)?.message });
+    }
+  }, [data, reportDate, periodoLabel, getCleanDataWithPeriod]);
+
   const exportMunicipioPdf = useCallback(async (municipioName: string) => {
     if (!data) return;
     try {
@@ -160,6 +189,7 @@ export function useExporters(
     exportXlsx,
     exportPdf,
     exportEfetivoPdf,
+    exportCompletoAmvPdf,
     exportMunicipioPdf,
     exportMunicipioCsv,
     exportEfetivoMapasXlsx,
