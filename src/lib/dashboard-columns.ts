@@ -20,11 +20,9 @@ export const DEFAULT_EFETIVO_COLUMNS: Column[] = [
   { key: "prevfogo", label: "PREVFOGO", numeric: true, editable: true },
   { key: "fn", label: "FN", numeric: true, editable: true },
   { key: "marinha", label: "Marinha", numeric: true, editable: true },
-  { key: "sec", label: "SEC", numeric: true, editable: true },
   { key: "seg", label: "SEG", numeric: true, editable: true },
   { key: "brig_mun", label: "Brig. Mun", numeric: true, editable: true },
   { key: "brig_semas", label: "Brig. SEMA", numeric: true, editable: true },
-  { key: "brig", label: "Brig. Total", numeric: true, editable: true },
   { key: "total", label: "Total", numeric: true, editable: false },
 ];
 
@@ -59,10 +57,83 @@ export function formatColumnLabel(key: string): string {
 }
 
 /**
+ * Sanitiza e remove colunas repetidas ou redundantes do Efetivo:
+ * - Remove 'sec' (duplicata de 'seg')
+ * - Remove 'brig' (duplicata de 'brig_mun' e 'brig_semas')
+ * - Remove 'ord', 'servico', 'serv_ord' (duplicatas de 'cbmam')
+ * - Remove metadados internos ('tipo', '_custom', etc.)
+ * - Elimina chaves duplicadas e rótulos duplicados
+ */
+export function sanitizeEfetivoColumns(cols: Column[]): Column[] {
+  if (!Array.isArray(cols) || cols.length === 0) {
+    return DEFAULT_EFETIVO_COLUMNS.map((c) => ({ ...c }));
+  }
+
+  const redundantOrInternalKeys = new Set([
+    "sec",
+    "brig",
+    "ord",
+    "servico",
+    "serv_ord",
+    "cbmam_ord",
+    "tipo",
+    "_custom",
+    "id",
+    "created_at",
+    "updated_at",
+    "shift",
+    "report_date",
+    "notes",
+    "municipio",
+  ]);
+
+  const seenKeys = new Set<string>();
+  const seenLabels = new Set<string>();
+  const sanitized: Column[] = [];
+
+  for (const c of cols) {
+    if (!c || !c.key) continue;
+    const k = c.key.toLowerCase().trim();
+    if (redundantOrInternalKeys.has(k)) continue;
+
+    const normLabel = (c.label || k).toLowerCase().trim();
+    if (seenKeys.has(k) || (k !== "mun" && k !== "total" && seenLabels.has(normLabel))) {
+      continue;
+    }
+
+    seenKeys.add(k);
+    if (k !== "mun" && k !== "total") {
+      seenLabels.add(normLabel);
+    }
+
+    sanitized.push({
+      ...c,
+      key: k,
+      numeric: k === "mun" ? false : c.numeric ?? true,
+      editable: k === "total" ? false : c.editable ?? true,
+    });
+  }
+
+  if (!sanitized.some((c) => c.key === "mun")) {
+    sanitized.unshift({ key: "mun", label: "Município", editable: true });
+  }
+
+  const totalIdx = sanitized.findIndex((c) => c.key === "total");
+  if (totalIdx >= 0) {
+    const [tot] = sanitized.splice(totalIdx, 1);
+    sanitized.push(tot);
+  } else {
+    sanitized.push({ key: "total", label: "Total", numeric: true, editable: false });
+  }
+
+  return sanitized;
+}
+
+/**
  * Deriva dinamicamente as colunas ativas do Efetivo considerando:
  * 1. Colunas salvas (custom_columns persistidas)
- * 2. DEFAULT_EFETIVO_COLUMNS oficial do CBMAM
- * 3. Chaves adicionais presentes nos objetos das linhas
+ * 2. DEFAULT_EFETIVO_COLUMNS oficial do CBMAM (sem repetições)
+ * 3. Chaves adicionais presentes nos objetos das linhas (exceto chaves sinônimas/internas)
  */
 export function resolveEfetivoColumns(
   rows: any[] = [],
@@ -71,18 +142,12 @@ export function resolveEfetivoColumns(
   let baseCols: Column[] = [];
 
   if (savedCustomColumns && savedCustomColumns.length > 0) {
-    baseCols = savedCustomColumns.map((c) => ({
-      ...c,
-      numeric: c.key === "mun" ? false : c.numeric ?? true,
-      editable: c.key === "total" ? false : c.editable ?? true,
-    }));
+    baseCols = sanitizeEfetivoColumns(savedCustomColumns);
   } else {
     baseCols = DEFAULT_EFETIVO_COLUMNS.map((c) => ({ ...c }));
   }
 
-  // Descobre chaves adicionais presentes nos dados das linhas (ex: colunas criadas)
-  const knownKeys = new Set(baseCols.map((c) => c.key));
-  // Ignora chaves internas
+  // Chaves internas e sinônimos que NÃO devem gerar colunas duplicadas
   const ignoredKeys = new Set([
     "mun",
     "municipio",
@@ -93,12 +158,23 @@ export function resolveEfetivoColumns(
     "shift",
     "report_date",
     "notes",
+    "tipo",
+    "_custom",
+    "ord",
+    "servico",
+    "serv_ord",
+    "cbmam_ord",
+    "sec",
+    "brig",
   ]);
 
+  const knownKeys = new Set(baseCols.map((c) => c.key.toLowerCase()));
   const extraKeys: string[] = [];
+
   for (const r of rows) {
     if (!r || typeof r !== "object") continue;
-    for (const k of Object.keys(r)) {
+    for (const rawK of Object.keys(r)) {
+      const k = rawK.toLowerCase().trim();
       if (!knownKeys.has(k) && !ignoredKeys.has(k) && !extraKeys.includes(k)) {
         extraKeys.push(k);
       }
@@ -121,12 +197,7 @@ export function resolveEfetivoColumns(
     }
   }
 
-  // Garante que 'total' esteja no final
-  if (!baseCols.some((c) => c.key === "total")) {
-    baseCols.push({ key: "total", label: "Total", numeric: true, editable: false });
-  }
-
-  return baseCols;
+  return sanitizeEfetivoColumns(baseCols);
 }
 
 /**
@@ -180,16 +251,23 @@ export function calculateRowTotal(row: Record<string, any>, columns: Column[]): 
 const EFETIVO_STORAGE_KEY = "cbmam_efetivo_custom_columns";
 
 export function getStoredEfetivoColumns(): Column[] {
-  if (typeof window === "undefined") return [...DEFAULT_EFETIVO_COLUMNS];
+  if (typeof window === "undefined") return DEFAULT_EFETIVO_COLUMNS.map((c) => ({ ...c }));
   try {
     const raw = localStorage.getItem(EFETIVO_STORAGE_KEY);
-    if (!raw) return [...DEFAULT_EFETIVO_COLUMNS];
+    if (!raw) return DEFAULT_EFETIVO_COLUMNS.map((c) => ({ ...c }));
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      const clean = sanitizeEfetivoColumns(parsed);
+      // Se continha colunas repetidas, limpa imediatamente no localStorage
+      if (clean.length !== parsed.length) {
+        localStorage.setItem(EFETIVO_STORAGE_KEY, JSON.stringify(clean));
+      }
+      return clean;
+    }
   } catch {
     // fallback
   }
-  return [...DEFAULT_EFETIVO_COLUMNS];
+  return DEFAULT_EFETIVO_COLUMNS.map((c) => ({ ...c }));
 }
 
 export function saveStoredEfetivoColumns(columns: Column[]): void {

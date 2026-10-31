@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, Trash2, ArrowUp, ArrowDown, RotateCcw, Check, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
-import { DEFAULT_EFETIVO_COLUMNS } from "@/lib/dashboard-columns";
+import { DEFAULT_EFETIVO_COLUMNS, sanitizeEfetivoColumns } from "@/lib/dashboard-columns";
 
 interface EfetivoColumnsDialogProps {
   open: boolean;
@@ -44,7 +44,7 @@ export function EfetivoColumnsDialog({
 
   useEffect(() => {
     if (open) {
-      setList(columns && columns.length > 0 ? [...columns] : [...DEFAULT_EFETIVO_COLUMNS]);
+      setList(columns && columns.length > 0 ? sanitizeEfetivoColumns(columns) : DEFAULT_EFETIVO_COLUMNS.map((c) => ({ ...c })));
       setNewLabel("");
     }
   }, [open, columns]);
@@ -119,7 +119,7 @@ export function EfetivoColumnsDialog({
   }
 
   function handleResetDefault() {
-    setList([...DEFAULT_EFETIVO_COLUMNS]);
+    setList(DEFAULT_EFETIVO_COLUMNS.map((c) => ({ ...c })));
     toast.success("Colunas restauradas para o padrão oficial do CBMAM.");
   }
 
@@ -128,7 +128,8 @@ export function EfetivoColumnsDialog({
       toast.error("A tabela deve conter ao menos uma coluna.");
       return;
     }
-    onSave(list);
+    const clean = sanitizeEfetivoColumns(list);
+    onSave(clean);
     onOpenChange(false);
     toast.success("Configuração de colunas do efetivo atualizada!");
   }

@@ -32,7 +32,7 @@ import {
 import { EfetivoColumnsDialog } from "@/components/dashboard/EfetivoColumnsDialog";
 import { DataTable } from "@/components/dashboard/DataTable";
 import { OccurrenceDetailDialog } from "@/components/dashboard/OccurrenceDetailDialog";
-import { DASHBOARD_COLUMNS, getStoredEfetivoColumns, saveStoredEfetivoColumns, type Column } from "@/lib/dashboard-columns";
+import { DASHBOARD_COLUMNS, getStoredEfetivoColumns, saveStoredEfetivoColumns, sanitizeEfetivoColumns, type Column } from "@/lib/dashboard-columns";
 import type { OccurrenceRow } from "@/lib/sheets.types";
 
 export const Route = createFileRoute("/_authenticated/registro")({
@@ -50,7 +50,22 @@ type EfetivoRow = { mun: string; [key: string]: any };
 type RecursoRow = { mun: string; viaturas: number; aeronaves: number; embarcacoes: number };
 type IncendioRow = { mun: string; urb: number; flor: number; focos: number };
 
-const EFETIVO_EMPTY: EfetivoRow = { mun: "", ord: 0, cbmam: 0, seg: 0, brig: 0 };
+const EFETIVO_EMPTY: EfetivoRow = {
+  mun: "",
+  cbmam: 0,
+  opamv: 0,
+  opam_ref: 0,
+  inc1: 0,
+  inc2: 0,
+  inc3: 0,
+  cbmsp: 0,
+  prevfogo: 0,
+  fn: 0,
+  marinha: 0,
+  seg: 0,
+  brig_mun: 0,
+  brig_semas: 0,
+};
 const RECURSO_EMPTY: RecursoRow = { mun: "", viaturas: 0, aeronaves: 0, embarcacoes: 0 };
 const INCENDIO_EMPTY: IncendioRow = { mun: "", urb: 0, flor: 0, focos: 0 };
 
@@ -95,7 +110,9 @@ function RegistroPage() {
     staleTime: 5 * 60_000,
   });
 
-  const [efetivoColumns, setEfetivoColumns] = useState<Column[]>(() => getStoredEfetivoColumns());
+  const [efetivoColumns, setEfetivoColumns] = useState<Column[]>(() =>
+    sanitizeEfetivoColumns(getStoredEfetivoColumns()),
+  );
   const [columnsDialogOpen, setColumnsDialogOpen] = useState(false);
 
   const [efetivo, setEfetivo] = useState<EfetivoRow[]>([]);
@@ -109,14 +126,15 @@ function RegistroPage() {
   }, [q.data]);
 
   function handleSaveColumns(newCols: Column[]) {
-    setEfetivoColumns(newCols);
-    saveStoredEfetivoColumns(newCols);
+    const clean = sanitizeEfetivoColumns(newCols);
+    setEfetivoColumns(clean);
+    saveStoredEfetivoColumns(clean);
     dirtyRef.current = true;
-    setDadosComplementares((prev) => ({ ...prev, efetivo_columns: newCols }));
+    setDadosComplementares((prev) => ({ ...prev, efetivo_columns: clean }));
     setEfetivo((prev) =>
       prev.map((r) => {
         const copy: any = { ...r };
-        for (const col of newCols) {
+        for (const col of clean) {
           if (col.numeric && copy[col.key] === undefined) {
             copy[col.key] = 0;
           }
@@ -231,7 +249,9 @@ function RegistroPage() {
     }
 
     if (Array.isArray(row?.dados_complementares?.efetivo_columns) && row.dados_complementares.efetivo_columns.length > 0) {
-      setEfetivoColumns(row.dados_complementares.efetivo_columns);
+      setEfetivoColumns(sanitizeEfetivoColumns(row.dados_complementares.efetivo_columns));
+    } else {
+      setEfetivoColumns(sanitizeEfetivoColumns(getStoredEfetivoColumns()));
     }
 
     // Harmoniza as seções para que todas possuam a mesma lista de municípios
@@ -701,7 +721,7 @@ function RegistroPage() {
 
           <TabsContent value="efetivo">
             <SectionTable
-              title="Efetivo empenhado"
+              title="Efetivo por município"
               headers={[
                 "Município",
                 ...efetivoColumns.filter((c) => c.key !== "mun" && c.key !== "total").map((c) => c.label),
@@ -743,7 +763,16 @@ function RegistroPage() {
                       <NumCell
                         key={col.key}
                         v={Number(r[col.key] ?? 0)}
-                        on={(v) => patch({ [col.key]: v })}
+                        on={(v) => {
+                          const update: Record<string, any> = { [col.key]: v };
+                          if (col.key === "cbmam") {
+                            update.ord = v;
+                            update.servico = v;
+                          } else if (col.key === "seg") {
+                            update.sec = v;
+                          }
+                          patch(update);
+                        }}
                         disabled={!canEdit}
                       />
                     ))}
