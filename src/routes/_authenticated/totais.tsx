@@ -158,6 +158,56 @@ function aggregateSnapshot(rows: AnyRow[], field: string, keys: string[]) {
     .sort((a, b) => compareMunicipios(a.mun, b.mun));
 }
 
+const EFETIVO_AGG_KEYS = [
+  "ord",
+  "seg",
+  "cbmam",
+  "servico",
+  "opamv",
+  "opam_ref",
+  "inc1",
+  "inc2",
+  "inc3",
+  "cbmsp",
+  "prevfogo",
+  "fn",
+  "marinha",
+  "icmbio",
+  "brig",
+  "brig_mun",
+  "brig_semas",
+  "brig_sema",
+  "total",
+];
+
+const RECURSOS_AGG_KEYS = [
+  "abt",
+  "at",
+  "aem",
+  "atp",
+  "ata",
+  "abf",
+  "atf",
+  "abs",
+  "pipa",
+  "dosa",
+  "crs",
+  "ar",
+  "ur",
+  "gse",
+  "mt",
+  "ta",
+  "quadriciclo",
+  "embarcacao",
+  "picape_fn",
+  "picape_muni",
+  "autoarp",
+  "picape_esfron",
+  "helicoptero",
+  "aviao",
+  "jetski",
+];
+
 const MONTHS = [
   { value: 1, label: "Janeiro" },
   { value: 2, label: "Fevereiro" },
@@ -321,36 +371,9 @@ function TotaisPage() {
   }, [qComp2.data, shift, compMonths]);
 
 
-  const efetivoFull = useMemo(() => aggregateSnapshot(rows, "efetivo", ["ord", "seg", "brig", "brig_semas"]), [rows]);
+  const efetivoFull = useMemo(() => aggregateSnapshot(rows, "efetivo", EFETIVO_AGG_KEYS), [rows]);
   const recursosFull = useMemo(
-    () =>
-      aggregateSnapshot(rows, "recursos", [
-        "abt",
-        "at",
-        "aem",
-        "atp",
-        "ata",
-        "abf",
-        "atf",
-        "abs",
-        "pipa",
-        "dosa",
-        "crs",
-        "ar",
-        "ur",
-        "gse",
-        "mt",
-        "ta",
-        "quadriciclo",
-        "embarcacao",
-        "picape_fn",
-        "picape_muni",
-        "autoarp",
-        "picape_esfron",
-        "helicoptero",
-        "aviao",
-        "jetski",
-      ]),
+    () => aggregateSnapshot(rows, "recursos", RECURSOS_AGG_KEYS),
     [rows],
   );
 
@@ -381,12 +404,12 @@ function TotaisPage() {
   );
   
   const incendiosComp1 = useMemo(() => aggregateSum(rowsComp1, "incendios", ["urb", "flor", "focos", "focos_combatidos", "focos_atendidos", "sat"]), [rowsComp1]);
-  const efetivoComp1 = useMemo(() => aggregateSnapshot(rowsComp1, "efetivo", ["ord", "seg", "brig", "brig_semas"]), [rowsComp1]);
-  const recursosComp1 = useMemo(() => aggregateSnapshot(rowsComp1, "recursos", ["abt", "at", "aem", "atp", "ata", "abf", "atf", "abs", "pipa", "dosa", "crs", "ar", "ur", "gse", "mt", "ta", "quadriciclo", "embarcacao", "picape_fn", "picape_muni", "autoarp", "picape_esfron", "helicoptero", "aviao", "jetski"]), [rowsComp1]);
+  const efetivoComp1 = useMemo(() => aggregateSnapshot(rowsComp1, "efetivo", EFETIVO_AGG_KEYS), [rowsComp1]);
+  const recursosComp1 = useMemo(() => aggregateSnapshot(rowsComp1, "recursos", RECURSOS_AGG_KEYS), [rowsComp1]);
 
   const incendiosComp2 = useMemo(() => aggregateSum(rowsComp2, "incendios", ["urb", "flor", "focos", "focos_combatidos", "focos_atendidos", "sat"]), [rowsComp2]);
-  const efetivoComp2 = useMemo(() => aggregateSnapshot(rowsComp2, "efetivo", ["ord", "seg", "brig", "brig_semas"]), [rowsComp2]);
-  const recursosComp2 = useMemo(() => aggregateSnapshot(rowsComp2, "recursos", ["abt", "at", "aem", "atp", "ata", "abf", "atf", "abs", "pipa", "dosa", "crs", "ar", "ur", "gse", "mt", "ta", "quadriciclo", "embarcacao", "picape_fn", "picape_muni", "autoarp", "picape_esfron", "helicoptero", "aviao", "jetski"]), [rowsComp2]);
+  const efetivoComp2 = useMemo(() => aggregateSnapshot(rowsComp2, "efetivo", EFETIVO_AGG_KEYS), [rowsComp2]);
+  const recursosComp2 = useMemo(() => aggregateSnapshot(rowsComp2, "recursos", RECURSOS_AGG_KEYS), [rowsComp2]);
 
   // Filtro de município por busca
   const filterBySearch = <T extends { mun: string }>(list: T[]): T[] => {
@@ -604,15 +627,13 @@ ${topIncendios || "  Nenhum registro no período."}
 
       // Efetivo: diário do último dia vs geral consolidado
       const efDiario = latestRow
-        ? aggregateSnapshot([latestRow], "efetivo", ["ord", "seg", "brig", "brig_semas"])
+        ? aggregateSnapshot([latestRow], "efetivo", EFETIVO_AGG_KEYS)
         : (!isAnnualComparison ? efetivoFull : efetivoComp2);
       const efGeral = !isAnnualComparison ? efetivoFull : efetivoComp2;
 
       // Viaturas: diário do último dia vs totais
       const recDiario = latestRow
-        ? aggregateSnapshot([latestRow], "recursos", [
-            "abt", "at", "aem", "atp", "ata", "abf", "atf", "abs", "pipa", "dosa", "crs", "ar", "ur", "gse", "mt", "ta", "quadriciclo", "embarcacao", "picape_fn", "picape_muni", "autoarp", "picape_esfron", "helicoptero", "aviao", "jetski"
-          ])
+        ? aggregateSnapshot([latestRow], "recursos", RECURSOS_AGG_KEYS)
         : (!isAnnualComparison ? recursosFull : recursosComp2);
       const recTotais = !isAnnualComparison ? recursosFull : recursosComp2;
 
