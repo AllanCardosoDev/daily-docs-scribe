@@ -130,15 +130,26 @@ export function sanitizeSheetsData(data: SheetsData): SheetsData {
   const incendiosKeys = ["urb", "flor", "focos", "sat", "area", "total_periodo"];
   const occKeys = ["focos", "area", "agua"];
 
+  const sanitizeOfficer = (name: unknown, fallback: string) => {
+    const s = String(name || "").trim();
+    if (!s || s === "Sala de Situação — CBMAM") return fallback;
+    return s.replace(/^TC\s+/i, "CEL ").replace(/^TENENTE[\s-]+CORONEL\s+/i, "CEL ");
+  };
+
   return {
     ...data,
     header: {
       titulo: data.header?.titulo || "Relatório Consolidado de Período",
       periodo: data.header?.periodo || "Período Operacional",
-      comandante: data.header?.comandante || "CEL QOBM BORGES",
-      coordenador: data.header?.coordenador || "CEL QOBM CRISTIANO BRAZ FERREIRA",
-      coordSituacao: data.header?.coordSituacao || "Sala de Situação — CBMAM",
-      ...data.header,
+      proximoPeriodo: data.header?.proximoPeriodo || "D+1 — 08H00",
+      reuniaoPlanejamento: data.header?.reuniaoPlanejamento || "Diária — 08H15",
+      reuniaoBriefing: data.header?.reuniaoBriefing || "Diária — 08H30",
+      comandanteGeral: sanitizeOfficer(data.header?.comandanteGeral, "CEL QOBM MUNIZ"),
+      comandante: sanitizeOfficer(data.header?.comandante, "CEL QOBM BORGES"),
+      coordenador: sanitizeOfficer(data.header?.coordenador, "CEL QOBM CRISTIANO BRAZ FERREIRA"),
+      chefeCapital: sanitizeOfficer(data.header?.chefeCapital, "CEL QOBM MENEZES"),
+      chefeInterior: sanitizeOfficer(data.header?.chefeInterior, "CEL QOBM MONTEIRO"),
+      coordSituacao: sanitizeOfficer(data.header?.coordSituacao, "CEL QOBM FERREIRA"),
     },
     efetivo: sanitizeRows(data.efetivo, efetivoKeys),
     recursos: sanitizeRows(data.recursos, recursosKeys),

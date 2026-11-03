@@ -670,6 +670,7 @@ ${topIncendios || "  Nenhum registro no período."}
         header: {
           titulo: "Relatório Consolidado de Período",
           periodo: periodLabel,
+          comandanteGeral: "CEL QOBM MUNIZ",
           comandante: "CEL QOBM BORGES",
           coordenador: "CEL QOBM CRISTIANO BRAZ FERREIRA",
           coordSituacao: "CEL QOBM FERREIRA",

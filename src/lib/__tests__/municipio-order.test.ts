@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   isManaus,
+  canonicalMunicipio,
   compareMunicipios,
   sortByMunicipio,
   manausFirst,
@@ -9,6 +10,23 @@ import {
 } from "../municipio-order";
 
 describe("municipio-order", () => {
+  describe("canonicalMunicipio", () => {
+    it("deve normalizar apelidos e evitar duplicidades históricas", () => {
+      expect(canonicalMunicipio("Careiro Castanho")).toBe("Careiro");
+      expect(canonicalMunicipio("Autazes Posto Km 53")).toBe("Autazes");
+      expect(canonicalMunicipio("Posto Km 53")).toBe("Autazes");
+      expect(canonicalMunicipio("Boca de Acre")).toBe("Boca do Acre");
+      expect(canonicalMunicipio("Pres. Figueiredo")).toBe("Presidente Figueiredo");
+      expect(canonicalMunicipio("Uricurituba")).toBe("Urucurituba");
+    });
+
+    it("deve limpar textos ruidosos de importação/CAD", () => {
+      expect(canonicalMunicipio("* Manaus/AM\n*Solicitante:* Gabriela")).toBe("Manaus");
+      expect(canonicalMunicipio("Borba\nDATA DO FATO: 15/09/2026")).toBe("Borba");
+      expect(canonicalMunicipio("Manacapuru/AM\nEndereço: [não informado]")).toBe("Manacapuru");
+      expect(canonicalMunicipio("Canutama.\n\n\nAção dos bombeiros:")).toBe("Canutama");
+    });
+  });
   describe("isManaus", () => {
     it("deve identificar variações de Manaus corretamente", () => {
       expect(isManaus("Manaus")).toBe(true);

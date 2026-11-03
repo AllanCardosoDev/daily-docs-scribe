@@ -102,32 +102,36 @@ export function buildSheetsPdfDoc(
     doc.setTextColor(230, 240, 235);
     doc.setFontSize(6.5);
     doc.setFont("helvetica", "bold");
-    doc.text("Comandante do Incidente:", 68, 15);
-    doc.text("Chefe Op. Capital:", 68, 25);
-    doc.text("Chefe Op. Interior:", 68, 35);
-    doc.text("Coord. Sala Situação:", 68, 45);
+    doc.text("Comandante Geral:", 68, 12);
+    doc.text("Comandante do Incidente:", 68, 21);
+    doc.text("Chefe Op. Capital:", 68, 30);
+    doc.text("Chefe Op. Interior:", 68, 39);
+    doc.text("Coord. Sala Situação:", 68, 48);
 
     doc.setFont("helvetica", "normal");
-    doc.text(header.comandante || "CEL QOBM BORGES", 170, 15);
-    doc.text(header.chefeCapital || "CEL QOBM MENEZES", 170, 25);
-    doc.text(header.chefeInterior || "CEL QOBM MONTEIRO", 170, 35);
-    doc.text((header.coordSituacao || "CEL QOBM FERREIRA").replace(/^TC\s+/i, "CEL "), 170, 45);
+    doc.text(header.comandanteGeral || "CEL QOBM MUNIZ", 170, 12);
+    doc.text(header.comandante || "CEL QOBM BORGES", 170, 21);
+    doc.text(header.chefeCapital || "CEL QOBM MENEZES", 170, 30);
+    doc.text(header.chefeInterior || "CEL QOBM MONTEIRO", 170, 39);
+    doc.text((header.coordSituacao || "CEL QOBM FERREIRA").replace(/^TC\s+/i, "CEL "), 170, 48);
 
     // Cronograma & Período (Direita)
     const rightMarginX = pageW - 16;
     const labelStartX = pageW - 250;
 
     doc.setFont("helvetica", "bold");
-    doc.text("Período Operacional:", labelStartX, 15);
-    doc.text("Próximo Período:", labelStartX, 25);
-    doc.text("Reunião de Planejamento:", labelStartX, 35);
-    doc.text("Briefing Operacional:", labelStartX, 45);
+    doc.text("Período Operacional:", labelStartX, 12);
+    doc.text("Coord. Geral da Operação:", labelStartX, 21);
+    doc.text("Próximo Período:", labelStartX, 30);
+    doc.text("Reunião de Planejamento:", labelStartX, 39);
+    doc.text("Briefing Operacional:", labelStartX, 48);
 
     doc.setFont("helvetica", "normal");
-    doc.text(header.periodo || `${opDateStr} — 24H`, rightMarginX, 15, { align: "right" });
-    doc.text(header.proximoPeriodo || `D+1 — 08H00`, rightMarginX, 25, { align: "right" });
-    doc.text(header.reuniaoPlanejamento || `Diária — 08H15`, rightMarginX, 35, { align: "right" });
-    doc.text(header.reuniaoBriefing || `Diária — 08H30`, rightMarginX, 45, { align: "right" });
+    doc.text(header.periodo || `${opDateStr} — 24H`, rightMarginX, 12, { align: "right" });
+    doc.text(header.coordenador || "CEL QOBM CRISTIANO BRAZ FERREIRA", rightMarginX, 21, { align: "right" });
+    doc.text(header.proximoPeriodo || `D+1 — 08H00`, rightMarginX, 30, { align: "right" });
+    doc.text(header.reuniaoPlanejamento || `Diária — 08H15`, rightMarginX, 39, { align: "right" });
+    doc.text(header.reuniaoBriefing || `Diária — 08H30`, rightMarginX, 48, { align: "right" });
   };
 
   // ---------------------------------------------------------------------------

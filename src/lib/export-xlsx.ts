@@ -206,6 +206,7 @@ export function exportTotaisToXlsx(
     ["RELATÓRIO:", "TOTAIS ACUMULADOS E CONSOLIDADOS DO PERÍODO"],
     ["PERÍODO OPERACIONAL:", periodoLabel || "Consolidado Geral"],
     ["DATA DE EMISSÃO:", new Date().toLocaleString("pt-BR")],
+    ["COMANDANTE GERAL:", "CEL QOBM MUNIZ"],
     ["COMANDANTE DO INCIDENTE:", "CEL QOBM BORGES"],
     ["COORD. GERAL DA OPERAÇÃO:", "CEL QOBM CRISTIANO BRAZ FERREIRA"],
     ["SALA DE SITUAÇÃO:", "CEL QOBM FERREIRA"],

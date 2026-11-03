@@ -16,7 +16,8 @@ const CANONICAL_MUNICIPIOS: Record<string, string> = {
   "atalaia do norte": "Atalaia do Norte",
   "atalaiado norte": "Atalaia do Norte",
   "autazes": "Autazes",
-  "autazes posto km 53": "Autazes Posto Km 53",
+  "autazes posto km 53": "Autazes",
+  "posto km 53": "Autazes",
   "barcelos": "Barcelos",
   "barreirinha": "Barreirinha",
   "benjamim constant": "Benjamin Constant",
@@ -24,12 +25,13 @@ const CANONICAL_MUNICIPIOS: Record<string, string> = {
   "beruri": "Beruri",
   "boa vista do ramos": "Boa Vista do Ramos",
   "boca do acre": "Boca do Acre",
+  "boca de acre": "Boca do Acre",
   "borba": "Borba",
   "caapiranga": "Caapiranga",
   "canutama": "Canutama",
   "carauari": "Carauari",
   "careiro": "Careiro",
-  "careiro castanho": "Careiro Castanho",
+  "careiro castanho": "Careiro",
   "careiro da varzea": "Careiro da Várzea",
   "careiro da várzea": "Careiro da Várzea",
   "coari": "Coari",
@@ -67,6 +69,8 @@ const CANONICAL_MUNICIPIOS: Record<string, string> = {
   "novo aripuanã": "Novo Aripuanã",
   "parintins": "Parintins",
   "pauini": "Pauini",
+  "pres. figueiredo": "Presidente Figueiredo",
+  "pres figueiredo": "Presidente Figueiredo",
   "presidente figueiredo": "Presidente Figueiredo",
   "rio preto da eva": "Rio Preto da Eva",
   "santa isabel do rio negro": "Santa Isabel do Rio Negro",
@@ -88,6 +92,7 @@ const CANONICAL_MUNICIPIOS: Record<string, string> = {
   "uarini": "Uarini",
   "urucara": "Urucará",
   "urucurituba": "Urucurituba",
+  "uricurituba": "Urucurituba",
 };
 
 export function canonicalMunicipio(mun: unknown): string {
@@ -121,8 +126,25 @@ export function canonicalMunicipio(mun: unknown): string {
     return "Manaus";
   }
 
+  // Se contiver quebras de linha ou prefixos de texto (ex: "* Manaus/AM\n..."), extrai a primeira linha limpa
+  if (raw.includes("\n") || raw.includes("\r") || raw.includes("\\n")) {
+    const firstLine = raw.split(/[\r\n]|\\n/)[0].replace(/^[\s*#\-•]+/, "").trim();
+    if (firstLine) raw = firstLine;
+  }
+  // Remove sufixo de estado (/AM, - AM, etc) e pontuação residual
+  raw = raw.replace(/[\s\/\-]+AM$/i, "").replace(/[.\s]+$/, "").replace(/^[\s*#\-•]+/, "").trim();
+
   const normKey = raw.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
   if (CANONICAL_MUNICIPIOS[normKey]) return CANONICAL_MUNICIPIOS[normKey];
+
+  // Busca por correspondência inteligente com os municípios conhecidos (da maior chave para a menor)
+  const sortedKeys = Object.keys(CANONICAL_MUNICIPIOS).sort((a, b) => b.length - a.length);
+  for (const k of sortedKeys) {
+    if (k.length >= 4 && (normKey === k || normKey.startsWith(k + " ") || normKey.endsWith(" " + k) || normKey.includes(" " + k + " "))) {
+      return CANONICAL_MUNICIPIOS[k];
+    }
+  }
+
   return raw.charAt(0).toUpperCase() + raw.slice(1);
 }
 

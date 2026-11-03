@@ -4,6 +4,7 @@ export interface SheetsHeader {
   proximoPeriodo?: string;
   reuniaoPlanejamento?: string;
   reuniaoBriefing?: string;
+  comandanteGeral?: string;
   comandante?: string;
   chefeCapital?: string;
   chefeInterior?: string;

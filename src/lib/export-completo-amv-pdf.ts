@@ -44,12 +44,13 @@ export function exportRelatorioCompletoAmvPdf(options: RelatorioCompletoAmvOptio
 }
 
 export function buildRelatorioCompletoAmvDoc(options: RelatorioCompletoAmvOptions): jsPDF {
+  const sanitizeCel = (v?: string, fallback = "") => (v || fallback).replace(/^TC\s+/i, "CEL ");
   const {
     periodoLabel,
     dataDiariaLabel,
-    comandanteGeral = "CEL QOBM MUNIZ",
-    comandante = "CEL QOBM BORGES",
-    coordSituacao = "CEL QOBM FERREIRA",
+    comandanteGeral = sanitizeCel(options.comandanteGeral, "CEL QOBM MUNIZ"),
+    comandante = sanitizeCel(options.comandante, "CEL QOBM BORGES"),
+    coordSituacao = sanitizeCel(options.coordSituacao, "CEL QOBM FERREIRA"),
     ocorrenciasDiarias,
     ocorrenciasTotais,
     efetivoDiario,

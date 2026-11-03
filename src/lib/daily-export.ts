@@ -29,6 +29,8 @@ export function aggregateIncendios(rows: Array<{ incendios?: any[] | null }>) {
       cur.urb += num(item?.urb);
       cur.flor += num(item?.flor);
       cur.focos += num(item?.focos);
+      cur.sat += num(item?.sat);
+      cur.area += num(item?.area);
       map.set(mun, cur);
     }
   }
@@ -56,7 +58,12 @@ export function buildDailySheetsData(
     header: {
       titulo: `RELATÓRIO DIÁRIO — ${SHIFT_TAB[shift].toUpperCase()}`,
       periodo: SHIFT_LABEL[shift],
-      coordSituacao: "Sala de Situação — CBMAM",
+      comandanteGeral: "CEL QOBM MUNIZ",
+      comandante: "CEL QOBM BORGES",
+      coordSituacao: "CEL QOBM FERREIRA",
+      coordenador: "CEL QOBM CRISTIANO BRAZ FERREIRA",
+      chefeCapital: "CEL QOBM MENEZES",
+      chefeInterior: "CEL QOBM MONTEIRO",
     },
     efetivo: (row?.efetivo ?? []) as SheetsData["efetivo"],
     recursos: (row?.recursos ?? []) as SheetsData["recursos"],

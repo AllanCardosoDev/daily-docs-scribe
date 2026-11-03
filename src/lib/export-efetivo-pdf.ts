@@ -17,6 +17,7 @@ export interface ExportEfetivoPdfOptions {
   efetivo: Array<Record<string, any>>;
   periodoLabel?: string;
   reportDate?: Date | null;
+  comandanteGeral?: string;
   comandante?: string;
   coordenador?: string;
   chefeCapital?: string;
@@ -41,6 +42,7 @@ export function buildEfetivoPdfDoc(options: ExportEfetivoPdfOptions): jsPDF {
     efetivo: rawEfetivo,
     periodoLabel,
     reportDate,
+    comandanteGeral = "CEL QOBM MUNIZ",
     comandante = "CEL QOBM BORGES",
     coordenador = "CEL QOBM CRISTIANO BRAZ FERREIRA",
     chefeCapital = "CEL QOBM MENEZES",
@@ -143,32 +145,34 @@ export function buildEfetivoPdfDoc(options: ExportEfetivoPdfOptions): jsPDF {
   doc.setTextColor(230, 240, 235);
   doc.setFontSize(6.5);
   doc.setFont("helvetica", "bold");
-  doc.text("Comandante do Incidente:", 68, 15);
-  doc.text("Chefe Op. Capital:", 68, 25);
-  doc.text("Chefe Op. Interior:", 68, 35);
-  doc.text("Coord. Sala Situação:", 68, 45);
+  doc.text("Comandante Geral:", 68, 12);
+  doc.text("Comandante do Incidente:", 68, 21);
+  doc.text("Chefe Op. Capital:", 68, 30);
+  doc.text("Chefe Op. Interior:", 68, 39);
+  doc.text("Coord. Sala Situação:", 68, 48);
 
   doc.setFont("helvetica", "normal");
-  doc.text(comandante, 170, 15);
-  doc.text(chefeCapital, 170, 25);
-  doc.text(chefeInterior, 170, 35);
-  doc.text(coordSituacao, 170, 45);
+  doc.text(comandanteGeral, 170, 12);
+  doc.text(comandante, 170, 21);
+  doc.text(chefeCapital, 170, 30);
+  doc.text(chefeInterior, 170, 39);
+  doc.text(coordSituacao, 170, 48);
 
   // Metadados (Direita)
   const rightMarginX = pageW - 16;
   const labelStartX = pageW - 250;
 
   doc.setFont("helvetica", "bold");
-  doc.text("Período Operacional:", labelStartX, 15);
-  doc.text("Data de Emissão:", labelStartX, 25);
-  doc.text("Coord. Geral da Operação:", labelStartX, 35);
-  doc.text("Status da Mobilização:", labelStartX, 45);
+  doc.text("Período Operacional:", labelStartX, 12);
+  doc.text("Coord. Geral da Operação:", labelStartX, 21);
+  doc.text("Data de Emissão:", labelStartX, 30);
+  doc.text("Status da Mobilização:", labelStartX, 39);
 
   doc.setFont("helvetica", "normal");
-  doc.text(opDateStr, rightMarginX, 15, { align: "right" });
-  doc.text(`${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`, rightMarginX, 25, { align: "right" });
-  doc.text(coordenador, rightMarginX, 35, { align: "right" });
-  doc.text("Mobilização Total Ativa (100%)", rightMarginX, 45, { align: "right" });
+  doc.text(opDateStr, rightMarginX, 12, { align: "right" });
+  doc.text(coordenador, rightMarginX, 21, { align: "right" });
+  doc.text(`${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`, rightMarginX, 30, { align: "right" });
+  doc.text("Mobilização Total Ativa (100%)", rightMarginX, 39, { align: "right" });
 
   // ---------------------------------------------------------------------------
   // KPI CARDS EXECUTIVOS
