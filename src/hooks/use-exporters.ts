@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import type { SheetsData } from "@/lib/sheets.types";
 import type { ComparisonResult } from "@/lib/comparison";
 import { validateForExport, formatIssues, sanitizeSheetsData } from "@/lib/report-validation";
+import { manausFirstSheets } from "@/lib/municipio-order";
 import type { PdfQuality } from "@/lib/export-pdf";
 import { fmtDateBR } from "@/lib/report-date";
 
@@ -36,7 +37,7 @@ export function useExporters(
 
   const getCleanDataWithPeriod = useCallback(() => {
     if (!data) return undefined;
-    const clean = sanitizeSheetsData(data);
+    const clean = manausFirstSheets(sanitizeSheetsData(data));
     if (isRange) {
       return {
         ...clean,
@@ -99,8 +100,12 @@ export function useExporters(
         efetivo: cleanData.efetivo || [],
         periodoLabel,
         reportDate,
+        comandanteGeral: cleanData.header?.comandanteGeral,
         comandante: cleanData.header?.comandante,
         coordenador: cleanData.header?.coordenador,
+        chefeCapital: cleanData.header?.chefeCapital,
+        chefeInterior: cleanData.header?.chefeInterior,
+        coordSituacao: cleanData.header?.coordSituacao,
       });
       toast.success("Relatório Oficial do Efetivo (PDF) gerado com sucesso!", {
         description: `Período: ${periodoLabel}`,

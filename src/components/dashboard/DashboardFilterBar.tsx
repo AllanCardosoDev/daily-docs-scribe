@@ -46,7 +46,7 @@ export const CALHAS_AMAZONAS: Record<string, string[]> = {
     "Manacapuru",
     "Rio Preto da Eva",
     "Presidente Figueiredo",
-    "Careiro",
+    "Careiro Castanho",
     "Careiro da Várzea",
     "Autazes",
     "Novo Airão",

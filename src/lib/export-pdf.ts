@@ -93,10 +93,16 @@ export function buildSheetsPdfDoc(
     doc.setTextColor(220, 240, 225);
     doc.text("COMANDO OPERACIONAL INTEGRADO · SALA DE SITUAÇÃO", pageW / 2, 29, { align: "center" });
 
-    doc.setFontSize(9);
+    const fullTitle = `${pageCategory.toUpperCase()} — ${pageTitle.toUpperCase()}`;
     doc.setFont("helvetica", "bold");
     doc.setTextColor(255, 220, 140);
-    doc.text(`${pageCategory.toUpperCase()} — ${pageTitle.toUpperCase()}`, pageW / 2, 44, { align: "center" });
+    let fSize = 8.5;
+    doc.setFontSize(fSize);
+    while (doc.getTextWidth(fullTitle) > 340 && fSize > 6) {
+      fSize -= 0.5;
+      doc.setFontSize(fSize);
+    }
+    doc.text(fullTitle, pageW / 2, 44, { align: "center" });
 
     // Oficiais Responsáveis (Esquerda)
     doc.setTextColor(230, 240, 235);
@@ -109,26 +115,26 @@ export function buildSheetsPdfDoc(
     doc.text("Coord. Sala Situação:", 68, 48);
 
     doc.setFont("helvetica", "normal");
-    doc.text(header.comandanteGeral || "CEL QOBM MUNIZ", 170, 12);
-    doc.text(header.comandante || "CEL QOBM BORGES", 170, 21);
-    doc.text(header.chefeCapital || "CEL QOBM MENEZES", 170, 30);
-    doc.text(header.chefeInterior || "CEL QOBM MONTEIRO", 170, 39);
-    doc.text((header.coordSituacao || "CEL QOBM FERREIRA").replace(/^TC\s+/i, "CEL "), 170, 48);
+    doc.text(header.comandanteGeral || "CEL QOBM MUNIZ", 160, 12);
+    doc.text(header.comandante || "CEL QOBM BORGES", 160, 21);
+    doc.text(header.chefeCapital || "CEL QOBM MENEZES", 160, 30);
+    doc.text(header.chefeInterior || "CEL QOBM MONTEIRO", 160, 39);
+    doc.text((header.coordSituacao || "CEL QOBM FERREIRA").replace(/^TC\s+/i, "CEL "), 160, 48);
 
     // Cronograma & Período (Direita)
     const rightMarginX = pageW - 16;
-    const labelStartX = pageW - 250;
+    const labelStartX = pageW - 225;
 
     doc.setFont("helvetica", "bold");
     doc.text("Período Operacional:", labelStartX, 12);
-    doc.text("Coord. Geral da Operação:", labelStartX, 21);
+    doc.text("Coord. Geral Operação:", labelStartX, 21);
     doc.text("Próximo Período:", labelStartX, 30);
     doc.text("Reunião de Planejamento:", labelStartX, 39);
     doc.text("Briefing Operacional:", labelStartX, 48);
 
     doc.setFont("helvetica", "normal");
     doc.text(header.periodo || `${opDateStr} — 24H`, rightMarginX, 12, { align: "right" });
-    doc.text(header.coordenador || "CEL QOBM CRISTIANO BRAZ FERREIRA", rightMarginX, 21, { align: "right" });
+    doc.text((header.coordenador || "CEL QOBM CRISTIANO BRAZ FERREIRA").replace(/^TC\s+/i, "CEL "), rightMarginX, 21, { align: "right" });
     doc.text(header.proximoPeriodo || `D+1 — 08H00`, rightMarginX, 30, { align: "right" });
     doc.text(header.reuniaoPlanejamento || `Diária — 08H15`, rightMarginX, 39, { align: "right" });
     doc.text(header.reuniaoBriefing || `Diária — 08H30`, rightMarginX, 48, { align: "right" });
@@ -199,7 +205,7 @@ export function buildSheetsPdfDoc(
   // ===========================================================================
   // 📄 1ª PÁGINA: EFETIVO GERAL (CBMAM, FN, MARINHA, PREVFOGO e afins)
   // ===========================================================================
-  drawPageHeader(1, "EFETIVO GERAL INTEGRADO (CBMAM, FN, MARINHA, PREVFOGO)", "1ª PÁGINA");
+  drawPageHeader(1, "EFETIVO GERAL INTEGRADO", "1ª PÁGINA");
 
   const efetivoList = data.efetivo ?? [];
   const fullEfetivoCols = resolveEfetivoColumns(efetivoList, data.custom_columns?.efetivo);
@@ -992,7 +998,19 @@ export function buildSheetsPdfDoc(
     ],
     body: [
       ...incAcumBody,
-      ["TOTAL GERAL", "", totAcumUrb, totAcumFlor, totAcumFocos, totAcumSat, NF.format(totAcumArea), totAcumOcorrencias],
+      [
+        {
+          content: "TOTAL GERAL",
+          colSpan: 2,
+          styles: { halign: "center", fontStyle: "bold" },
+        },
+        totAcumUrb,
+        totAcumFlor,
+        totAcumFocos,
+        totAcumSat,
+        NF.format(totAcumArea),
+        totAcumOcorrencias,
+      ],
     ],
     styles: {
       fontSize: 5.4,

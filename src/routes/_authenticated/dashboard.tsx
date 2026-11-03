@@ -24,7 +24,7 @@ import { useExporters } from "@/hooks/use-exporters";
 import { useServerFn } from "@tanstack/react-start";
 import { getLatestReportDate } from "@/lib/daily-reports.functions";
 import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from "react";
-import { canonicalMunicipio } from "@/lib/municipio-order";
+import { canonicalMunicipio, manausFirstSheets } from "@/lib/municipio-order";
 
 const ReportPreviewDialog = lazy(() =>
   import("@/components/dashboard/ReportPreviewDialog").then((m) => ({
@@ -121,15 +121,17 @@ function DashboardPage() {
       return true;
     };
 
-    return sanitizeSheetsData({
-      header: rawData.header,
-      incendios_diario: (rawData.incendios_diario ?? []).filter((r) => matchesFilter(r.mun)),
-      incendios_acumulado: (rawData.incendios_acumulado ?? []).filter((r) => matchesFilter(r.mun)),
-      outras_diarias: [],
-      efetivo: (rawData.efetivo ?? []).filter((r) => matchesFilter(r.mun)),
-      recursos: (rawData.recursos ?? []).filter((r) => matchesFilter(r.mun)),
-      occurrences: (rawData.occurrences ?? []).filter((r) => matchesFilter(r.municipio || (r as any).mun)),
-    });
+    return manausFirstSheets(
+      sanitizeSheetsData({
+        header: rawData.header,
+        incendios_diario: (rawData.incendios_diario ?? []).filter((r) => matchesFilter(r.mun)),
+        incendios_acumulado: (rawData.incendios_acumulado ?? []).filter((r) => matchesFilter(r.mun)),
+        outras_diarias: [],
+        efetivo: (rawData.efetivo ?? []).filter((r) => matchesFilter(r.mun)),
+        recursos: (rawData.recursos ?? []).filter((r) => matchesFilter(r.mun)),
+        occurrences: (rawData.occurrences ?? []).filter((r) => matchesFilter(r.municipio || (r as any).mun)),
+      })
+    );
   }, [rawData, filters]);
 
   // Monta as linhas consolidadas da tabela de municípios

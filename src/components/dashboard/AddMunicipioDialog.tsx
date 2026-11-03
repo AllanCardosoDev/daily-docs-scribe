@@ -40,7 +40,7 @@ const AMAZONAS_MUNICIPIOS = [
   "Caapiranga",
   "Canutama",
   "Carauari",
-  "Careiro",
+  "Careiro Castanho",
   "Careiro da Várzea",
   "Coari",
   "Codajás",

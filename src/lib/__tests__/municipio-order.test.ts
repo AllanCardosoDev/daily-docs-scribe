@@ -12,10 +12,13 @@ import {
 describe("municipio-order", () => {
   describe("canonicalMunicipio", () => {
     it("deve normalizar apelidos e evitar duplicidades históricas", () => {
-      expect(canonicalMunicipio("Careiro Castanho")).toBe("Careiro");
+      expect(canonicalMunicipio("Careiro")).toBe("Careiro Castanho");
+      expect(canonicalMunicipio("Careiro Castanho")).toBe("Careiro Castanho");
       expect(canonicalMunicipio("Autazes Posto Km 53")).toBe("Autazes");
       expect(canonicalMunicipio("Posto Km 53")).toBe("Autazes");
+      expect(canonicalMunicipio("Boca do Acre")).toBe("Boca do Acre");
       expect(canonicalMunicipio("Boca de Acre")).toBe("Boca do Acre");
+      expect(canonicalMunicipio("Boca doAcre")).toBe("Boca do Acre");
       expect(canonicalMunicipio("Pres. Figueiredo")).toBe("Presidente Figueiredo");
       expect(canonicalMunicipio("Uricurituba")).toBe("Urucurituba");
     });

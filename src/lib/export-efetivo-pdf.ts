@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { CBMAM_LOGO_BASE64 } from "./cbmam-logo";
-import { canonicalMunicipio, isNonMunicipioTroop } from "./municipio-order";
+import { canonicalMunicipio, isNonMunicipioTroop, deduplicateAndOrderMunicipios } from "./municipio-order";
 import { resolveEfetivoColumns, calculateRowTotal } from "./dashboard-columns";
 import { fmtDateBR, fmtDateStamp } from "./report-date";
 import { NF } from "./formatters";
@@ -38,16 +38,17 @@ export function exportEfetivoPdf(options: ExportEfetivoPdfOptions) {
 }
 
 export function buildEfetivoPdfDoc(options: ExportEfetivoPdfOptions): jsPDF {
+  const sanitizeCel = (v?: string, fallback = "") => (v || fallback).replace(/^TC\s+/i, "CEL ");
   const {
     efetivo: rawEfetivo,
     periodoLabel,
     reportDate,
-    comandanteGeral = "CEL QOBM MUNIZ",
-    comandante = "CEL QOBM BORGES",
-    coordenador = "CEL QOBM CRISTIANO BRAZ FERREIRA",
-    chefeCapital = "CEL QOBM MENEZES",
-    chefeInterior = "CEL QOBM MONTEIRO",
-    coordSituacao = "CEL QOBM FERREIRA",
+    comandanteGeral = sanitizeCel(options.comandanteGeral, "CEL QOBM MUNIZ"),
+    comandante = sanitizeCel(options.comandante, "CEL QOBM BORGES"),
+    coordenador = sanitizeCel(options.coordenador, "CEL QOBM CRISTIANO BRAZ FERREIRA"),
+    chefeCapital = sanitizeCel(options.chefeCapital, "CEL QOBM MENEZES"),
+    chefeInterior = sanitizeCel(options.chefeInterior, "CEL QOBM MONTEIRO"),
+    coordSituacao = sanitizeCel(options.coordSituacao, "CEL QOBM FERREIRA"),
   } = options;
 
   const DocConstructor = (jsPDF as any).jsPDF || jsPDF;
@@ -57,18 +58,8 @@ export function buildEfetivoPdfDoc(options: ExportEfetivoPdfOptions): jsPDF {
 
   const num = (v: any) => Math.max(0, Math.abs(typeof v === "number" && !isNaN(v) ? v : Number(v) || 0));
 
-  // Ordenação institucional: Manaus primeiro, depois municípios alfabéticos, depois bases
-  const efetivoList = [...(rawEfetivo || [])].sort((a, b) => {
-    const aMun = canonicalMunicipio(a.mun || a.municipio);
-    const bMun = canonicalMunicipio(b.mun || b.municipio);
-    if (aMun.toLowerCase() === "manaus") return -1;
-    if (bMun.toLowerCase() === "manaus") return 1;
-    const aIsBase = isNonMunicipioTroop(aMun) || aMun.toLowerCase().includes("base") || aMun.toLowerCase().includes("posto");
-    const bIsBase = isNonMunicipioTroop(bMun) || bMun.toLowerCase().includes("base") || bMun.toLowerCase().includes("posto");
-    if (!aIsBase && bIsBase) return -1;
-    if (aIsBase && !bIsBase) return 1;
-    return aMun.localeCompare(bMun, "pt-BR");
-  });
+  // Ordenação institucional: Manaus primeiro, depois municípios alfabéticos (sem duplicidades)
+  const efetivoList = deduplicateAndOrderMunicipios(rawEfetivo || []);
 
   const fullCols = resolveEfetivoColumns(efetivoList);
   const activeDataCols = fullCols.filter(
@@ -137,7 +128,7 @@ export function buildEfetivoPdfDoc(options: ExportEfetivoPdfOptions): jsPDF {
   doc.setTextColor(220, 240, 225);
   doc.text("COMANDO OPERACIONAL INTEGRADO · SALA DE SITUAÇÃO", pageW / 2, 29, { align: "center" });
 
-  doc.setFontSize(9);
+  doc.setFontSize(8.5);
   doc.setTextColor(255, 220, 140);
   doc.text("RELATÓRIO OFICIAL DE EFETIVO OPERACIONAL MOBILIZADO", pageW / 2, 44, { align: "center" });
 
@@ -152,27 +143,27 @@ export function buildEfetivoPdfDoc(options: ExportEfetivoPdfOptions): jsPDF {
   doc.text("Coord. Sala Situação:", 68, 48);
 
   doc.setFont("helvetica", "normal");
-  doc.text(comandanteGeral, 170, 12);
-  doc.text(comandante, 170, 21);
-  doc.text(chefeCapital, 170, 30);
-  doc.text(chefeInterior, 170, 39);
-  doc.text(coordSituacao, 170, 48);
+  doc.text(comandanteGeral, 160, 12);
+  doc.text(comandante, 160, 21);
+  doc.text(chefeCapital, 160, 30);
+  doc.text(chefeInterior, 160, 39);
+  doc.text(coordSituacao, 160, 48);
 
   // Metadados (Direita)
   const rightMarginX = pageW - 16;
-  const labelStartX = pageW - 250;
+  const labelStartX = pageW - 225;
 
   doc.setFont("helvetica", "bold");
   doc.text("Período Operacional:", labelStartX, 12);
-  doc.text("Coord. Geral da Operação:", labelStartX, 21);
+  doc.text("Coord. Geral Operação:", labelStartX, 21);
   doc.text("Data de Emissão:", labelStartX, 30);
-  doc.text("Status da Mobilização:", labelStartX, 39);
+  doc.text("Status Mobilização:", labelStartX, 39);
 
   doc.setFont("helvetica", "normal");
   doc.text(opDateStr, rightMarginX, 12, { align: "right" });
   doc.text(coordenador, rightMarginX, 21, { align: "right" });
   doc.text(`${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`, rightMarginX, 30, { align: "right" });
-  doc.text("Mobilização Total Ativa (100%)", rightMarginX, 39, { align: "right" });
+  doc.text("Mobilização Ativa (100%)", rightMarginX, 39, { align: "right" });
 
   // ---------------------------------------------------------------------------
   // KPI CARDS EXECUTIVOS

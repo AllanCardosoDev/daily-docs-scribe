@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { CBMAM_LOGO_BASE64 } from "./cbmam-logo";
-import { canonicalMunicipio, isNonMunicipioTroop, compareMunicipios } from "./municipio-order";
+import { canonicalMunicipio, isNonMunicipioTroop, compareMunicipios, deduplicateAndOrderMunicipios } from "./municipio-order";
 import { fmtDateBR, fmtDateStamp } from "./report-date";
 import { NF } from "./formatters";
 
@@ -51,13 +51,20 @@ export function buildRelatorioCompletoAmvDoc(options: RelatorioCompletoAmvOption
     comandanteGeral = sanitizeCel(options.comandanteGeral, "CEL QOBM MUNIZ"),
     comandante = sanitizeCel(options.comandante, "CEL QOBM BORGES"),
     coordSituacao = sanitizeCel(options.coordSituacao, "CEL QOBM FERREIRA"),
-    ocorrenciasDiarias,
-    ocorrenciasTotais,
-    efetivoDiario,
-    efetivoGeral,
-    viaturasDiarias,
-    viaturasTotais,
+    ocorrenciasDiarias: rawOcorrenciasDiarias,
+    ocorrenciasTotais: rawOcorrenciasTotais,
+    efetivoDiario: rawEfetivoDiario,
+    efetivoGeral: rawEfetivoGeral,
+    viaturasDiarias: rawViaturasDiarias,
+    viaturasTotais: rawViaturasTotais,
   } = options;
+
+  const ocorrenciasDiarias = deduplicateAndOrderMunicipios(rawOcorrenciasDiarias || []);
+  const ocorrenciasTotais = deduplicateAndOrderMunicipios(rawOcorrenciasTotais || []);
+  const efetivoDiario = deduplicateAndOrderMunicipios(rawEfetivoDiario || []);
+  const efetivoGeral = deduplicateAndOrderMunicipios(rawEfetivoGeral || []);
+  const viaturasDiarias = deduplicateAndOrderMunicipios(rawViaturasDiarias || []);
+  const viaturasTotais = deduplicateAndOrderMunicipios(rawViaturasTotais || []);
 
   const DocConstructor = (jsPDF as any).jsPDF || jsPDF;
   const doc = new DocConstructor({ orientation: "landscape", unit: "pt", format: "a4" });
@@ -198,23 +205,25 @@ export function buildRelatorioCompletoAmvDoc(options: RelatorioCompletoAmvOption
   const occTotMap = new Map<string, Record<string, number>>();
   ocorrenciasTotais.forEach((r) => {
     const m = canonicalMunicipio(r.mun || r.municipio);
-    occTotMap.set(m.toLowerCase(), {
-      urb: num(r.urb),
-      flor: num(r.flor),
-      focos: num(r.focos),
-      tot: num(r.urb) + num(r.flor),
-    });
+    const k = m.toLowerCase();
+    const cur = occTotMap.get(k) || { urb: 0, flor: 0, focos: 0, tot: 0 };
+    cur.urb += num(r.urb);
+    cur.flor += num(r.flor);
+    cur.focos += num(r.focos);
+    cur.tot += num(r.urb) + num(r.flor);
+    occTotMap.set(k, cur);
   });
 
   const occDiaMap = new Map<string, Record<string, number>>();
   ocorrenciasDiarias.forEach((r) => {
     const m = canonicalMunicipio(r.mun || r.municipio);
-    occDiaMap.set(m.toLowerCase(), {
-      urb: num(r.urb),
-      flor: num(r.flor),
-      focos: num(r.focos),
-      tot: num(r.urb) + num(r.flor),
-    });
+    const k = m.toLowerCase();
+    const cur = occDiaMap.get(k) || { urb: 0, flor: 0, focos: 0, tot: 0 };
+    cur.urb += num(r.urb);
+    cur.flor += num(r.flor);
+    cur.focos += num(r.focos);
+    cur.tot += num(r.urb) + num(r.flor);
+    occDiaMap.set(k, cur);
   });
 
   // Totais Gerais
