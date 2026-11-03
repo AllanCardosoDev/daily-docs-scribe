@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import type { SheetsData } from "@/lib/sheets.types";
+import { canonicalMunicipio } from "@/lib/municipio-order";
 
 interface MapDetailsPanelProps {
   isOpen: boolean;
@@ -24,9 +25,9 @@ export function MapDetailsPanel({ isOpen, onClose, municipioName, onMunicipioSel
   
   const allMunicipios = useMemo(() => {
     const names = new Set<string>();
-    data.incendios_diario?.forEach(r => r.mun && names.add(r.mun));
-    data.efetivo?.forEach(r => r.mun && names.add(r.mun));
-    data.recursos?.forEach(r => r.mun && names.add(r.mun));
+    data.incendios_diario?.forEach(r => r.mun && names.add(canonicalMunicipio(r.mun)));
+    data.efetivo?.forEach(r => r.mun && names.add(canonicalMunicipio(r.mun)));
+    data.recursos?.forEach(r => r.mun && names.add(canonicalMunicipio(r.mun)));
     return Array.from(names).sort((a, b) => a.localeCompare(b));
   }, [data]);
 
@@ -40,7 +41,7 @@ export function MapDetailsPanel({ isOpen, onClose, municipioName, onMunicipioSel
     if (!municipioName) return null;
 
     const normalize = (s: string) =>
-      s
+      canonicalMunicipio(s)
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
         .toLowerCase();
