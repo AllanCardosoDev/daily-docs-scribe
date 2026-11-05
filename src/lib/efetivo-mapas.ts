@@ -741,8 +741,12 @@ export function exportEfetivoMapasXlsx(
 // EXPORTAÇÃO JSON PRONTA PARA O BANCO EFETIVODB DO PROJETO MAPAS
 // =============================================================================
 
-export function getEfetivoMapasPayload(data: SheetsData, reportDate: Date | null = null) {
-  const calc = buildEfetivoMapasData(data, "consolidado");
+export function getEfetivoMapasPayload(
+  data: SheetsData,
+  reportDate: Date | null = null,
+  mode: "diario" | "consolidado" = "diario",
+) {
+  const calc = buildEfetivoMapasData(data, mode);
   const dateStr = reportDate ? reportDate.toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
 
   const categorias = [
@@ -803,8 +807,10 @@ export function getEfetivoMapasPayload(data: SheetsData, reportDate: Date | null
 
   return {
     version: "1.0",
+    type: "cbmam_efetivo_mapas",
     source: "CBMAM - Relatório Diário Sala de Situação",
     reportDate: dateStr,
+    date: dateStr,
     exportedAt: new Date().toISOString(),
     totals: calc.totals,
     categories: categorias,
@@ -814,14 +820,18 @@ export function getEfetivoMapasPayload(data: SheetsData, reportDate: Date | null
   };
 }
 
-export function exportEfetivoMapasJson(data: SheetsData, reportDate: Date | null = null) {
-  const payload = getEfetivoMapasPayload(data, reportDate);
+export function exportEfetivoMapasJson(
+  data: SheetsData,
+  reportDate: Date | null = null,
+  mode: "diario" | "consolidado" = "diario",
+) {
+  const payload = getEfetivoMapasPayload(data, reportDate, mode);
   const dateStr = reportDate ? fmtDateStamp(reportDate) : fmtDateStamp(new Date());
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `cbmam_efetivo_matriz_${dateStr}.json`;
+  a.download = `cbmam_efetivo_mapas_${dateStr}.json`;
   a.click();
   URL.revokeObjectURL(url);
 }

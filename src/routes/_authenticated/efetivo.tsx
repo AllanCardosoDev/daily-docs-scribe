@@ -252,16 +252,22 @@ function EfetivoPage() {
     }
   }, [effectiveSheetsData, reportDate]);
 
-  const handleExportJson = useCallback(() => {
+  const handleExportMapas = useCallback(() => {
     try {
-      exportEfetivoMapasJson(effectiveSheetsData, reportDate);
-      toast.success("Arquivo JSON para o Projeto Mapas exportado com sucesso!");
+      exportEfetivoMapasJson(effectiveSheetsData, reportDate, viewMode);
+      toast.success("Efetivo pronto para o Sistema de Mapas!", {
+        description:
+          "Arquivo baixado. No Sistema de Mapas, clique em 'Subir Planilha' e selecione este arquivo para atualizar todo o mapa automaticamente.",
+        duration: 8000,
+      });
     } catch (e) {
-      toast.error("Falha ao exportar JSON de efetivo", {
+      toast.error("Falha ao exportar efetivo para Mapas", {
         description: (e as Error)?.message,
       });
     }
-  }, [effectiveSheetsData, reportDate]);
+  }, [effectiveSheetsData, reportDate, viewMode]);
+
+  const handleExportJson = handleExportMapas;
 
   const handleCopyApiUrl = useCallback(() => {
     const origin = typeof window !== "undefined" ? window.location.origin : "";
@@ -366,24 +372,25 @@ function EfetivoPage() {
                     <span>Relatório Efetivo (PDF)</span>
                   </Button>
 
-                  {/* Exportar XLSX (Mapas) */}
+                  {/* Botão Oficial: Exportar Efetivo p/ o Sistema de Mapas */}
                   <Button
-                    onClick={handleExportXlsx}
-                    className="h-10 px-4 bg-emerald-700 hover:bg-emerald-800 text-white font-bold gap-2 shadow-sm"
+                    onClick={handleExportMapas}
+                    className="h-10 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-2 shadow-sm border border-emerald-500 hover:shadow-md transition-all ring-1 ring-emerald-400/40"
+                    title="Exportar efetivo para importação direta no Sistema de Mapas (atualiza todas as tropas e tokens automaticamente)"
                   >
-                    <FileSpreadsheet className="w-4 h-4" />
-                    <span>Exportar Efetivo (.xlsx)</span>
+                    <MapPin className="w-4 h-4 text-emerald-100" />
+                    <span>Exportar p/ Mapas</span>
                   </Button>
 
-                  {/* Exportar JSON (Mapas) */}
+                  {/* Exportar XLSX (Mapas) */}
                   <Button
-                    variant="secondary"
-                    onClick={handleExportJson}
-                    className="h-10 px-3.5 border border-border/70 font-semibold gap-2 hover:bg-accent"
-                    title="Baixar JSON estruturado para ingestão no projeto Mapas"
+                    variant="outline"
+                    onClick={handleExportXlsx}
+                    className="h-10 px-3.5 border-border/70 font-semibold gap-2 hover:bg-accent text-foreground"
+                    title="Exportar planilha Excel formatada EFETIVO.xlsx para o Sistema de Mapas"
                   >
-                    <Download className="w-4 h-4 text-primary" />
-                    <span>JSON (Mapas)</span>
+                    <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                    <span>Planilha (.xlsx)</span>
                   </Button>
 
                   {/* Botão de Edição de Efetivo */}
