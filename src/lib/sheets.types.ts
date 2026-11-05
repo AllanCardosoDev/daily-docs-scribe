@@ -11,6 +11,8 @@ export interface SheetsHeader {
   coordSituacao?: string;
   coordenador?: string;
   subcomandante?: string;
+  operador?: string;
+  responsavel?: string;
 }
 
 export interface EfetivoRow {

@@ -19,7 +19,7 @@ import {
   Users,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import { useAuthEmail, useSignOut } from "@/hooks/use-auth-session";
+import { useAuthEmail, useAuthProfile, useSignOut } from "@/hooks/use-auth-session";
 import type { SheetsHeader } from "@/lib/sheets.types";
 
 interface Props {
@@ -45,9 +45,11 @@ export const DashboardHeader = memo(function DashboardHeader({
   onOpenSettings,
 }: Props) {
   const { data: email = "" } = useAuthEmail();
+  const { data: profile } = useAuthProfile();
   const signOut = useSignOut();
   const status = connectionStatus(configured, error);
-  const initial = (email || "U").slice(0, 1).toUpperCase();
+  const displayName = profile?.displayName || email || "Usuário";
+  const initial = (displayName || "U").slice(0, 1).toUpperCase();
 
   return (
     <header className="sticky top-0 z-40 bg-gradient-brand text-white shadow-elevated relative overflow-hidden">
@@ -162,19 +164,20 @@ export const DashboardHeader = memo(function DashboardHeader({
                 >
                   {initial}
                 </span>
-                <span className="hidden sm:inline max-w-[140px] truncate text-sm">
-                  {email || "Usuário"}
+                <span className="hidden sm:inline max-w-[200px] truncate text-sm font-medium">
+                  {displayName}
                 </span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-60">
+            <DropdownMenuContent align="end" className="w-64">
               <DropdownMenuLabel className="flex items-center gap-2">
-                <span className="w-8 h-8 rounded-full bg-gradient-brand text-white text-xs font-bold grid place-items-center">
+                <span className="w-8 h-8 rounded-full bg-gradient-brand text-white text-xs font-bold grid place-items-center shrink-0">
                   {initial}
                 </span>
                 <div className="min-w-0">
                   <div className="text-xs text-muted-foreground">Conectado como</div>
-                  <div className="truncate font-medium">{email || "Usuário"}</div>
+                  <div className="truncate font-semibold text-sm">{displayName}</div>
+                  <div className="truncate text-[11px] text-muted-foreground">{email}</div>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />

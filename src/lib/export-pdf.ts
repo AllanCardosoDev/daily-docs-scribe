@@ -1179,37 +1179,62 @@ export function buildSheetsPdfDoc(
   }
 
   // ---------------------------------------------------------------------------
-  // ASSINATURAS OFICIAIS DO COMANDO (Inseridas na 3ª página operacional)
+  // ASSINATURA OFICIAL DE QUEM ESTÁ LOGADO (OPERADOR DA SALA DE SITUAÇÃO)
   // ---------------------------------------------------------------------------
-  // Assinaturas sempre presentes na Página 3 (ou na última página)
+  // Assinatura na Página 3 (ou na última página) com o nome do militar/usuário logado
   doc.setPage(3);
   const sigY = pageH - 42;
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
+  doc.setFontSize(8.5);
   doc.setTextColor(BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b);
 
-  // Linhas das assinaturas
+  // Linha da assinatura centralizada
   doc.setDrawColor(BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b);
   doc.setLineWidth(0.6);
-  doc.line(pageW / 2 - 280, sigY - 14, pageW / 2 - 40, sigY - 14);
-  doc.line(pageW / 2 + 40, sigY - 14, pageW / 2 + 280, sigY - 14);
+  doc.line(pageW / 2 - 180, sigY - 14, pageW / 2 + 180, sigY - 14);
 
-  // Assinatura 1: Coordenador da Operação
-  doc.text("CEL QOBM CRISTIANO BRAZ FERREIRA", pageW / 2 - 160, sigY, { align: "center" });
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.8);
-  doc.setTextColor(80, 90, 85);
-  doc.text("Coordenador da Operação Amazonas + Verde · CBMAM", pageW / 2 - 160, sigY + 9, { align: "center" });
+  // Nome oficial de quem está logado (removido nome fixo dos Coronéis)
+  let operadorLogado = (
+    header.operador ||
+    header.responsavel ||
+    ""
+  ).trim();
 
-  // Assinatura 2: Subcomandante-Geral
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.setTextColor(BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b);
-  doc.text("CEL QOBM HELYANTHUS FRANK DA SILVA BORGES", pageW / 2 + 160, sigY, { align: "center" });
+  if (!operadorLogado && typeof window !== "undefined") {
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i) || "";
+        if (k.includes("auth-token")) {
+          const raw = localStorage.getItem(k);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            const u = parsed.user || parsed.currentSession?.user;
+            if (u) {
+              operadorLogado =
+                u.user_metadata?.display_name ||
+                u.user_metadata?.full_name ||
+                u.user_metadata?.name ||
+                u.email ||
+                "";
+              if (operadorLogado) break;
+            }
+          }
+        }
+      }
+    } catch {
+      // fallback
+    }
+  }
+
+  if (!operadorLogado) {
+    operadorLogado = "OPERADOR DA SALA DE SITUAÇÃO";
+  }
+
+  doc.text(operadorLogado.toUpperCase(), pageW / 2, sigY, { align: "center" });
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.8);
+  doc.setFontSize(7.2);
   doc.setTextColor(80, 90, 85);
-  doc.text("Subcomandante-Geral do CBMAM", pageW / 2 + 160, sigY + 9, { align: "center" });
+  doc.text("Responsável pelo Preenchimento · Sala de Situação — CBMAM", pageW / 2, sigY + 9, { align: "center" });
 
   // ---------------------------------------------------------------------------
   // NUMERAÇÃO INSTITUCIONAL DE TODAS AS PÁGINAS (Página X de Y)

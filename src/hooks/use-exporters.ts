@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/backend/client";
 import type { SheetsData } from "@/lib/sheets.types";
 import type { ComparisonResult } from "@/lib/comparison";
 import { validateForExport, formatIssues, sanitizeSheetsData } from "@/lib/report-validation";
@@ -79,6 +80,39 @@ export function useExporters(
     }
 
     try {
+      let operadorName = cleanData.header?.operador || cleanData.header?.responsavel;
+      if (!operadorName) {
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          const user = sessionData.session?.user;
+          if (user) {
+            const { data: prof } = await supabase
+              .from("profiles")
+              .select("display_name, sinesp_rank, sinesp_full_name, email")
+              .eq("id", user.id)
+              .maybeSingle();
+            operadorName =
+              prof?.display_name ||
+              (prof?.sinesp_rank && prof?.sinesp_full_name
+                ? `${prof.sinesp_rank} ${prof.sinesp_full_name}`
+                : "") ||
+              user.user_metadata?.display_name ||
+              user.user_metadata?.full_name ||
+              user.email ||
+              "";
+          }
+        } catch {
+          // ignore
+        }
+      }
+      if (operadorName) {
+        cleanData.header = {
+          ...cleanData.header,
+          operador: operadorName,
+          responsavel: operadorName,
+        };
+      }
+
       const { exportSheetsToPdf } = await import("@/lib/export-pdf");
       exportSheetsToPdf(cleanData, reportDate, quality, comparisonData);
       toast.success(
