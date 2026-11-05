@@ -200,7 +200,7 @@ export function exportTotaisToXlsx(
   // 1. Aba de Identificação Institucional CBMAM
   const headerRows = [
     ["CORPO DE BOMBEIROS MILITAR DO ESTADO DO AMAZONAS — CBMAM"],
-    ["COMANDO OPERACIONAL INTEGRADO · SALA DE SITUAÇÃO"],
+    ["CBMAM — Amazonas + Verde — Relatório Diário — Sala de Situação"],
     ["OPERAÇÃO AMAZONAS + VERDE"],
     [],
     ["RELATÓRIO:", "TOTAIS ACUMULADOS E CONSOLIDADOS DO PERÍODO"],

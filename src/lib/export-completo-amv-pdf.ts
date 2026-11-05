@@ -112,19 +112,21 @@ export function buildRelatorioCompletoAmvDoc(options: RelatorioCompletoAmvOption
     doc.setFont("helvetica", "normal");
     doc.text(coordSituacao, 165, 40);
 
-    // Título Central
-    doc.setTextColor(255, 255, 255);
+    // Identificação Central Oficial CBMAM / Amazonas + Verde
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.text("CORPO DE BOMBEIROS MILITAR DO AMAZONAS", pageW / 2, 16, { align: "center" });
+    doc.setFontSize(12);
+    doc.setTextColor(255, 255, 255);
+    doc.text("CBMAM", pageW / 2, 16, { align: "center" });
 
-    doc.setFontSize(9.5);
-    doc.setTextColor(220, 240, 225);
-    doc.text("COMANDO OPERACIONAL INTEGRADO · SALA DE SITUAÇÃO", pageW / 2, 28, { align: "center" });
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10.5);
+    doc.setTextColor(110, 231, 183);
+    doc.text("Amazonas + Verde", pageW / 2, 28, { align: "center" });
 
-    doc.setFontSize(8.5);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
     doc.setTextColor(255, 220, 140);
-    doc.text(sectionTitle.toUpperCase(), pageW / 2, 42, { align: "center" });
+    doc.text("Relatório Diário — Sala de Situação", pageW / 2, 42, { align: "center" });
 
     // Metadados do Período (Direita - sem sobreposição com o centro)
     const rightMarginX = pageW - 16;

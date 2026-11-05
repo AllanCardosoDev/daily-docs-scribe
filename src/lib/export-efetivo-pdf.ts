@@ -117,19 +117,21 @@ export function buildEfetivoPdfDoc(options: ExportEfetivoPdfOptions): jsPDF {
     // Fallback se logo falhar
   }
 
-  // Título Central
+  // Identificação Central Oficial CBMAM / Amazonas + Verde
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
   doc.setTextColor(255, 255, 255);
+  doc.text("CBMAM", pageW / 2, 16, { align: "center" });
+
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10.5);
-  doc.text("CORPO DE BOMBEIROS MILITAR DO AMAZONAS", pageW / 2, 16, { align: "center" });
+  doc.setTextColor(110, 231, 183);
+  doc.text("Amazonas + Verde", pageW / 2, 28, { align: "center" });
 
-  doc.setFontSize(11);
-  doc.setTextColor(220, 240, 225);
-  doc.text("COMANDO OPERACIONAL INTEGRADO · SALA DE SITUAÇÃO", pageW / 2, 29, { align: "center" });
-
-  doc.setFontSize(8.5);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
   doc.setTextColor(255, 220, 140);
-  doc.text("RELATÓRIO OFICIAL DE EFETIVO OPERACIONAL MOBILIZADO", pageW / 2, 44, { align: "center" });
+  doc.text("Relatório Diário — Sala de Situação", pageW / 2, 42, { align: "center" });
 
   // Metadados Oficiais (Esquerda — Somente os 3 Oficiais)
   doc.setTextColor(230, 240, 235);

@@ -83,29 +83,21 @@ export function buildSheetsPdfDoc(
       // Fallback
     }
 
-    // Identificação Central
+    // Identificação Central Oficial CBMAM / Amazonas + Verde
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
     doc.setTextColor(255, 255, 255);
+    doc.text("CBMAM", pageW / 2, 16, { align: "center" });
+
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10.5);
-    doc.text("CORPO DE BOMBEIROS MILITAR DO AMAZONAS", pageW / 2, 16, { align: "center" });
+    doc.setTextColor(110, 231, 183);
+    doc.text("Amazonas + Verde", pageW / 2, 28, { align: "center" });
 
-    doc.setFontSize(11);
-    doc.setTextColor(220, 240, 225);
-    doc.text("COMANDO OPERACIONAL INTEGRADO · SALA DE SITUAÇÃO", pageW / 2, 29, { align: "center" });
-
-    const cleanCategory = (pageCategory || "").replace(/\d+ª\s*PÁGINA\s*—?\s*/gi, "").trim();
-    const fullTitle = cleanCategory
-      ? `${cleanCategory.toUpperCase()} — ${pageTitle.toUpperCase()}`
-      : pageTitle.toUpperCase();
     doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
     doc.setTextColor(255, 220, 140);
-    let fSize = 8.5;
-    doc.setFontSize(fSize);
-    while (doc.getTextWidth(fullTitle) > 340 && fSize > 6) {
-      fSize -= 0.5;
-      doc.setFontSize(fSize);
-    }
-    doc.text(fullTitle, pageW / 2, 44, { align: "center" });
+    doc.text("Relatório Diário — Sala de Situação", pageW / 2, 42, { align: "center" });
 
     // Oficiais Responsáveis (Esquerda — Somente os 3 Oficiais de Comando)
     doc.setTextColor(230, 240, 235);
@@ -201,9 +193,9 @@ export function buildSheetsPdfDoc(
   };
 
   // ===========================================================================
-  // 📄 EFETIVO GERAL INTEGRADO (CBMAM, FN, MARINHA, PREVFOGO e afins)
+  // 📄 EFETIVO DIÁRIO MOBILIZADO (CBMAM, FN, MARINHA, PREVFOGO e afins)
   // ===========================================================================
-  drawPageHeader(1, "EFETIVO GERAL INTEGRADO");
+  drawPageHeader(1, "EFETIVO DIÁRIO MOBILIZADO");
 
   const efetivoList = data.efetivo ?? [];
   const fullEfetivoCols = resolveEfetivoColumns(efetivoList, data.custom_columns?.efetivo);
@@ -258,9 +250,9 @@ export function buildSheetsPdfDoc(
   // Cards de Efetivo (Y: 62)
   drawKpiCards(62, [
     {
-      label: "Efetivo Geral Total",
+      label: "Efetivo Diário Total",
       value: NF.format(grandTotalEfetivo),
-      subtext: "Força Operacional Ativa",
+      subtext: "Prontidão Operacional do Dia",
       highlight: true,
     },
     {
@@ -302,7 +294,7 @@ export function buildSheetsPdfDoc(
   const efHead = [
     [
       {
-        content: `DISTRIBUIÇÃO DETALHADA POR LOCALIDADE E BASE OPERACIONAL`,
+        content: `DISTRIBUIÇÃO DETALHADA DO EFETIVO DIÁRIO POR MUNICÍPIO E BASE`,
         colSpan: activeDataCols.length + 2,
         styles: {
           fillColor: [HEADER_NAVY.r, HEADER_NAVY.g, HEADER_NAVY.b] as [number, number, number],
@@ -456,7 +448,7 @@ export function buildSheetsPdfDoc(
     head: [
       [
         {
-          content: "SÍNTESE POR FORÇA / ÓRGÃO INTEGRADO",
+          content: "SÍNTESE DO EFETIVO DIÁRIO POR FORÇA INTEGRADA",
           colSpan: 6,
           styles: {
             fillColor: [HEADER_NAVY.r, HEADER_NAVY.g, HEADER_NAVY.b],
