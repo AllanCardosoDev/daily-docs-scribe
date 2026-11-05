@@ -51,7 +51,7 @@ export function AmazonasMap({ data, onExportPdf, onExportCsv }: AmazonasMapProps
 
   const munData = useMemo(() => {
     if (!selectedMun) return null;
-    
+
     const munName = MUNICIPIOS_GEO.find(m => m.id === selectedMun)?.name;
     if (!munName) return null;
 
@@ -63,8 +63,8 @@ export function AmazonasMap({ data, onExportPdf, onExportCsv }: AmazonasMapProps
 
     const vtrs = recursos
       ? Object.entries(recursos)
-          .filter(([k, v]) => k !== "mun" && Number(v) > 0)
-          .reduce((sum, [, v]) => sum + Number(v), 0)
+        .filter(([k, v]) => k !== "mun" && Number(v) > 0)
+        .reduce((sum, [, v]) => sum + Number(v), 0)
       : 0;
 
     return {
@@ -176,8 +176,8 @@ export function AmazonasMap({ data, onExportPdf, onExportCsv }: AmazonasMapProps
 
           const totalViaturas = recursos
             ? Object.entries(recursos)
-                .filter(([k, v]) => k !== "mun" && Number(v) > 0)
-                .reduce((s, [, v]) => s + Number(v), 0)
+              .filter(([k, v]) => k !== "mun" && Number(v) > 0)
+              .reduce((s, [, v]) => s + Number(v), 0)
             : 0;
 
           const badgeWidth = totalEfetivo >= 100 ? 38 : totalEfetivo >= 10 ? 32 : 26;
@@ -315,9 +315,9 @@ export function AmazonasMap({ data, onExportPdf, onExportCsv }: AmazonasMapProps
                   <MapPin className="w-4 h-4 text-emerald-200" />
                   <span className="font-display font-bold text-sm tracking-wide">{munData.name}</span>
                 </div>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
+                <Button
+                  variant="ghost"
+                  size="icon"
                   className="w-6 h-6 text-white hover:bg-white/20 rounded-full cursor-pointer"
                   onClick={() => setSelectedMun(null)}
                 >
@@ -335,7 +335,7 @@ export function AmazonasMap({ data, onExportPdf, onExportCsv }: AmazonasMapProps
                       {munData.incendios}
                     </div>
                   </div>
-                  
+
                   <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 text-center">
                     <div className="flex items-center justify-center gap-1 text-emerald-600 dark:text-emerald-400 mb-0.5">
                       <Users className="w-3 h-3" />
@@ -356,16 +356,16 @@ export function AmazonasMap({ data, onExportPdf, onExportCsv }: AmazonasMapProps
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="flex gap-2">
-                  <Button 
+                  <Button
                     className="flex-1 bg-gradient-brand hover:brightness-110 text-white font-bold text-xs h-9 rounded-xl transition-all gap-1.5 cursor-pointer shadow-sm"
                     onClick={() => setPanelOpen(true)}
                   >
                     Ficha Completa
                     <ChevronRight className="w-3 h-3" />
                   </Button>
-                  
+
                   <Button
                     variant="outline"
                     size="icon"
@@ -375,7 +375,7 @@ export function AmazonasMap({ data, onExportPdf, onExportCsv }: AmazonasMapProps
                   >
                     <FileText className="w-4 h-4" />
                   </Button>
-                  
+
                   <Button
                     variant="outline"
                     size="icon"
@@ -392,7 +392,7 @@ export function AmazonasMap({ data, onExportPdf, onExportCsv }: AmazonasMapProps
         )}
       </AnimatePresence>
 
-      <MapDetailsPanel 
+      <MapDetailsPanel
         isOpen={panelOpen}
         onClose={() => setPanelOpen(false)}
         municipioName={selectedMun ? (MUNICIPIOS_GEO.find(m => m.id === selectedMun)?.name || selectedMun) : null}

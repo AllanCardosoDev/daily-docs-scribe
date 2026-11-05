@@ -47,7 +47,7 @@ const GROUPS: FieldGroup[] = [
   {
     id: "cronograma",
     title: "Cronograma",
-    subtitle: "Reuniões e coordenação",
+    subtitle: "Reuniões e alinhamento",
     icon: <CalendarClock className="w-4 h-4" aria-hidden="true" />,
     fields: [
       {
@@ -60,16 +60,6 @@ const GROUPS: FieldGroup[] = [
         label: "Reunião de Briefing",
         placeholder: "Ex.: 06/JUL/2026 – 8H30",
       },
-      {
-        key: "coordSituacao",
-        label: "Coordenador da Sala de Situação",
-        placeholder: "Ex.: CEL QOBM FERREIRA",
-      },
-      {
-        key: "coordenador",
-        label: "Coordenador da Operação",
-        placeholder: "Coordenador Amazonas + Verde",
-      },
     ],
   },
   {
@@ -78,21 +68,21 @@ const GROUPS: FieldGroup[] = [
     subtitle: "Oficiais responsáveis",
     icon: <Shield className="w-4 h-4" aria-hidden="true" />,
     fields: [
-      { key: "comandante", label: "Comandante do Incidente", placeholder: "Ex.: CEL QOBM BORGES" },
       {
-        key: "chefeCapital",
-        label: "Chefe de Operações Capital",
-        placeholder: "Ex.: CEL QOBM MENEZES",
-      },
-      {
-        key: "chefeInterior",
-        label: "Chefe de Operações Interior",
-        placeholder: "Ex.: CEL QOBM MONTEIRO",
+        key: "comandanteGeral",
+        label: "Comandante Geral",
+        placeholder: "Ex.: CEL QOBM MUNIZ",
       },
       {
         key: "subcomandante",
-        label: "Subcomandante-Geral",
-        placeholder: "Subcomandante-Geral do CBMAM",
+        label: "Sub-Comandante Geral",
+        placeholder: "Ex.: CEL QOBM BORGES",
+      },
+      {
+        key: "coordSituacao",
+        label: "Coordenador da Sala de Situação",
+        placeholder: "Ex.: CEL QOBM FERREIRA",
+        full: true,
       },
     ],
   },

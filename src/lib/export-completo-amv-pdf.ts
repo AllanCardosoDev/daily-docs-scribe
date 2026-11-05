@@ -17,6 +17,7 @@ export interface RelatorioCompletoAmvOptions {
   dataDiariaLabel: string;
   reportDate?: Date | null;
   comandanteGeral?: string;
+  subcomandante?: string;
   comandante?: string;
   coordenador?: string;
   chefeCapital?: string;
@@ -49,7 +50,7 @@ export function buildRelatorioCompletoAmvDoc(options: RelatorioCompletoAmvOption
     periodoLabel,
     dataDiariaLabel,
     comandanteGeral = sanitizeCel(options.comandanteGeral, "CEL QOBM MUNIZ"),
-    comandante = sanitizeCel(options.comandante, "CEL QOBM BORGES"),
+    subcomandante = sanitizeCel(options.subcomandante || options.comandante, "CEL QOBM BORGES"),
     coordSituacao = sanitizeCel(options.coordSituacao, "CEL QOBM FERREIRA"),
     ocorrenciasDiarias: rawOcorrenciasDiarias,
     ocorrenciasTotais: rawOcorrenciasTotais,
@@ -99,17 +100,17 @@ export function buildRelatorioCompletoAmvDoc(options: RelatorioCompletoAmvOption
     doc.setFont("helvetica", "bold");
     doc.text("Comandante Geral:", 60, 16);
     doc.setFont("helvetica", "normal");
-    doc.text(comandanteGeral, 148, 16);
+    doc.text(comandanteGeral, 165, 16);
 
     doc.setFont("helvetica", "bold");
-    doc.text("Comandante do Incidente:", 60, 28);
+    doc.text("Sub-Comandante Geral:", 60, 28);
     doc.setFont("helvetica", "normal");
-    doc.text(comandante, 148, 28);
+    doc.text(subcomandante, 165, 28);
 
     doc.setFont("helvetica", "bold");
     doc.text("Coord. Sala Situação:", 60, 40);
     doc.setFont("helvetica", "normal");
-    doc.text(coordSituacao, 148, 40);
+    doc.text(coordSituacao, 165, 40);
 
     // Título Central
     doc.setTextColor(255, 255, 255);

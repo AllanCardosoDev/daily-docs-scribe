@@ -18,6 +18,7 @@ export interface ExportEfetivoPdfOptions {
   periodoLabel?: string;
   reportDate?: Date | null;
   comandanteGeral?: string;
+  subcomandante?: string;
   comandante?: string;
   coordenador?: string;
   chefeCapital?: string;
@@ -44,10 +45,7 @@ export function buildEfetivoPdfDoc(options: ExportEfetivoPdfOptions): jsPDF {
     periodoLabel,
     reportDate,
     comandanteGeral = sanitizeCel(options.comandanteGeral, "CEL QOBM MUNIZ"),
-    comandante = sanitizeCel(options.comandante, "CEL QOBM BORGES"),
-    coordenador = sanitizeCel(options.coordenador, "CEL QOBM CRISTIANO BRAZ FERREIRA"),
-    chefeCapital = sanitizeCel(options.chefeCapital, "CEL QOBM MENEZES"),
-    chefeInterior = sanitizeCel(options.chefeInterior, "CEL QOBM MONTEIRO"),
+    subcomandante = sanitizeCel(options.subcomandante || options.comandante, "CEL QOBM BORGES"),
     coordSituacao = sanitizeCel(options.coordSituacao, "CEL QOBM FERREIRA"),
   } = options;
 
@@ -132,22 +130,18 @@ export function buildEfetivoPdfDoc(options: ExportEfetivoPdfOptions): jsPDF {
   doc.setTextColor(255, 220, 140);
   doc.text("RELATÓRIO OFICIAL DE EFETIVO OPERACIONAL MOBILIZADO", pageW / 2, 44, { align: "center" });
 
-  // Metadados Oficiais (Esquerda)
+  // Metadados Oficiais (Esquerda — Somente os 3 Oficiais)
   doc.setTextColor(230, 240, 235);
-  doc.setFontSize(6.5);
+  doc.setFontSize(7.2);
   doc.setFont("helvetica", "bold");
-  doc.text("Comandante Geral:", 68, 12);
-  doc.text("Comandante do Incidente:", 68, 21);
-  doc.text("Chefe Op. Capital:", 68, 30);
-  doc.text("Chefe Op. Interior:", 68, 39);
-  doc.text("Coord. Sala Situação:", 68, 48);
+  doc.text("Comandante Geral:", 68, 16);
+  doc.text("Sub-Comandante Geral:", 68, 28);
+  doc.text("Coord. Sala Situação:", 68, 40);
 
   doc.setFont("helvetica", "normal");
-  doc.text(comandanteGeral, 160, 12);
-  doc.text(comandante, 160, 21);
-  doc.text(chefeCapital, 160, 30);
-  doc.text(chefeInterior, 160, 39);
-  doc.text(coordSituacao, 160, 48);
+  doc.text(comandanteGeral, 175, 16);
+  doc.text(subcomandante, 175, 28);
+  doc.text(coordSituacao, 175, 40);
 
   // Metadados (Direita)
   const rightMarginX = pageW - 16;

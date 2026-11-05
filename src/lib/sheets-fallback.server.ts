@@ -215,49 +215,93 @@ export async function fetchIncendiosAcumulado(
   supabase: SupabaseClient<any>,
   reportDateIso: string,
 ) {
-  const { data: rows, error } = await supabase
+  const { data: rows } = await supabase
     .from("daily_reports")
-    .select("report_date, shift, incendios")
+    .select("report_date, shift, incendios, notes")
     .gte("report_date", "2026-06-01")
     .lte("report_date", reportDateIso)
     .order("report_date", { ascending: true });
 
-  if (error || !rows || !rows.length) {
-    return OFFICIAL_CUMULATIVE_04_08_2026.sort((a, b) => compareMunicipios(a.mun, b.mun));
-  }
-
-  // Deduplica relatórios do mesmo dia (dando preferência para o turno 'noturno'/24h consolidado)
-  const byDate = new Map<string, any>();
-  for (const r of rows) {
-    const cur = byDate.get(r.report_date);
-    if (!cur || (r.shift === "noturno" && cur.shift !== "noturno")) {
-      byDate.set(r.report_date, r);
-    }
-  }
-
-  // Soma por município desde 01/06/2026 até a data do relatório
+  // 1. Inicia sempre com a base consolidada oficial (01/06 a 04/08) garantindo área queimada e satélite reais
   const map = new Map<
     string,
     { mun: string; urb: number; flor: number; focos: number; sat: number; area: number }
   >();
 
-  for (const r of byDate.values()) {
-    const list = Array.isArray(r.incendios) ? r.incendios : [];
-    for (const item of list) {
-      const mun = canonicalMunicipio(item?.mun ?? item?.municipio);
-      if (!mun) continue;
-      const cur = map.get(mun) ?? { mun, urb: 0, flor: 0, focos: 0, sat: 0, area: 0 };
-      cur.urb += num(item?.urb);
-      cur.flor += num(item?.flor);
-      cur.focos += num(item?.focos);
-      cur.sat += num(item?.sat);
-      cur.area += num(item?.area);
-      map.set(mun, cur);
+  for (const base of OFFICIAL_CUMULATIVE_04_08_2026) {
+    const mun = canonicalMunicipio(base.mun);
+    map.set(mun.toLowerCase(), {
+      mun,
+      urb: num(base.urb),
+      flor: num(base.flor),
+      focos: num(base.focos),
+      sat: num(base.sat),
+      area: num(base.area),
+    });
+  }
+
+  if (rows && rows.length > 0) {
+    // Deduplica relatórios do mesmo dia (dando preferência para o turno 'noturno'/24h consolidado)
+    const byDate = new Map<string, any>();
+    for (const r of rows) {
+      const cur = byDate.get(r.report_date);
+      if (!cur || (r.shift === "noturno" && cur.shift !== "noturno")) {
+        byDate.set(r.report_date, r);
+      }
+    }
+
+    // Soma por município relatórios diários posteriores a 04/08/2026
+    for (const r of byDate.values()) {
+      if (r.report_date <= "2026-08-04") continue;
+      const list = Array.isArray(r.incendios) ? r.incendios : [];
+      for (const item of list) {
+        const mun = canonicalMunicipio(item?.mun ?? item?.municipio);
+        if (!mun || mun === "—") continue;
+        const key = mun.toLowerCase();
+        const cur = map.get(key) ?? { mun, urb: 0, flor: 0, focos: 0, sat: 0, area: 0 };
+        cur.urb += num(item?.urb);
+        cur.flor += num(item?.flor);
+        cur.focos += num(item?.focos);
+        cur.sat += num(item?.sat);
+        cur.area += num(item?.area);
+        map.set(key, cur);
+      }
+
+      // Se houver ocorrências cadastradas em notes, computa área adicional
+      const notesEnv = parseNotesEnvelope(r.notes);
+      if (Array.isArray(notesEnv.occurrences)) {
+        for (const occ of notesEnv.occurrences) {
+          if (num(occ?.area) > 0) {
+            const mun = canonicalMunicipio(occ.municipio);
+            if (!mun || mun === "—") continue;
+            const key = mun.toLowerCase();
+            const cur = map.get(key) ?? { mun, urb: 0, flor: 0, focos: 0, sat: 0, area: 0 };
+            cur.area += num(occ.area);
+            map.set(key, cur);
+          }
+        }
+      }
     }
   }
 
-  const result = Array.from(map.values()).sort((a, b) => compareMunicipios(a.mun, b.mun));
-  return result.length ? result : OFFICIAL_CUMULATIVE_04_08_2026.sort((a, b) => compareMunicipios(a.mun, b.mun));
+  // 2. Adiciona áreas registradas no banco de ocorrências CAD para o período após 04/08/2026
+  try {
+    const cadOccs = getOccurrencesForRange("2026-08-05", reportDateIso);
+    for (const occ of cadOccs) {
+      if (num(occ.area) > 0) {
+        const mun = canonicalMunicipio(occ.municipio);
+        if (!mun || mun === "—") continue;
+        const key = mun.toLowerCase();
+        const cur = map.get(key) ?? { mun, urb: 0, flor: 0, focos: 0, sat: 0, area: 0 };
+        cur.area += num(occ.area);
+        map.set(key, cur);
+      }
+    }
+  } catch {
+    // Continua com os dados computados
+  }
+
+  return Array.from(map.values()).sort((a, b) => compareMunicipios(a.mun, b.mun));
 }
 
 function consolidateAndCanonicalizeRows<T extends Record<string, any>>(
@@ -713,12 +757,9 @@ export async function loadReportByDate(
       proximoPeriodo: headerObj.proximoPeriodo ?? "",
       reuniaoPlanejamento: headerObj.reuniaoPlanejamento ?? `${dateStr} – 8H15`,
       reuniaoBriefing: headerObj.reuniaoBriefing ?? `${dateStr} – 8H30`,
-      comandante: headerObj.comandante ?? "CEL QOBM BORGES",
-      chefeCapital: headerObj.chefeCapital ?? "CEL QOBM MENEZES",
-      chefeInterior: headerObj.chefeInterior ?? "CEL QOBM MONTEIRO",
+      comandanteGeral: headerObj.comandanteGeral ?? "CEL QOBM MUNIZ",
+      subcomandante: headerObj.subcomandante ?? headerObj.comandante ?? "CEL QOBM BORGES",
       coordSituacao: safeCoordSituacao,
-      coordenador: safeCoordenador,
-      subcomandante: headerObj.subcomandante ?? "Subcomandante-Geral do CBMAM",
     },
     efetivo: harmonizedSections.efetivo as any,
     recursos: harmonizedSections.recursos as any,

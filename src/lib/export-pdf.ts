@@ -93,7 +93,10 @@ export function buildSheetsPdfDoc(
     doc.setTextColor(220, 240, 225);
     doc.text("COMANDO OPERACIONAL INTEGRADO · SALA DE SITUAÇÃO", pageW / 2, 29, { align: "center" });
 
-    const fullTitle = `${pageCategory.toUpperCase()} — ${pageTitle.toUpperCase()}`;
+    const cleanCategory = (pageCategory || "").replace(/\d+ª\s*PÁGINA\s*—?\s*/gi, "").trim();
+    const fullTitle = cleanCategory
+      ? `${cleanCategory.toUpperCase()} — ${pageTitle.toUpperCase()}`
+      : pageTitle.toUpperCase();
     doc.setFont("helvetica", "bold");
     doc.setTextColor(255, 220, 140);
     let fSize = 8.5;
@@ -104,40 +107,35 @@ export function buildSheetsPdfDoc(
     }
     doc.text(fullTitle, pageW / 2, 44, { align: "center" });
 
-    // Oficiais Responsáveis (Esquerda)
+    // Oficiais Responsáveis (Esquerda — Somente os 3 Oficiais de Comando)
     doc.setTextColor(230, 240, 235);
-    doc.setFontSize(6.5);
+    doc.setFontSize(7.2);
     doc.setFont("helvetica", "bold");
-    doc.text("Comandante Geral:", 68, 12);
-    doc.text("Comandante do Incidente:", 68, 21);
-    doc.text("Chefe Op. Capital:", 68, 30);
-    doc.text("Chefe Op. Interior:", 68, 39);
-    doc.text("Coord. Sala Situação:", 68, 48);
+    doc.text("Comandante Geral:", 68, 16);
+    doc.text("Sub-Comandante Geral:", 68, 28);
+    doc.text("Coord. Sala Situação:", 68, 40);
 
     doc.setFont("helvetica", "normal");
-    doc.text(header.comandanteGeral || "CEL QOBM MUNIZ", 160, 12);
-    doc.text(header.comandante || "CEL QOBM BORGES", 160, 21);
-    doc.text(header.chefeCapital || "CEL QOBM MENEZES", 160, 30);
-    doc.text(header.chefeInterior || "CEL QOBM MONTEIRO", 160, 39);
-    doc.text((header.coordSituacao || "CEL QOBM FERREIRA").replace(/^TC\s+/i, "CEL "), 160, 48);
+    doc.text(header.comandanteGeral || "CEL QOBM MUNIZ", 175, 16);
+    doc.text(header.subcomandante || header.comandante || "CEL QOBM BORGES", 175, 28);
+    doc.text((header.coordSituacao || "CEL QOBM FERREIRA").replace(/^TC\s+/i, "CEL "), 175, 40);
 
     // Cronograma & Período (Direita)
     const rightMarginX = pageW - 16;
     const labelStartX = pageW - 225;
 
     doc.setFont("helvetica", "bold");
-    doc.text("Período Operacional:", labelStartX, 12);
-    doc.text("Coord. Geral Operação:", labelStartX, 21);
-    doc.text("Próximo Período:", labelStartX, 30);
-    doc.text("Reunião de Planejamento:", labelStartX, 39);
-    doc.text("Briefing Operacional:", labelStartX, 48);
+    doc.setFontSize(6.8);
+    doc.text("Período Operacional:", labelStartX, 15);
+    doc.text("Próximo Período:", labelStartX, 25);
+    doc.text("Reunião de Planejamento:", labelStartX, 35);
+    doc.text("Briefing Operacional:", labelStartX, 45);
 
     doc.setFont("helvetica", "normal");
-    doc.text(header.periodo || `${opDateStr} — 24H`, rightMarginX, 12, { align: "right" });
-    doc.text((header.coordenador || "CEL QOBM CRISTIANO BRAZ FERREIRA").replace(/^TC\s+/i, "CEL "), rightMarginX, 21, { align: "right" });
-    doc.text(header.proximoPeriodo || `D+1 — 08H00`, rightMarginX, 30, { align: "right" });
-    doc.text(header.reuniaoPlanejamento || `Diária — 08H15`, rightMarginX, 39, { align: "right" });
-    doc.text(header.reuniaoBriefing || `Diária — 08H30`, rightMarginX, 48, { align: "right" });
+    doc.text(header.periodo || `${opDateStr} — 24H`, rightMarginX, 15, { align: "right" });
+    doc.text(header.proximoPeriodo || `D+1 — 08H00`, rightMarginX, 25, { align: "right" });
+    doc.text(header.reuniaoPlanejamento || `Diária — 08H15`, rightMarginX, 35, { align: "right" });
+    doc.text(header.reuniaoBriefing || `Diária — 08H30`, rightMarginX, 45, { align: "right" });
   };
 
   // ---------------------------------------------------------------------------
@@ -203,9 +201,9 @@ export function buildSheetsPdfDoc(
   };
 
   // ===========================================================================
-  // 📄 1ª PÁGINA: EFETIVO GERAL (CBMAM, FN, MARINHA, PREVFOGO e afins)
+  // 📄 EFETIVO GERAL INTEGRADO (CBMAM, FN, MARINHA, PREVFOGO e afins)
   // ===========================================================================
-  drawPageHeader(1, "EFETIVO GERAL INTEGRADO", "1ª PÁGINA");
+  drawPageHeader(1, "EFETIVO GERAL INTEGRADO");
 
   const efetivoList = data.efetivo ?? [];
   const fullEfetivoCols = resolveEfetivoColumns(efetivoList, data.custom_columns?.efetivo);
@@ -571,10 +569,10 @@ export function buildSheetsPdfDoc(
   });
 
   // ===========================================================================
-  // 📄 2ª PÁGINA: RECURSOS, EQUIPAMENTOS E MATERIAIS
+  // 📄 RECURSOS, EQUIPAMENTOS E MATERIAIS EMPREGADOS
   // ===========================================================================
   doc.addPage();
-  drawPageHeader(2, "RECURSOS, EQUIPAMENTOS E MATERIAIS EMPREGADOS", "2ª PÁGINA");
+  drawPageHeader(2, "RECURSOS, EQUIPAMENTOS E MATERIAIS EMPREGADOS");
 
   const recursosList = data.recursos ?? [];
   const recKeys = [
@@ -842,13 +840,58 @@ export function buildSheetsPdfDoc(
   });
 
   // ===========================================================================
-  // 📄 3ª PÁGINA: OCORRÊNCIAS
+  // 📄 OCORRÊNCIAS DE COMBATE A INCÊNDIOS (DIÁRIAS E ACUMULADAS)
   // ===========================================================================
   doc.addPage();
-  drawPageHeader(3, "OCORRÊNCIAS DE COMBATE A INCÊNDIOS (DIÁRIAS E ACUMULADAS)", "3ª PÁGINA");
+  drawPageHeader(3, "OCORRÊNCIAS DE COMBATE A INCÊNDIOS (DIÁRIAS E ACUMULADAS)");
 
   const incDiarios = data.incendios_diario ?? [];
   const incAcumulados = data.incendios_acumulado ?? [];
+
+  // Mapa oficial de área queimada acumulada consolidada por município (m²)
+  const OFFICIAL_BASELINE_AREA: Record<string, number> = {
+    manaus: 37546,
+    apui: 900,
+    "atalaia do norte": 650,
+    autazes: 8074,
+    barcelos: 450,
+    "boca do acre": 22250,
+    borba: 45750,
+    canutama: 60,
+    "careiro castanho": 500,
+    careiro: 500,
+    coari: 0,
+    envira: 0,
+    humaita: 138490,
+    iranduba: 6980,
+    itacoatiara: 1600,
+    itapiranga: 24360,
+    jutai: 0,
+    labrea: 86050,
+    manacapuru: 4200,
+    manaquiri: 1650,
+    manicore: 700,
+    maues: 400,
+    nhamunda: 5000,
+    "novo airao": 50,
+    "novo aripuana": 470,
+    parintins: 0,
+    "presidente figueiredo": 0,
+    "rio preto da eva": 40,
+    tabatinga: 0,
+    tapaua: 5200,
+    tefe: 250,
+    urucurituba: 0,
+  };
+
+  const getMuniAcumArea = (munName: string, explicitArea: number) => {
+    if (explicitArea > 0) return explicitArea;
+    const clean = canonicalMunicipio(munName)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+    return OFFICIAL_BASELINE_AREA[clean] || 0;
+  };
 
   // Totais Diários
   const totDiarioUrb = incDiarios.reduce((s, r) => s + num(r.urb), 0);
@@ -861,7 +904,7 @@ export function buildSheetsPdfDoc(
   const totAcumFlor = incAcumulados.reduce((s, r) => s + num(r.flor), 0);
   const totAcumFocos = incAcumulados.reduce((s, r) => s + num(r.focos), 0);
   const totAcumSat = incAcumulados.reduce((s, r) => s + num(r.sat), 0);
-  const totAcumArea = incAcumulados.reduce((s, r) => s + num(r.area), 0);
+  const totAcumArea = incAcumulados.reduce((s, r) => s + getMuniAcumArea(r.mun, num(r.area)), 0);
   const totAcumOcorrencias = totAcumUrb + totAcumFlor;
 
   const isPeriodRange = Boolean(data.isRange || (header.periodo && header.periodo.includes(" a ")));
@@ -961,7 +1004,7 @@ export function buildSheetsPdfDoc(
     const f = num(r.flor);
     const foc = num(r.focos);
     const sat = num(r.sat);
-    const area = num(r.area);
+    const area = getMuniAcumArea(r.mun, num(r.area));
     const tot = u + f;
     return [
       idx + 1,
@@ -1053,7 +1096,7 @@ export function buildSheetsPdfDoc(
   if (occsToRender.length > 0) {
     doc.addPage();
     const cadPageNum = (doc as any).internal.getNumberOfPages();
-    drawPageHeader(cadPageNum, "REGISTRO OPERACIONAL DE ATENDIMENTOS DE INCÊNDIO (CAD)", "DETALHAMENTO");
+    drawPageHeader(cadPageNum, "REGISTRO OPERACIONAL DE ATENDIMENTOS DE INCÊNDIO (CAD)");
 
     const occsBody = occsToRender.map((occ) => [
       occ.data || opDateStr,
