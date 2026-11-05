@@ -46,7 +46,8 @@ export function buildEfetivoPdfDoc(options: ExportEfetivoPdfOptions): jsPDF {
     reportDate,
     comandanteGeral = sanitizeCel(options.comandanteGeral, "CEL QOBM MUNIZ"),
     subcomandante = sanitizeCel(options.subcomandante || options.comandante, "CEL QOBM BORGES"),
-    coordSituacao = sanitizeCel(options.coordSituacao, "CEL QOBM FERREIRA"),
+    coordSituacao = sanitizeCel(options.coordSituacao || options.coordenador, "CEL QOBM FERREIRA"),
+    coordenador = sanitizeCel(options.coordenador || options.coordSituacao, "CEL QOBM FERREIRA"),
   } = options;
 
   const DocConstructor = (jsPDF as any).jsPDF || jsPDF;
@@ -148,16 +149,14 @@ export function buildEfetivoPdfDoc(options: ExportEfetivoPdfOptions): jsPDF {
   const labelStartX = pageW - 225;
 
   doc.setFont("helvetica", "bold");
-  doc.text("Período Operacional:", labelStartX, 12);
-  doc.text("Coord. Geral Operação:", labelStartX, 21);
-  doc.text("Data de Emissão:", labelStartX, 30);
-  doc.text("Status Mobilização:", labelStartX, 39);
+  doc.text("Período Operacional:", labelStartX, 16);
+  doc.text("Data de Emissão:", labelStartX, 28);
+  doc.text("Status Mobilização:", labelStartX, 40);
 
   doc.setFont("helvetica", "normal");
-  doc.text(opDateStr, rightMarginX, 12, { align: "right" });
-  doc.text(coordenador, rightMarginX, 21, { align: "right" });
-  doc.text(`${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`, rightMarginX, 30, { align: "right" });
-  doc.text("Mobilização Ativa (100%)", rightMarginX, 39, { align: "right" });
+  doc.text(opDateStr, rightMarginX, 16, { align: "right" });
+  doc.text(`${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`, rightMarginX, 28, { align: "right" });
+  doc.text("Mobilização Ativa (100%)", rightMarginX, 40, { align: "right" });
 
   // ---------------------------------------------------------------------------
   // KPI CARDS EXECUTIVOS

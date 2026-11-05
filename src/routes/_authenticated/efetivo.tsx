@@ -228,8 +228,10 @@ function EfetivoPage() {
         efetivo: effectiveSheetsData.efetivo || [],
         periodoLabel: dateLabel,
         reportDate,
-        comandante: rawData.header?.comandante,
-        coordenador: rawData.header?.coordenador,
+        comandanteGeral: rawData.header?.comandanteGeral || "CEL QOBM MUNIZ",
+        subcomandante: rawData.header?.subcomandante || rawData.header?.comandante || "CEL QOBM BORGES",
+        coordSituacao: rawData.header?.coordSituacao || rawData.header?.coordenador || "CEL QOBM FERREIRA",
+        coordenador: rawData.header?.coordenador || "CEL QOBM FERREIRA",
       });
       toast.success("Relatório Oficial do Efetivo (PDF) gerado com sucesso!", {
         description: `Período: ${dateLabel}`,
