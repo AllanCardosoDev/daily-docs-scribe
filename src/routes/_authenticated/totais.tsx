@@ -33,7 +33,9 @@ import {
   HeartPulse,
   Shield,
   Wrench,
+  Tent,
 } from "lucide-react";
+import { EFETIVO_BASES_PADRAO, norm } from "@/lib/efetivo-mapas";
 import { NF } from "@/lib/formatters";
 
 
@@ -186,6 +188,85 @@ const EFETIVO_AGG_KEYS = [
   "brig_semas",
   "brig_sema",
   "total",
+];
+
+const baseNormalizedSet = new Set(EFETIVO_BASES_PADRAO.map((b) => norm(b)));
+function isBaseRow(r: AnyRow): boolean {
+  if (r?.tipo === "base" || r?.tipo === "base_temporaria") return true;
+  const n = norm(r?.mun || r?.municipio || "");
+  if (baseNormalizedSet.has(n)) return true;
+  return n.includes("posto") || n.includes("base") || n.includes("km 53");
+}
+
+function formatEfetivoRow(r: AnyRow) {
+  const cbmam = Number(r.cbmam) || Number(r.servico) || Number(r.ord) || Number(r.serv_ord) || 0;
+  const seg = Number(r.seg) || 0;
+  const opam = (Number(r.opamv) || 0) + (Number(r.opam_ref) || 0);
+  const turmas = (Number(r.inc1) || 0) + (Number(r.inc2) || 0) + (Number(r.inc3) || 0);
+  const cbmsp = Number(r.cbmsp) || 0;
+  const prevfogo = Number(r.prevfogo) || 0;
+  const fn = Number(r.fn) || 0;
+  const marinha = (Number(r.marinha) || 0) + (Number(r.icmbio) || 0);
+  const brigMun = Number(r.brig_mun) || (Number(r.brig) && !r.brig_semas ? Number(r.brig) : 0);
+  const brigSema = Number(r.brig_semas) || Number(r.brig_sema) || 0;
+  const total =
+    cbmam +
+    seg +
+    opam +
+    turmas +
+    cbmsp +
+    prevfogo +
+    fn +
+    marinha +
+    brigMun +
+    brigSema;
+
+  return {
+    ...r,
+    cbmam,
+    seg,
+    opam,
+    turmas,
+    cbmsp,
+    prevfogo,
+    fn,
+    marinha,
+    brig_mun: brigMun,
+    brig_semas: brigSema,
+    total,
+  };
+}
+
+function sumAllEfetivo(list: AnyRow[]): number {
+  return list.reduce((s, r) => s + formatEfetivoRow(r).total, 0);
+}
+
+const EFETIVO_DISPLAY_HEADERS = [
+  "Município / Base",
+  "Serviço OP",
+  "SEG",
+  "OPAM",
+  "Turmas INC",
+  "CBMSP",
+  "PREVFOGO",
+  "Marinha",
+  "FN",
+  "Brig. Mun",
+  "Brig. SEMA",
+  "Total",
+];
+
+const EFETIVO_DISPLAY_KEYS = [
+  "cbmam",
+  "seg",
+  "opam",
+  "turmas",
+  "cbmsp",
+  "prevfogo",
+  "marinha",
+  "fn",
+  "brig_mun",
+  "brig_semas",
 ];
 
 const RECURSOS_AGG_KEYS = [
@@ -436,6 +517,24 @@ function TotaisPage() {
   const recursosFiltered1 = useMemo(() => filterBySearch(recursosComp1), [recursosComp1, searchMun]);
   const recursosFiltered2 = useMemo(() => filterBySearch(recursosComp2), [recursosComp2, searchMun]);
 
+  const efetivoMunicipios = useMemo(
+    () => efetivo.filter((r) => !isBaseRow(r)).map(formatEfetivoRow),
+    [efetivo],
+  );
+  const efetivoBases = useMemo(
+    () => efetivo.filter((r) => isBaseRow(r)).map(formatEfetivoRow),
+    [efetivo],
+  );
+  const subtotalMunicipios = useMemo(
+    () => efetivoMunicipios.reduce((s, r) => s + r.total, 0),
+    [efetivoMunicipios],
+  );
+  const subtotalBases = useMemo(
+    () => efetivoBases.reduce((s, r) => s + r.total, 0),
+    [efetivoBases],
+  );
+  const totalGeralAmbas = subtotalMunicipios + subtotalBases;
+
   const totals = useMemo(() => {
     const sum = (list: AnyRow[], keys: string[]) =>
       keys.reduce((acc, k) => acc + list.reduce((s, r) => s + (Number(r[k]) || 0), 0), 0);
@@ -443,7 +542,7 @@ function TotaisPage() {
       dias: rows.length,
       incendios: sum(incendiosFull, ["urb", "flor"]),
       focos: sum(incendiosFull, ["focos", "focos_combatidos", "focos_atendidos", "sat"]),
-      efetivo: sum(efetivoFull, ["ord", "seg", "brig", "brig_semas"]),
+      efetivo: sumAllEfetivo(efetivoFull),
     };
   }, [rows, incendiosFull, efetivoFull]);
 
@@ -456,7 +555,7 @@ function TotaisPage() {
       flor: sum(incendiosComp1, ["flor"]),
       urb: sum(incendiosComp1, ["urb"]),
       focos: sum(incendiosComp1, ["focos", "focos_combatidos", "focos_atendidos", "sat"]),
-      efetivo: sum(efetivoComp1, ["ord", "seg", "brig", "brig_semas"]),
+      efetivo: sumAllEfetivo(efetivoComp1),
     };
   }, [rowsComp1, incendiosComp1, efetivoComp1]);
 
@@ -469,7 +568,7 @@ function TotaisPage() {
       flor: sum(incendiosComp2, ["flor"]),
       urb: sum(incendiosComp2, ["urb"]),
       focos: sum(incendiosComp2, ["focos", "focos_combatidos", "focos_atendidos", "sat"]),
-      efetivo: sum(efetivoComp2, ["ord", "seg", "brig", "brig_semas"]),
+      efetivo: sumAllEfetivo(efetivoComp2),
     };
   }, [rowsComp2, incendiosComp2, efetivoComp2]);
 
@@ -1175,26 +1274,129 @@ ${topIncendios || "  Nenhum registro no período."}
                     sumKeys={["urb", "flor"]}
                   />
                 </TabsContent>
-                <TabsContent value="efetivo">
-                  <div className="flex items-center justify-between gap-2 mb-3">
-                    <span className="text-xs font-semibold text-muted-foreground">
-                      Quadro consolidado de bombeiros militares e forças auxiliares
-                    </span>
+                <TabsContent value="efetivo" className="space-y-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border/60">
+                    <div>
+                      <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+                        <Users className="w-4 h-4 text-emerald-600" />
+                        Quadro Consolidado de Efetivo (Municípios × Bases Temporárias)
+                      </h2>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Efetivo mobilizado segregado entre municípios permanentes e bases avançadas de combate
+                      </p>
+                    </div>
                     <Button
                       onClick={handleExportEfetivoPdf}
                       size="sm"
-                      className="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold gap-1.5 shadow-sm text-xs h-8"
+                      className="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold gap-1.5 shadow-sm text-xs h-8 self-start sm:self-auto"
                       title="Gerar Relatório Oficial do Efetivo em PDF"
                     >
                       <Users className="w-3.5 h-3.5" />
                       Gerar Relatório do Efetivo (PDF)
                     </Button>
                   </div>
+
+                  {/* 5. Total Geral pelas Duas Bases (Municípios + Bases Temporárias) */}
+                  <div className="rounded-2xl border-2 border-emerald-600/70 bg-gradient-to-br from-emerald-950 via-slate-900 to-emerald-950 p-4 sm:p-5 text-white shadow-xl">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-emerald-500/30">
+                      <div className="flex items-center gap-3">
+                        <div className="p-3 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                          <Shield className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">
+                              Quadro Geral Integrado da Operação
+                            </span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                              Item 5 Oficial
+                            </span>
+                          </div>
+                          <h3 className="text-lg sm:text-xl font-black tracking-tight text-white mt-0.5">
+                            5. Total Geral pelas Duas Bases (Municípios + Bases Temporárias)
+                          </h3>
+                        </div>
+                      </div>
+                      <div className="flex items-baseline gap-2 bg-emerald-900/70 px-4 py-2.5 rounded-xl border border-emerald-500/40 self-start md:self-auto">
+                        <span className="text-3xl sm:text-4xl font-black text-emerald-300 font-display">
+                          {NF.format(totalGeralAmbas)}
+                        </span>
+                        <span className="text-xs text-emerald-100 font-semibold">operacionais em campo</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 text-xs">
+                      {/* Subtotal Municípios */}
+                      <div className="p-3 rounded-xl bg-slate-900/90 border border-emerald-500/30 flex items-center justify-between">
+                        <div>
+                          <div className="font-bold text-emerald-300 flex items-center gap-1.5">
+                            <Building2 className="w-3.5 h-3.5" />
+                            1. Efetivo por Município
+                          </div>
+                          <div className="text-[11px] text-slate-400 mt-0.5">{efetivoMunicipios.length} municípios listados</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-xl font-black text-white">{NF.format(subtotalMunicipios)}</div>
+                          <div className="text-[10px] text-emerald-400 font-semibold">
+                            {totalGeralAmbas > 0 ? ((subtotalMunicipios / totalGeralAmbas) * 100).toFixed(1) : 0}% da força
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Subtotal Bases */}
+                      <div className="p-3 rounded-xl bg-slate-900/90 border border-amber-500/30 flex items-center justify-between">
+                        <div>
+                          <div className="font-bold text-amber-300 flex items-center gap-1.5">
+                            <Tent className="w-3.5 h-3.5 text-amber-400" />
+                            2. Bases Temporárias
+                          </div>
+                          <div className="text-[11px] text-slate-400 mt-0.5">{efetivoBases.length} bases ativas</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-xl font-black text-white">{NF.format(subtotalBases)}</div>
+                          <div className="text-[10px] text-amber-400 font-semibold">
+                            {totalGeralAmbas > 0 ? ((subtotalBases / totalGeralAmbas) * 100).toFixed(1) : 0}% da força
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Total Geral Consolidado */}
+                      <div className="p-3 rounded-xl bg-emerald-900/50 border border-emerald-400/50 flex items-center justify-between">
+                        <div>
+                          <div className="font-black text-emerald-200 flex items-center gap-1.5">
+                            <Shield className="w-3.5 h-3.5 text-emerald-300" />
+                            Total Integrado (1 + 2)
+                          </div>
+                          <div className="text-[11px] text-emerald-300/80 mt-0.5">Municípios + Bases somadas</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-xl font-black text-emerald-200">{NF.format(totalGeralAmbas)}</div>
+                          <div className="text-[10px] text-emerald-300 font-semibold">100.0% mobilizado</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Tabela 1: Efetivo por Município */}
                   <AggTable
-                    title="Efetivo por município"
-                    headers={["Município", "CBMAM", "SEG", "Brigadista", "Brigadista SEMA", "Total"]}
-                    rows={efetivo.map((r: any) => ({ ...r, cbmam: r.cbmam ?? r.ord }))}
-                    keys={["cbmam", "seg", "brig", "brig_semas"]}
+                    title="1. Efetivo por Município (Municípios Permanentes)"
+                    headers={EFETIVO_DISPLAY_HEADERS}
+                    rows={efetivoMunicipios}
+                    keys={EFETIVO_DISPLAY_KEYS}
+                    totalLabel="TOTAL MUNICÍPIOS"
+                    variant="municipios"
+                    unitLabel="município(s)"
+                  />
+
+                  {/* Tabela 2: Bases Temporárias de Combate */}
+                  <AggTable
+                    title="2. Bases Temporárias de Combate (Bases Ativas)"
+                    headers={EFETIVO_DISPLAY_HEADERS}
+                    rows={efetivoBases}
+                    keys={EFETIVO_DISPLAY_KEYS}
+                    totalLabel="TOTAL BASES TEMPORÁRIAS"
+                    variant="bases"
+                    unitLabel="base(s) ativa(s)"
                   />
                 </TabsContent>
 
@@ -1224,7 +1426,6 @@ ${topIncendios || "  Nenhum registro no período."}
                       "Picape FN",
                       "Picape MUNI",
                       "Autoarp",
-                      "Picape ESFRON",
                       "Helicóptero",
                       "Avião",
                       "Jet Ski",
@@ -1232,7 +1433,7 @@ ${topIncendios || "  Nenhum registro no período."}
                     ]}
                     rows={recursos}
                     keys={[
-                      "abt", "at", "aem", "atp", "ata", "abf", "atf", "abs", "pipa", "dosa", "crs", "ar", "ur", "gse", "mt", "ta", "quadriciclo", "embarcacao", "picape_fn", "picape_muni", "autoarp", "picape_esfron", "helicoptero", "aviao", "jetski"
+                      "abt", "at", "aem", "atp", "ata", "abf", "atf", "abs", "pipa", "dosa", "crs", "ar", "ur", "gse", "mt", "ta", "quadriciclo", "embarcacao", "picape_fn", "picape_muni", "autoarp", "helicoptero", "aviao", "jetski"
                     ]}
                   />
                 </TabsContent>
@@ -1542,11 +1743,11 @@ ${topIncendios || "  Nenhum registro no período."}
                       <AggTable
                         title={`Recursos em ${compYear1}`}
                         headers={[
-                          "Município", "ABT", "AT", "AEM", "ATP", "ATA", "ABF", "ATF", "ABS", "Pipa", "DOSA", "CRS", "AR", "UR", "GSE", "MT", "TA", "Quadriciclo", "Embarcação", "Picape FN", "Picape MUNI", "Autoarp", "Picape ESFRON", "Helicóptero", "Avião", "Jet Ski", "Total"
+                          "Município", "ABT", "AT", "AEM", "ATP", "ATA", "ABF", "ATF", "ABS", "Pipa", "DOSA", "CRS", "AR", "UR", "GSE", "MT", "TA", "Quadriciclo", "Embarcação", "Picape FN", "Picape MUNI", "Autoarp", "Helicóptero", "Avião", "Jet Ski", "Total"
                         ]}
                         rows={recursosFiltered1}
                         keys={[
-                          "abt", "at", "aem", "atp", "ata", "abf", "atf", "abs", "pipa", "dosa", "crs", "ar", "ur", "gse", "mt", "ta", "quadriciclo", "embarcacao", "picape_fn", "picape_muni", "autoarp", "picape_esfron", "helicoptero", "aviao", "jetski"
+                          "abt", "at", "aem", "atp", "ata", "abf", "atf", "abs", "pipa", "dosa", "crs", "ar", "ur", "gse", "mt", "ta", "quadriciclo", "embarcacao", "picape_fn", "picape_muni", "autoarp", "helicoptero", "aviao", "jetski"
                         ]}
                       />
                     )}
@@ -1584,11 +1785,11 @@ ${topIncendios || "  Nenhum registro no período."}
                       <AggTable
                         title={`Recursos em ${compYear2}`}
                         headers={[
-                          "Município", "ABT", "AT", "AEM", "ATP", "ATA", "ABF", "ATF", "ABS", "Pipa", "DOSA", "CRS", "AR", "UR", "GSE", "MT", "TA", "Quadriciclo", "Embarcação", "Picape FN", "Picape MUNI", "Autoarp", "Picape ESFRON", "Helicóptero", "Avião", "Jet Ski", "Total"
+                          "Município", "ABT", "AT", "AEM", "ATP", "ATA", "ABF", "ATF", "ABS", "Pipa", "DOSA", "CRS", "AR", "UR", "GSE", "MT", "TA", "Quadriciclo", "Embarcação", "Picape FN", "Picape MUNI", "Autoarp", "Helicóptero", "Avião", "Jet Ski", "Total"
                         ]}
                         rows={recursosFiltered2}
                         keys={[
-                          "abt", "at", "aem", "atp", "ata", "abf", "atf", "abs", "pipa", "dosa", "crs", "ar", "ur", "gse", "mt", "ta", "quadriciclo", "embarcacao", "picape_fn", "picape_muni", "autoarp", "picape_esfron", "helicoptero", "aviao", "jetski"
+                          "abt", "at", "aem", "atp", "ata", "abf", "atf", "abs", "pipa", "dosa", "crs", "ar", "ur", "gse", "mt", "ta", "quadriciclo", "embarcacao", "picape_fn", "picape_muni", "autoarp", "helicoptero", "aviao", "jetski"
                         ]}
                       />
                     )}
@@ -1779,12 +1980,18 @@ function AggTable({
   rows,
   keys,
   sumKeys,
+  totalLabel,
+  variant = "default",
+  unitLabel = "município(s) listado(s)",
 }: {
   title: string;
   headers: string[];
   rows: Array<Record<string, any>>;
   keys: string[];
   sumKeys?: string[];
+  totalLabel?: string;
+  variant?: "default" | "municipios" | "bases";
+  unitLabel?: string;
 }) {
   const activeSumKeys = sumKeys ?? keys;
 
@@ -1794,12 +2001,40 @@ function AggTable({
   }, {});
   const grand = activeSumKeys.reduce((a, k) => a + (totals[k] || 0), 0);
 
+  const footerRowCls =
+    variant === "municipios"
+      ? "bg-emerald-950 text-emerald-100 font-extrabold border-t-2 border-emerald-500 text-[11px] shadow-sm"
+      : variant === "bases"
+      ? "bg-amber-950 text-amber-100 font-extrabold border-t-2 border-amber-500 text-[11px] shadow-sm"
+      : "bg-muted/70 font-bold border-t-2 border-border/80";
+
+  const totalLabelCls =
+    variant === "municipios"
+      ? "text-emerald-300 font-black"
+      : variant === "bases"
+      ? "text-amber-300 font-black"
+      : "font-bold text-foreground";
+
+  const totalNumCls =
+    variant === "municipios"
+      ? "text-emerald-100 font-extrabold"
+      : variant === "bases"
+      ? "text-amber-100 font-extrabold"
+      : "font-bold text-foreground";
+
+  const grandNumCls =
+    variant === "municipios"
+      ? "text-emerald-200 bg-emerald-900/90 font-black rounded-md px-2 py-0.5"
+      : variant === "bases"
+      ? "text-amber-200 bg-amber-900/90 font-black rounded-md px-2 py-0.5"
+      : "text-primary font-black";
+
   return (
     <div className="rounded-xl bg-card shadow-elevated p-4 sm:p-5 border border-border/80">
       <div className="flex items-center justify-between gap-2 mb-3">
         <h2 className="font-semibold text-base">{title}</h2>
         <span className="text-xs text-muted-foreground font-medium">
-          {rows.length} município(s) listado(s)
+          {rows.length} {unitLabel}
         </span>
       </div>
       <div className="-mx-4 sm:-mx-5 overflow-x-auto px-4 sm:px-5">
@@ -1869,21 +2104,21 @@ function AggTable({
             )}
 
             {rows.length > 0 && (
-              <TableRow className="bg-muted/70 font-bold border-t-2 border-border/80">
+              <TableRow className={footerRowCls}>
                 <TableCell className="p-1 align-middle min-w-[280px] w-[280px]">
-                  <div className="h-9 w-full flex items-center px-3 font-bold text-foreground justify-start whitespace-nowrap">
-                    TOTAL GERAL
+                  <div className={`h-9 w-full flex items-center px-3 justify-start whitespace-nowrap uppercase tracking-wider ${totalLabelCls}`}>
+                    {totalLabel || "TOTAL GERAL"}
                   </div>
                 </TableCell>
                 {keys.map((k) => (
                   <TableCell key={k} className="p-1 align-middle min-w-[85px]">
-                    <div className="h-9 w-full flex items-center justify-center px-3 text-center tabular-nums font-bold text-foreground">
+                    <div className={`h-9 w-full flex items-center justify-center px-3 text-center tabular-nums ${totalNumCls}`}>
                       {totals[k].toLocaleString("pt-BR")}
                     </div>
                   </TableCell>
                 ))}
                 <TableCell className="p-1 align-middle min-w-[85px]">
-                  <div className="h-9 w-full flex items-center justify-center px-3 text-center tabular-nums font-black text-primary">
+                  <div className={`h-9 w-full flex items-center justify-center px-3 text-center tabular-nums ${grandNumCls}`}>
                     {grand.toLocaleString("pt-BR")}
                   </div>
                 </TableCell>
