@@ -2211,10 +2211,13 @@ function AggTable({
           {rows.length} {unitLabel}
         </span>
       </div>
-      <div className="-mx-4 sm:-mx-5 overflow-x-auto px-4 sm:px-5">
-        <Table className="min-w-[34rem]">
-          <TableHeader>
-            <TableRow>
+      <div className="-mx-4 sm:-mx-5 px-4 sm:px-5">
+        <Table
+          className="min-w-[34rem] border-collapse"
+          containerClassName="max-h-[68vh] sm:max-h-[72vh] overflow-auto overscroll-contain relative rounded-lg border border-border/60"
+        >
+          <TableHeader className="sticky top-0 z-20 bg-card shadow-xs">
+            <TableRow className="bg-muted/80 hover:bg-muted/80 border-b border-border/80">
               {headers.map((h, i) => {
                 const isFirst = i === 0;
                 const isLast = i === headers.length - 1;
@@ -2222,7 +2225,7 @@ function AggTable({
                 return (
                   <TableHead
                     key={i}
-                    className={`whitespace-nowrap text-[11px] uppercase font-bold text-foreground p-1 ${widthCls}`}
+                    className={`sticky top-0 z-20 bg-muted/95 backdrop-blur-md whitespace-nowrap text-[11px] uppercase font-bold text-foreground p-1 border-b border-border/80 shadow-xs ${widthCls}`}
                   >
                     <div
                       className={`h-9 w-full flex items-center px-3 ${
@@ -2278,20 +2281,20 @@ function AggTable({
             )}
 
             {rows.length > 0 && (
-              <TableRow className={footerRowCls}>
-                <TableCell className="p-1 align-middle min-w-[280px] w-[280px]">
+              <TableRow className={`sticky bottom-0 z-20 bg-muted/95 backdrop-blur-md font-bold border-t-2 border-border/80 shadow-xs ${footerRowCls}`}>
+                <TableCell className="p-1 align-middle min-w-[280px] w-[280px] bg-muted/95 backdrop-blur-md">
                   <div className={`h-9 w-full flex items-center px-3 justify-start whitespace-nowrap uppercase tracking-wider ${totalLabelCls}`}>
                     {totalLabel || "TOTAL GERAL"}
                   </div>
                 </TableCell>
                 {keys.map((k) => (
-                  <TableCell key={k} className="p-1 align-middle min-w-[85px]">
+                  <TableCell key={k} className="p-1 align-middle min-w-[85px] bg-muted/95 backdrop-blur-md">
                     <div className={`h-9 w-full flex items-center justify-center px-3 text-center tabular-nums ${totalNumCls}`}>
                       {totals[k].toLocaleString("pt-BR")}
                     </div>
                   </TableCell>
                 ))}
-                <TableCell className="p-1 align-middle min-w-[85px]">
+                <TableCell className="p-1 align-middle min-w-[85px] bg-muted/95 backdrop-blur-md">
                   <div className={`h-9 w-full flex items-center justify-center px-3 text-center tabular-nums ${grandNumCls}`}>
                     {grand.toLocaleString("pt-BR")}
                   </div>
@@ -2353,32 +2356,35 @@ function UnifiedComparisonTable({
       <div className="flex items-center justify-between gap-2 mb-3">
         <h2 className="font-semibold text-base">{title} · Comparativo Unificado ({year1} vs {year2})</h2>
       </div>
-      <div className="-mx-4 sm:-mx-5 overflow-x-auto px-4 sm:px-5">
-        <Table className="min-w-[40rem]">
-          <TableHeader>
-            <TableRow>
-              <TableHead className="min-w-[280px] w-[280px] text-[11px] uppercase font-bold text-foreground p-1">
+      <div className="-mx-4 sm:-mx-5 px-4 sm:px-5">
+        <Table
+          className="min-w-[40rem] border-collapse"
+          containerClassName="max-h-[68vh] sm:max-h-[72vh] overflow-auto overscroll-contain relative rounded-lg border border-border/60"
+        >
+          <TableHeader className="sticky top-0 z-20 bg-card shadow-xs">
+            <TableRow className="bg-muted/80 hover:bg-muted/80 border-b border-border/80">
+              <TableHead className="sticky top-0 z-20 bg-muted/95 backdrop-blur-md min-w-[280px] w-[280px] text-[11px] uppercase font-bold text-foreground p-1 border-b border-border/80 shadow-xs">
                 <div className="h-9 w-full flex items-center px-3 justify-start">Município</div>
               </TableHead>
               {keys.map((k) => (
-                <TableHead key={k} colSpan={2} className="text-center text-[11px] uppercase font-bold text-foreground p-1 border-l border-border/60">
+                <TableHead key={k} colSpan={2} className="sticky top-0 z-20 bg-muted/95 backdrop-blur-md text-center text-[11px] uppercase font-bold text-foreground p-1 border-l border-b border-border/80 shadow-xs">
                   <div className="h-9 w-full flex items-center justify-center px-2">{keyLabels[k] || k}</div>
                 </TableHead>
               ))}
-              <TableHead colSpan={2} className="text-center text-[11px] uppercase font-black text-primary p-1 border-l border-border/60">
+              <TableHead colSpan={2} className="sticky top-0 z-20 bg-muted/95 backdrop-blur-md text-center text-[11px] uppercase font-black text-primary p-1 border-l border-b border-border/80 shadow-xs">
                 <div className="h-9 w-full flex items-center justify-center px-2">Total Geral</div>
               </TableHead>
             </TableRow>
-            <TableRow className="bg-muted/40">
-              <TableHead className="min-w-[280px] w-[280px] text-[10px] text-muted-foreground p-1 px-3">Nome</TableHead>
+            <TableRow className="bg-muted/60 hover:bg-muted/60 border-b border-border/80">
+              <TableHead className="sticky top-[36px] z-20 bg-muted/95 backdrop-blur-md min-w-[280px] w-[280px] text-[10px] text-muted-foreground p-1 px-3 border-b border-border/80 shadow-xs">Nome</TableHead>
               {keys.map((k) => (
                 <React.Fragment key={k}>
-                  <TableHead className="text-center text-[10px] font-semibold text-muted-foreground p-1 px-2 border-l border-border/40">{year1}</TableHead>
-                  <TableHead className="text-center text-[10px] font-semibold text-primary p-1 px-2">{year2}</TableHead>
+                  <TableHead className="sticky top-[36px] z-20 bg-muted/95 backdrop-blur-md text-center text-[10px] font-semibold text-muted-foreground p-1 px-2 border-l border-b border-border/40 shadow-xs">{year1}</TableHead>
+                  <TableHead className="sticky top-[36px] z-20 bg-muted/95 backdrop-blur-md text-center text-[10px] font-semibold text-primary p-1 px-2 border-b border-border/80 shadow-xs">{year2}</TableHead>
                 </React.Fragment>
               ))}
-              <TableHead className="text-center text-[10px] font-bold text-muted-foreground p-1 px-2 border-l border-border/40">{year1}</TableHead>
-              <TableHead className="text-center text-[10px] font-bold text-primary p-1 px-2">{year2}</TableHead>
+              <TableHead className="sticky top-[36px] z-20 bg-muted/95 backdrop-blur-md text-center text-[10px] font-bold text-muted-foreground p-1 px-2 border-l border-b border-border/40 shadow-xs">{year1}</TableHead>
+              <TableHead className="sticky top-[36px] z-20 bg-muted/95 backdrop-blur-md text-center text-[10px] font-bold text-primary p-1 px-2 border-b border-border/80 shadow-xs">{year2}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -2422,26 +2428,26 @@ function UnifiedComparisonTable({
               );
             })}
 
-            <TableRow className="bg-muted/70 font-bold border-t-2 border-border/80">
-              <TableCell className="p-1 align-middle min-w-[280px] w-[280px]">
+            <TableRow className="sticky bottom-0 z-20 bg-muted/95 backdrop-blur-md font-bold border-t-2 border-border/80 shadow-xs">
+              <TableCell className="p-1 align-middle min-w-[280px] w-[280px] bg-muted/95 backdrop-blur-md">
                 <div className="h-9 w-full flex items-center px-3 font-bold text-foreground justify-start whitespace-nowrap">
                   TOTAL GERAL
                 </div>
               </TableCell>
               {keys.map((k) => (
                 <React.Fragment key={k}>
-                  <TableCell className="p-1 align-middle text-center tabular-nums font-bold text-muted-foreground border-l border-border/40">
+                  <TableCell className="p-1 align-middle text-center tabular-nums font-bold text-muted-foreground border-l border-border/40 bg-muted/95 backdrop-blur-md">
                     {(totals1[k] || 0).toLocaleString("pt-BR")}
                   </TableCell>
-                  <TableCell className="p-1 align-middle text-center tabular-nums font-bold text-foreground">
+                  <TableCell className="p-1 align-middle text-center tabular-nums font-bold text-foreground bg-muted/95 backdrop-blur-md">
                     {(totals2[k] || 0).toLocaleString("pt-BR")}
                   </TableCell>
                 </React.Fragment>
               ))}
-              <TableCell className="p-1 align-middle text-center tabular-nums font-black text-foreground bg-muted/40 border-l border-border/40">
+              <TableCell className="p-1 align-middle text-center tabular-nums font-black text-foreground bg-muted/95 backdrop-blur-md border-l border-border/40">
                 {grand1.toLocaleString("pt-BR")}
               </TableCell>
-              <TableCell className="p-1 align-middle text-center tabular-nums font-black text-primary bg-primary/15">
+              <TableCell className="p-1 align-middle text-center tabular-nums font-black text-primary bg-primary/20 backdrop-blur-md">
                 {grand2.toLocaleString("pt-BR")}
               </TableCell>
             </TableRow>

@@ -1,5 +1,5 @@
 import { manausFirstSheets, canonicalMunicipio } from "./municipio-order";
-import { resolveEfetivoColumns, calculateRowTotal } from "./dashboard-columns";
+import { resolveEfetivoColumns, resolveRecursosColumns, calculateRowTotal } from "./dashboard-columns";
 import { sanitizeSheetsData } from "./report-validation";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -558,6 +558,15 @@ export function buildSheetsPdfDoc(
   const recLabels = [
     "ABT", "AT", "ATP", "ATA", "ABF", "ATF", "ABS", "PIPA", "DOSA", "CRS", "AR", "UR", "GSE", "MT", "TA", "EMBARC.", "PIC.FN", "PIC.MUNI", "AUTOARP", "HELIC.", "AVIÃO", "JET SKI", "QUADRIC.", "AEM"
   ];
+
+  // Incorpora colunas customizadas adicionais de Recursos se definidas
+  const customRecCols = resolveRecursosColumns(recursosList, data.custom_columns?.recursos);
+  for (const c of customRecCols) {
+    if (c.key !== "mun" && c.key !== "total" && !recKeys.includes(c.key)) {
+      recKeys.push(c.key);
+      recLabels.push(c.label.toUpperCase().slice(0, 10));
+    }
+  }
 
   const recMap: Record<string, number> = {};
   for (const k of recKeys) {

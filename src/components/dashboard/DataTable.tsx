@@ -15,7 +15,13 @@ import { NF } from "@/lib/formatters";
 import { useAutosave } from "@/hooks/use-autosave";
 import { SaveStatusBadge } from "./SaveStatusBadge";
 import { EfetivoColumnsDialog } from "./EfetivoColumnsDialog";
-import { calculateRowTotal, saveStoredEfetivoColumns } from "@/lib/dashboard-columns";
+import {
+  calculateRowTotal,
+  DEFAULT_EFETIVO_COLUMNS,
+  DEFAULT_RECURSOS_COLUMNS,
+  saveStoredEfetivoColumns,
+  saveStoredRecursosColumns,
+} from "@/lib/dashboard-columns";
 import { toast } from "sonner";
 
 export interface Column {
@@ -68,7 +74,8 @@ export const DataTable = memo(function DataTable({
   const [activeColumns, setActiveColumns] = useState<Column[]>(() => [...columns]);
   const [manageColsOpen, setManageColsOpen] = useState(false);
   const isEfetivoTable = title.toLowerCase().includes("efetivo");
-  const canManage = allowManageColumns ?? isEfetivoTable;
+  const isRecursosTable = title.toLowerCase().includes("recurso");
+  const canManage = allowManageColumns ?? (isEfetivoTable || isRecursosTable);
 
   useEffect(() => {
     setActiveColumns([...columns]);
@@ -149,6 +156,7 @@ export const DataTable = memo(function DataTable({
       setActiveColumns(newCols);
       if (onColumnsChange) onColumnsChange(newCols);
       if (isEfetivoTable) saveStoredEfetivoColumns(newCols);
+      if (isRecursosTable) saveStoredRecursosColumns(newCols);
 
       setLocal((prev) => {
         const next = prev.map((r) => {
@@ -167,7 +175,7 @@ export const DataTable = memo(function DataTable({
         return next;
       });
     },
-    [activeColumns, isEfetivoTable, onColumnsChange, onRowsChange, scheduleSave],
+    [activeColumns, isEfetivoTable, isRecursosTable, onColumnsChange, onRowsChange, scheduleSave],
   );
 
   const handleDeleteColumn = useCallback(
@@ -186,6 +194,7 @@ export const DataTable = memo(function DataTable({
       setActiveColumns(newCols);
       if (onColumnsChange) onColumnsChange(newCols);
       if (isEfetivoTable) saveStoredEfetivoColumns(newCols);
+      if (isRecursosTable) saveStoredRecursosColumns(newCols);
 
       setLocal((prev) => {
         const next = prev.map((r) => {
@@ -199,7 +208,7 @@ export const DataTable = memo(function DataTable({
 
       toast.success(`Coluna "${col.label}" excluída com sucesso.`);
     },
-    [activeColumns, isEfetivoTable, onColumnsChange, onRowsChange, scheduleSave],
+    [activeColumns, isEfetivoTable, isRecursosTable, onColumnsChange, onRowsChange, scheduleSave],
   );
 
   return (
@@ -236,151 +245,152 @@ export const DataTable = memo(function DataTable({
         </div>
       </CardHeader>
       <CardContent className="p-0">
-        <div className="overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
-          <Table className="w-full">
-            <TableHeader>
-              <TableRow className="bg-muted/40 hover:bg-muted/40">
-                {activeColumns.map((c, idx) => {
-                  const widthCls = getColumnWidthCls(c, idx === 0);
-                  const isProtected = c.key === "mun" || c.key === "total";
-                  const canDelete = editable && canManage && !isProtected;
+        <Table
+          className="w-full border-collapse"
+          containerClassName="max-h-[68vh] sm:max-h-[72vh] overflow-auto overscroll-contain relative rounded-b-xl border-t border-border/40"
+        >
+          <TableHeader className="sticky top-0 z-20 bg-card shadow-xs">
+            <TableRow className="bg-muted/80 hover:bg-muted/80 border-b border-border/80">
+              {activeColumns.map((c, idx) => {
+                const widthCls = getColumnWidthCls(c, idx === 0);
+                const isProtected = c.key === "mun" || c.key === "total";
+                const canDelete = editable && canManage && !isProtected;
 
-                  return (
-                    <TableHead
-                      key={c.key}
-                      className={`whitespace-nowrap text-[11px] uppercase tracking-wide font-bold text-foreground p-1 ${widthCls}`}
+                return (
+                  <TableHead
+                    key={c.key}
+                    className={`sticky top-0 z-20 bg-muted/95 backdrop-blur-md whitespace-nowrap text-[11px] uppercase tracking-wide font-bold text-foreground p-1 border-b border-border/80 shadow-xs ${widthCls}`}
+                  >
+                    <div
+                      className={`group/th relative h-9 w-full flex items-center px-2 ${
+                        c.numeric ? "justify-center text-center" : "justify-start"
+                      }`}
                     >
-                      <div
-                        className={`group/th relative h-9 w-full flex items-center px-2 ${
-                          c.numeric ? "justify-center text-center" : "justify-start"
-                        }`}
-                      >
-                        <span className="truncate">{c.label}</span>
-                        {canDelete && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteColumn(c);
-                            }}
-                            title={`Excluir coluna "${c.label}"`}
-                            className="opacity-0 group-hover/th:opacity-100 focus:opacity-100 ml-1.5 p-1 rounded-sm text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-all cursor-pointer shrink-0"
-                            aria-label={`Excluir coluna ${c.label}`}
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </TableHead>
-                  );
-                })}
-                {onRowClick && (
-                  <TableHead className="w-[80px] text-center p-1 text-[11px] uppercase tracking-wide font-bold text-foreground">
-                    <div className="h-9 w-full flex items-center justify-center">
-                      Detalhes
+                      <span className="truncate">{c.label}</span>
+                      {canDelete && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteColumn(c);
+                          }}
+                          title={`Excluir coluna "${c.label}"`}
+                          className="opacity-0 group-hover/th:opacity-100 focus:opacity-100 ml-1.5 p-1 rounded-sm text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-all cursor-pointer shrink-0"
+                          aria-label={`Excluir coluna ${c.label}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </TableHead>
-                )}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {local.length === 0 ? (
-                <EmptyRow colSpan={activeColumns.length + (onRowClick ? 1 : 0)} message={emptyMessage} />
-              ) : (
-                <>
-                  {local.map((row, i) => {
-                    const rowWithTotal = { ...row };
-                    const totalCol = activeColumns.find((c) => c.key === "total" && !c.editable);
-                    if (totalCol) {
-                      rowWithTotal.total = calculateRowTotal(row, activeColumns);
-                    }
+                );
+              })}
+              {onRowClick && (
+                <TableHead className="sticky top-0 z-20 bg-muted/95 backdrop-blur-md w-[80px] text-center p-1 text-[11px] uppercase tracking-wide font-bold text-foreground border-b border-border/80 shadow-xs">
+                  <div className="h-9 w-full flex items-center justify-center">
+                    Detalhes
+                  </div>
+                </TableHead>
+              )}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {local.length === 0 ? (
+              <EmptyRow colSpan={activeColumns.length + (onRowClick ? 1 : 0)} message={emptyMessage} />
+            ) : (
+              <>
+                {local.map((row, i) => {
+                  const rowWithTotal = { ...row };
+                  const totalCol = activeColumns.find((c) => c.key === "total" && !c.editable);
+                  if (totalCol) {
+                    rowWithTotal.total = calculateRowTotal(row, activeColumns);
+                  }
 
-                    return (
-                      <TableRow
-                        key={i}
-                        onClick={() => onRowClick?.(rowWithTotal)}
-                        className={`transition-colors ${
-                          onRowClick ? "cursor-pointer hover:bg-primary/10" : "hover:bg-primary/5"
-                        } ${i % 2 === 1 ? "bg-muted/30" : ""}`}
-                      >
-                        {activeColumns.map((c, idx) => (
-                          <DataCell
-                            key={c.key}
-                            column={c}
-                            isFirst={idx === 0}
-                            value={rowWithTotal[c.key] ?? (c.numeric ? 0 : "")}
-                            editable={!!editable && !!c.editable}
-                            onChange={(v) => updateCell(i, c.key, v, c.numeric)}
-                          />
-                        ))}
-                        {onRowClick && (
-                          <TableCell className="p-1 align-middle text-center w-[80px]">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 px-2 text-xs font-semibold text-primary hover:text-primary hover:bg-primary/15 gap-1"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onRowClick(rowWithTotal);
-                              }}
-                              title="Visualizar relato completo da ocorrência"
-                            >
-                              <Eye className="w-3.5 h-3.5" />
-                              Ver
-                            </Button>
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    );
-                  })}
-                  {/* Footer Total Row */}
-                  <TableRow className="bg-muted/70 font-bold border-t-2 border-border/80">
-                    {activeColumns.map((c, idx) => {
-                      const isFirst = idx === 0;
-                      const widthCls = getColumnWidthCls(c, isFirst);
+                  return (
+                    <TableRow
+                      key={i}
+                      onClick={() => onRowClick?.(rowWithTotal)}
+                      className={`transition-colors ${
+                        onRowClick ? "cursor-pointer hover:bg-primary/10" : "hover:bg-primary/5"
+                      } ${i % 2 === 1 ? "bg-muted/30" : ""}`}
+                    >
+                      {activeColumns.map((c, idx) => (
+                        <DataCell
+                          key={c.key}
+                          column={c}
+                          isFirst={idx === 0}
+                          value={rowWithTotal[c.key] ?? (c.numeric ? 0 : "")}
+                          editable={!!editable && !!c.editable}
+                          onChange={(v) => updateCell(i, c.key, v, c.numeric)}
+                        />
+                      ))}
+                      {onRowClick && (
+                        <TableCell className="p-1 align-middle text-center w-[80px]">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs font-semibold text-primary hover:text-primary hover:bg-primary/15 gap-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onRowClick(rowWithTotal);
+                            }}
+                            title="Visualizar relato completo da ocorrência"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            Ver
+                          </Button>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  );
+                })}
+                {/* Footer Total Row */}
+                <TableRow className="sticky bottom-0 z-20 bg-muted/95 backdrop-blur-md font-bold border-t-2 border-border/80 shadow-xs">
+                  {activeColumns.map((c, idx) => {
+                    const isFirst = idx === 0;
+                    const widthCls = getColumnWidthCls(c, isFirst);
 
-                      if (isFirst) {
-                        return (
-                          <TableCell key="total-label" className={`p-1 align-middle ${widthCls}`}>
-                            <div className="h-9 w-full flex items-center px-3 font-bold text-foreground">
-                              Total
-                            </div>
-                          </TableCell>
-                        );
-                      }
-                      if (c.numeric) {
-                        const sum = local.reduce((acc, row) => {
-                          if (c.key === "total") {
-                            return acc + calculateRowTotal(row, activeColumns);
-                          }
-                          return acc + (Number(row[c.key]) || 0);
-                        }, 0);
-                        return (
-                          <TableCell key={c.key} className={`p-1 align-middle ${widthCls}`}>
-                            <div className="h-9 w-full flex items-center justify-center px-3 text-center tabular-nums font-bold text-foreground">
-                              {NF.format(sum)}
-                            </div>
-                          </TableCell>
-                        );
-                      }
+                    if (isFirst) {
                       return (
-                        <TableCell key={c.key} className={`p-1 align-middle ${widthCls}`}>
-                          <div className="h-9 w-full" />
+                        <TableCell key="total-label" className={`p-1 align-middle bg-muted/95 backdrop-blur-md ${widthCls}`}>
+                          <div className="h-9 w-full flex items-center px-3 font-bold text-foreground">
+                            Total
+                          </div>
                         </TableCell>
                       );
-                    })}
-                    {onRowClick && (
-                      <TableCell key="total-action" className="p-1 align-middle text-center w-[80px]">
+                    }
+                    if (c.numeric) {
+                      const sum = local.reduce((acc, row) => {
+                        if (c.key === "total") {
+                          return acc + calculateRowTotal(row, activeColumns);
+                        }
+                        return acc + (Number(row[c.key]) || 0);
+                      }, 0);
+                      return (
+                        <TableCell key={c.key} className={`p-1 align-middle bg-muted/95 backdrop-blur-md ${widthCls}`}>
+                          <div className="h-9 w-full flex items-center justify-center px-3 text-center tabular-nums font-bold text-foreground">
+                            {NF.format(sum)}
+                          </div>
+                        </TableCell>
+                      );
+                    }
+                    return (
+                      <TableCell key={c.key} className={`p-1 align-middle bg-muted/95 backdrop-blur-md ${widthCls}`}>
                         <div className="h-9 w-full" />
                       </TableCell>
-                    )}
-                  </TableRow>
-                </>
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                    );
+                  })}
+                  {onRowClick && (
+                    <TableCell key="total-action" className="p-1 align-middle text-center w-[80px] bg-muted/95 backdrop-blur-md">
+                      <div className="h-9 w-full" />
+                    </TableCell>
+                  )}
+                </TableRow>
+              </>
+            )}
+          </TableBody>
+        </Table>
       </CardContent>
       {canManage && (
         <EfetivoColumnsDialog
@@ -388,6 +398,26 @@ export const DataTable = memo(function DataTable({
           onOpenChange={setManageColsOpen}
           columns={activeColumns}
           onSave={handleColumnsSaved}
+          sectionType={isRecursosTable ? "recursos" : "efetivo"}
+          title={
+            isRecursosTable
+              ? "Personalizar Colunas de Recursos Empregados"
+              : isEfetivoTable
+              ? "Personalizar Colunas do Efetivo"
+              : `Personalizar Colunas · ${title}`
+          }
+          description={
+            isRecursosTable
+              ? "Altere os nomes das viaturas e meios, adicione novos equipamentos ou remova colunas."
+              : undefined
+          }
+          defaultColumns={
+            isRecursosTable
+              ? DEFAULT_RECURSOS_COLUMNS
+              : isEfetivoTable
+              ? DEFAULT_EFETIVO_COLUMNS
+              : columns
+          }
         />
       )}
     </Card>

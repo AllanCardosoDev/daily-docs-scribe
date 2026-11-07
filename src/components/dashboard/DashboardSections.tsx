@@ -1,7 +1,12 @@
 import { memo, useMemo, useState, type ReactNode } from "react";
 import { DataTable } from "@/components/dashboard/DataTable";
 import { OccurrenceDetailDialog } from "@/components/dashboard/OccurrenceDetailDialog";
-import { DASHBOARD_COLUMNS, OCCURRENCES_PREVIEW_LIMIT, resolveEfetivoColumns } from "@/lib/dashboard-columns";
+import {
+  DASHBOARD_COLUMNS,
+  OCCURRENCES_PREVIEW_LIMIT,
+  resolveEfetivoColumns,
+  resolveRecursosColumns,
+} from "@/lib/dashboard-columns";
 import type { OccurrenceRow, SheetsData } from "@/lib/sheets.types";
 import type { SectionSavers } from "@/hooks/use-sheets";
 import { manausFirstSheets } from "@/lib/municipio-order";
@@ -78,6 +83,10 @@ export const DashboardSections = memo(function DashboardSections({
     return resolveEfetivoColumns(data.efetivo, data.custom_columns?.efetivo);
   }, [data.efetivo, data.custom_columns?.efetivo]);
 
+  const recursosColumns = useMemo(() => {
+    return resolveRecursosColumns(data.recursos, data.custom_columns?.recursos);
+  }, [data.recursos, data.custom_columns?.recursos]);
+
   return (
     <div className="space-y-6 sm:space-y-8">
       <section className="space-y-3">
@@ -91,8 +100,10 @@ export const DashboardSections = memo(function DashboardSections({
           title="Recursos empregados"
           badgeText="41 municípios"
           editable={canEdit}
+          allowManageColumns={canEdit}
           onRowsChange={savers.recursos}
-          columns={DASHBOARD_COLUMNS.recursos}
+          onColumnsChange={(cols) => savers.custom_columns({ recursos: cols })}
+          columns={recursosColumns}
           rows={data.recursos}
         />
       </section>
@@ -108,6 +119,7 @@ export const DashboardSections = memo(function DashboardSections({
           title="Efetivo por município"
           badgeText="41 municípios"
           editable={canEdit}
+          allowManageColumns={canEdit}
           onRowsChange={savers.efetivo}
           onColumnsChange={(cols) => savers.custom_columns({ efetivo: cols })}
           columns={efetivoColumns}

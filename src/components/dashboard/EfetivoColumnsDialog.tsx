@@ -13,13 +13,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, Trash2, ArrowUp, ArrowDown, RotateCcw, Check, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
-import { DEFAULT_EFETIVO_COLUMNS, sanitizeEfetivoColumns } from "@/lib/dashboard-columns";
+import {
+  DEFAULT_EFETIVO_COLUMNS,
+  DEFAULT_RECURSOS_COLUMNS,
+  sanitizeEfetivoColumns,
+  sanitizeRecursosColumns,
+} from "@/lib/dashboard-columns";
 
 interface EfetivoColumnsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   columns: Column[];
   onSave: (columns: Column[]) => void;
+  title?: string;
+  description?: string;
+  defaultColumns?: Column[];
+  sectionType?: "efetivo" | "recursos";
 }
 
 export function slugifyColumnKey(label: string): string {
@@ -38,16 +47,26 @@ export function EfetivoColumnsDialog({
   onOpenChange,
   columns,
   onSave,
+  title,
+  description,
+  defaultColumns,
+  sectionType = "efetivo",
 }: EfetivoColumnsDialogProps) {
   const [list, setList] = useState<Column[]>([]);
   const [newLabel, setNewLabel] = useState("");
 
+  const effectiveDefaults =
+    defaultColumns ??
+    (sectionType === "recursos" ? DEFAULT_RECURSOS_COLUMNS : DEFAULT_EFETIVO_COLUMNS);
+
+  const sanitizeFn = sectionType === "recursos" ? sanitizeRecursosColumns : sanitizeEfetivoColumns;
+
   useEffect(() => {
     if (open) {
-      setList(columns && columns.length > 0 ? sanitizeEfetivoColumns(columns) : DEFAULT_EFETIVO_COLUMNS.map((c) => ({ ...c })));
+      setList(columns && columns.length > 0 ? sanitizeFn(columns) : effectiveDefaults.map((c) => ({ ...c })));
       setNewLabel("");
     }
-  }, [open, columns]);
+  }, [open, columns, sanitizeFn, effectiveDefaults]);
 
   function handleLabelChange(index: number, newTitle: string) {
     setList((prev) => {
@@ -119,7 +138,7 @@ export function EfetivoColumnsDialog({
   }
 
   function handleResetDefault() {
-    setList(DEFAULT_EFETIVO_COLUMNS.map((c) => ({ ...c })));
+    setList(effectiveDefaults.map((c) => ({ ...c })));
     toast.success("Colunas restauradas para o padrão oficial do CBMAM.");
   }
 
@@ -128,10 +147,14 @@ export function EfetivoColumnsDialog({
       toast.error("A tabela deve conter ao menos uma coluna.");
       return;
     }
-    const clean = sanitizeEfetivoColumns(list);
+    const clean = sanitizeFn(list);
     onSave(clean);
     onOpenChange(false);
-    toast.success("Configuração de colunas do efetivo atualizada!");
+    toast.success(
+      sectionType === "recursos"
+        ? "Configuração de colunas de recursos atualizada!"
+        : "Configuração de colunas do efetivo atualizada!",
+    );
   }
 
   return (
@@ -144,10 +167,16 @@ export function EfetivoColumnsDialog({
             </div>
             <div>
               <DialogTitle className="text-base sm:text-lg font-bold">
-                Personalizar Colunas do Efetivo
+                {title ??
+                  (sectionType === "recursos"
+                    ? "Personalizar Colunas de Recursos Empregados"
+                    : "Personalizar Colunas do Efetivo")}
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
-                Altere os nomes das colunas, adicione novos postos/operações ou remova colunas desnecessárias.
+                {description ??
+                  (sectionType === "recursos"
+                    ? "Altere os nomes das viaturas e meios, adicione novos equipamentos ou remova colunas."
+                    : "Altere os nomes das colunas, adicione novos postos/operações ou remova colunas desnecessárias.")}
               </DialogDescription>
             </div>
           </div>
@@ -161,7 +190,11 @@ export function EfetivoColumnsDialog({
             </Label>
             <Input
               id="new-col-input"
-              placeholder="Nome da nova coluna (ex: Exército, OPAM 3, Marinha...)"
+              placeholder={
+                sectionType === "recursos"
+                  ? "Nome do novo recurso/viatura (ex: Drone, Picape 4x4, Lancha...)"
+                  : "Nome da nova coluna (ex: Exército, OPAM 3, Marinha...)"
+              }
               value={newLabel}
               onChange={(e) => setNewLabel(e.target.value)}
               onKeyDown={(e) => {

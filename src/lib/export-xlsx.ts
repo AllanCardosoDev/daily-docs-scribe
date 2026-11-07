@@ -4,7 +4,12 @@ import type { ComparisonResult } from "./comparison";
 import { fmtDateStamp as fmtDateStampGeneric } from "./formatters";
 
 import { fmtDateBR, fmtDateStamp, filterOccurrencesByDate } from "./report-date";
-import { DASHBOARD_COLUMNS, resolveEfetivoColumns, calculateRowTotal } from "./dashboard-columns";
+import {
+  DASHBOARD_COLUMNS,
+  resolveEfetivoColumns,
+  resolveRecursosColumns,
+  calculateRowTotal,
+} from "./dashboard-columns";
 import { manausFirstSheets } from "./municipio-order";
 import { isIncendio } from "./fire-classification";
 import { sanitizeSheetsData } from "./report-validation";
@@ -132,11 +137,11 @@ export function exportSheetsToXlsx(
     "efetivo",
   );
 
-  // Deriva as colunas da mesma fonte usada no painel/PDF — evita perder
-  // colunas (AEM, ATF, ABS, DOSA, CRS, AR, UR, GSE, MT, TA, etc.) no Excel.
+  // Deriva as colunas da mesma fonte usada no painel/PDF — respeitando personalizações de colunas
+  const recursosCols = resolveRecursosColumns(data.recursos, data.custom_columns?.recursos);
   addSheet(
     "Recursos",
-    DASHBOARD_COLUMNS.recursos.map((c) => ({ key: c.key, label: c.label })),
+    recursosCols.map((c) => ({ key: c.key, label: c.label })),
     data.recursos,
   );
 

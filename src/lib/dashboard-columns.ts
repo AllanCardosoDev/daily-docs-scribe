@@ -279,6 +279,189 @@ export function saveStoredEfetivoColumns(columns: Column[]): void {
   }
 }
 
+export const DEFAULT_RECURSOS_COLUMNS: Column[] = [
+  { key: "mun", label: "Município", editable: true },
+  { key: "abt", label: "ABT", numeric: true, editable: true },
+  { key: "at", label: "AT", numeric: true, editable: true },
+  { key: "aem", label: "AEM", numeric: true, editable: true },
+  { key: "atp", label: "ATP", numeric: true, editable: true },
+  { key: "ata", label: "ATA", numeric: true, editable: true },
+  { key: "abf", label: "ABF", numeric: true, editable: true },
+  { key: "atf", label: "ATF", numeric: true, editable: true },
+  { key: "abs", label: "ABS", numeric: true, editable: true },
+  { key: "abtf", label: "ABTF", numeric: true, editable: true },
+  { key: "pipa", label: "Pipa", numeric: true, editable: true },
+  { key: "dosa", label: "DOSA", numeric: true, editable: true },
+  { key: "crs", label: "CRS", numeric: true, editable: true },
+  { key: "ar", label: "AR", numeric: true, editable: true },
+  { key: "ur", label: "UR", numeric: true, editable: true },
+  { key: "gse", label: "GSE", numeric: true, editable: true },
+  { key: "mt", label: "MT", numeric: true, editable: true },
+  { key: "ta", label: "TA", numeric: true, editable: true },
+  { key: "quadriciclo", label: "Quadriciclo", numeric: true, editable: true },
+  { key: "embarcacao", label: "Embarcação", numeric: true, editable: true },
+  { key: "picape_fn", label: "Picape FN", numeric: true, editable: true },
+  { key: "picape_muni", label: "Picape MUNI", numeric: true, editable: true },
+  { key: "autoarp", label: "Autoarp", numeric: true, editable: true },
+  { key: "helicoptero", label: "Helicóptero", numeric: true, editable: true },
+  { key: "aviao", label: "Avião", numeric: true, editable: true },
+  { key: "jetski", label: "Jet Ski", numeric: true, editable: true },
+  { key: "total", label: "Total", numeric: true, editable: false },
+];
+
+const RECURSOS_STORAGE_KEY = "cbmam_recursos_custom_columns";
+
+export function sanitizeRecursosColumns(cols: Column[]): Column[] {
+  if (!Array.isArray(cols) || cols.length === 0) {
+    return DEFAULT_RECURSOS_COLUMNS.map((c) => ({ ...c }));
+  }
+
+  const redundantOrInternalKeys = new Set([
+    "id",
+    "created_at",
+    "updated_at",
+    "shift",
+    "report_date",
+    "notes",
+    "municipio",
+    "tipo",
+    "_custom",
+    "pickup_esfron",
+    "picape_esfron",
+    "esfron",
+  ]);
+
+  const seenKeys = new Set<string>();
+  const seenLabels = new Set<string>();
+  const sanitized: Column[] = [];
+
+  for (const c of cols) {
+    if (!c || !c.key) continue;
+    const k = c.key.toLowerCase().trim();
+    if (redundantOrInternalKeys.has(k)) continue;
+
+    const normLabel = (c.label || k).toLowerCase().trim();
+    if (seenKeys.has(k) || (k !== "mun" && k !== "total" && seenLabels.has(normLabel))) {
+      continue;
+    }
+
+    seenKeys.add(k);
+    if (k !== "mun" && k !== "total") {
+      seenLabels.add(normLabel);
+    }
+
+    sanitized.push({
+      ...c,
+      key: k,
+      numeric: k === "mun" ? false : c.numeric ?? true,
+      editable: k === "total" ? false : c.editable ?? true,
+    });
+  }
+
+  if (!sanitized.some((c) => c.key === "mun")) {
+    sanitized.unshift({ key: "mun", label: "Município", editable: true });
+  }
+
+  const totalIdx = sanitized.findIndex((c) => c.key === "total");
+  if (totalIdx >= 0) {
+    const [tot] = sanitized.splice(totalIdx, 1);
+    sanitized.push(tot);
+  } else {
+    sanitized.push({ key: "total", label: "Total", numeric: true, editable: false });
+  }
+
+  return sanitized;
+}
+
+export function getStoredRecursosColumns(): Column[] {
+  if (typeof window === "undefined") return DEFAULT_RECURSOS_COLUMNS.map((c) => ({ ...c }));
+  try {
+    const raw = localStorage.getItem(RECURSOS_STORAGE_KEY);
+    if (!raw) return DEFAULT_RECURSOS_COLUMNS.map((c) => ({ ...c }));
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      const clean = sanitizeRecursosColumns(parsed);
+      if (clean.length !== parsed.length) {
+        localStorage.setItem(RECURSOS_STORAGE_KEY, JSON.stringify(clean));
+      }
+      return clean;
+    }
+  } catch {
+    // fallback
+  }
+  return DEFAULT_RECURSOS_COLUMNS.map((c) => ({ ...c }));
+}
+
+export function saveStoredRecursosColumns(columns: Column[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(RECURSOS_STORAGE_KEY, JSON.stringify(columns));
+  } catch {
+    // fallback
+  }
+}
+
+export function resolveRecursosColumns(
+  rows: any[] = [],
+  savedCustomColumns?: Column[],
+): Column[] {
+  let baseCols: Column[] = [];
+
+  if (savedCustomColumns && savedCustomColumns.length > 0) {
+    baseCols = sanitizeRecursosColumns(savedCustomColumns);
+  } else {
+    baseCols = getStoredRecursosColumns();
+  }
+
+  const ignoredKeys = new Set([
+    "mun",
+    "municipio",
+    "total",
+    "id",
+    "created_at",
+    "updated_at",
+    "shift",
+    "report_date",
+    "notes",
+    "tipo",
+    "_custom",
+    "pickup_esfron",
+    "picape_esfron",
+    "esfron",
+  ]);
+
+  const knownKeys = new Set(baseCols.map((c) => c.key.toLowerCase()));
+  const extraKeys: string[] = [];
+
+  for (const r of rows) {
+    if (!r || typeof r !== "object") continue;
+    for (const rawK of Object.keys(r)) {
+      const k = rawK.toLowerCase().trim();
+      if (!knownKeys.has(k) && !ignoredKeys.has(k) && !extraKeys.includes(k)) {
+        extraKeys.push(k);
+      }
+    }
+  }
+
+  if (extraKeys.length > 0) {
+    const extraCols: Column[] = extraKeys.map((k) => ({
+      key: k,
+      label: formatColumnLabel(k),
+      numeric: true,
+      editable: true,
+    }));
+
+    const totalIdx = baseCols.findIndex((c) => c.key === "total");
+    if (totalIdx >= 0) {
+      baseCols.splice(totalIdx, 0, ...extraCols);
+    } else {
+      baseCols.push(...extraCols);
+    }
+  }
+
+  return sanitizeRecursosColumns(baseCols);
+}
+
 export const DASHBOARD_COLUMNS = {
   efetivo: DEFAULT_EFETIVO_COLUMNS,
   incendios_diario: [
@@ -296,35 +479,7 @@ export const DASHBOARD_COLUMNS = {
     { key: "sat", label: "Focos satélite", numeric: true, editable: true },
     { key: "area", label: "Área (m²)", numeric: true, editable: true },
   ],
-  recursos: [
-    { key: "mun", label: "Município", editable: true },
-    { key: "abt", label: "ABT", numeric: true, editable: true },
-    { key: "at", label: "AT", numeric: true, editable: true },
-    { key: "aem", label: "AEM", numeric: true, editable: true },
-    { key: "atp", label: "ATP", numeric: true, editable: true },
-    { key: "ata", label: "ATA", numeric: true, editable: true },
-    { key: "abf", label: "ABF", numeric: true, editable: true },
-    { key: "atf", label: "ATF", numeric: true, editable: true },
-    { key: "abs", label: "ABS", numeric: true, editable: true },
-    { key: "abtf", label: "ABTF", numeric: true, editable: true },
-    { key: "pipa", label: "Pipa", numeric: true, editable: true },
-    { key: "dosa", label: "DOSA", numeric: true, editable: true },
-    { key: "crs", label: "CRS", numeric: true, editable: true },
-    { key: "ar", label: "AR", numeric: true, editable: true },
-    { key: "ur", label: "UR", numeric: true, editable: true },
-    { key: "gse", label: "GSE", numeric: true, editable: true },
-    { key: "mt", label: "MT", numeric: true, editable: true },
-    { key: "ta", label: "TA", numeric: true, editable: true },
-    { key: "quadriciclo", label: "Quadriciclo", numeric: true, editable: true },
-    { key: "embarcacao", label: "Embarcação", numeric: true, editable: true },
-    { key: "picape_fn", label: "Picape FN", numeric: true, editable: true },
-    { key: "picape_muni", label: "Picape MUNI", numeric: true, editable: true },
-    { key: "autoarp", label: "Autoarp", numeric: true, editable: true },
-    { key: "helicoptero", label: "Helicóptero", numeric: true, editable: true },
-    { key: "aviao", label: "Avião", numeric: true, editable: true },
-    { key: "jetski", label: "Jet Ski", numeric: true, editable: true },
-    { key: "total", label: "Total", numeric: true, editable: false },
-  ],
+  recursos: DEFAULT_RECURSOS_COLUMNS,
   occurrences: [
     { key: "data", label: "Data", editable: true },
     { key: "municipio", label: "Município", editable: true },
