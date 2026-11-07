@@ -6,9 +6,10 @@ import autoTable from "jspdf-autotable";
 import type { SheetsData } from "./sheets.types";
 import type { ComparisonResult } from "./comparison";
 import { NF } from "./formatters";
-import { fmtDateBR, fmtDateStamp, filterOccurrencesByDate } from "./report-date";
+import { fmtDateBR, fmtDateStamp, filterOccurrencesByDate, rowMatchesDate } from "./report-date";
 import { CBMAM_LOGO_BASE64 } from "./cbmam-logo";
 import { isIncendio } from "./fire-classification";
+import { EFETIVO_BASES_PADRAO, norm } from "./efetivo-mapas";
 
 export function reportFilename(
   reportDate: Date | null,
@@ -204,41 +205,33 @@ export function buildSheetsPdfDoc(
     (c) => c.numeric && c.key !== "mun" && c.key !== "total" && c.key !== "cbmsp",
   );
 
-  // Cálculo de Grandes Grupos de Efetivo para os Cards
-  const totalCbmam = efetivoList.reduce(
-    (s, r) =>
-      s +
-      num(r.ord) +
-      num(r.cbmam) +
-      num(r.servico) +
-      num(r.opamv) +
-      num(r.opam_ref) +
-      num((r as any).inc1) +
-      num((r as any).inc_1) +
-      num((r as any).inc2) +
-      num((r as any).inc_2) +
-      num((r as any).inc3) +
-      num((r as any).inc_3),
-    0,
-  );
+  // Helpers para cálculo seguro de efetivo por linha sem duplicidade de sinônimos (cbmam, ord, servico)
+  const getRowCbmam = (r: any): number => {
+    const regular = Number(r.cbmam) || Number(r.servico) || Number(r.ord) || Number(r.serv_ord) || 0;
+    const opamv = Number(r.opamv) || 0;
+    const opam_ref = Number(r.opam_ref) || 0;
+    const inc1 = Number(r.inc1 || r.inc_1) || 0;
+    const inc2 = Number(r.inc2 || r.inc_2) || 0;
+    const inc3 = Number(r.inc3 || r.inc_3) || 0;
+    const cbmsp = Number(r.cbmsp) || 0;
+    return regular + opamv + opam_ref + inc1 + inc2 + inc3 + cbmsp;
+  };
 
+  const getRowSeg = (r: any): number => Number(r.seg) || 0;
+  const getRowFn = (r: any): number => Number(r.fn) || 0;
+  const getRowPrev = (r: any): number => Number(r.prevfogo) || 0;
+  const getRowMar = (r: any): number => Number(r.marinha || 0) + Number(r.icmbio || 0);
+  const getRowBrigMun = (r: any): number => Number(r.brig_mun) || 0;
+  const getRowBrigSema = (r: any): number => Number(r.brig_semas || r.brig_sema || 0);
+
+  // Cálculo de Grandes Grupos de Efetivo para os Cards (sem duplicações)
+  const totalCbmam = efetivoList.reduce((s, r) => s + getRowCbmam(r), 0);
   const totalFederais = efetivoList.reduce(
-    (s, r) =>
-      s +
-      num(r.fn) +
-      num(r.prevfogo) +
-      num((r as any).marinha) +
-      num((r as any).icmbio),
+    (s, r) => s + getRowFn(r) + getRowPrev(r) + getRowMar(r),
     0,
   );
-
   const totalBrigadistas = efetivoList.reduce(
-    (s, r) =>
-      s +
-      num(r.brig_mun) +
-      num(r.brig) +
-      num((r as any).brig_semas) +
-      num((r as any).brig_sema),
+    (s, r) => s + getRowBrigMun(r) + getRowBrigSema(r),
     0,
   );
 
@@ -361,63 +354,56 @@ export function buildSheetsPdfDoc(
   });
 
   // --- Painel Direito: Síntese por Missão / Órgão & Território (tableWidth: 262, left: 564) ---
-  const manausEf = efetivoList.find((r) => r.mun?.toLowerCase() === "manaus") ?? { mun: "Manaus" };
-  const interiorEf = efetivoList.filter(
-    (r) =>
-      r.mun?.toLowerCase() !== "manaus" &&
-      !r.mun?.toLowerCase().includes("posto") &&
-      !r.mun?.toLowerCase().includes("base"),
-  );
-  const basesEf = efetivoList.filter(
-    (r) =>
-      r.mun?.toLowerCase().includes("posto") ||
-      r.mun?.toLowerCase().includes("base") ||
-      r.mun?.toLowerCase().includes("km 53"),
-  );
+  const baseNormSet = new Set(EFETIVO_BASES_PADRAO.map((b) => norm(b)));
+  const isBaseRow = (r: any) =>
+    baseNormSet.has(norm(r?.mun)) || /posto|base\b|km\s*53/i.test(r?.mun || "");
+  const isCapitalRow = (r: any) => norm(r?.mun) === "manaus";
 
-  const getColSum = (list: any[], ...keys: string[]) => {
-    return list.reduce((sum, r) => {
-      let sub = 0;
-      for (const k of keys) sub += num(r[k]);
-      return sum + sub;
-    }, 0);
-  };
+  const manausEf = efetivoList.find(isCapitalRow) ?? { mun: "Manaus" };
+  const basesEf = efetivoList.filter(isBaseRow);
+  const interiorEf = efetivoList.filter((r) => !isCapitalRow(r) && !isBaseRow(r));
 
-  const cbmamKeys = ["ord", "cbmam", "servico", "opamv", "opam_ref", "inc1", "inc_1", "inc2", "inc_2", "inc3", "inc_3"];
-  const capCbmam = getColSum([manausEf], ...cbmamKeys);
-  const intCbmam = getColSum(interiorEf, ...cbmamKeys);
-  const basCbmam = getColSum(basesEf, ...cbmamKeys);
+  const sumRows = (list: any[], fn: (r: any) => number) => list.reduce((s, r) => s + fn(r), 0);
+
+  const capCbmam = sumRows([manausEf], getRowCbmam);
+  const intCbmam = sumRows(interiorEf, getRowCbmam);
+  const basCbmam = sumRows(basesEf, getRowCbmam);
   const totCbmamRow = capCbmam + intCbmam + basCbmam;
 
-  const capSeg = num(manausEf.seg);
-  const intSeg = getColSum(interiorEf, "seg");
-  const basSeg = getColSum(basesEf, "seg");
+  const capSeg = sumRows([manausEf], getRowSeg);
+  const intSeg = sumRows(interiorEf, getRowSeg);
+  const basSeg = sumRows(basesEf, getRowSeg);
   const totSegRow = capSeg + intSeg + basSeg;
 
-  const capFn = num(manausEf.fn);
-  const intFn = getColSum(interiorEf, "fn");
-  const basFn = getColSum(basesEf, "fn");
+  const capFn = sumRows([manausEf], getRowFn);
+  const intFn = sumRows(interiorEf, getRowFn);
+  const basFn = sumRows(basesEf, getRowFn);
   const totFnRow = capFn + intFn + basFn;
 
-  const capPrev = num(manausEf.prevfogo);
-  const intPrev = getColSum(interiorEf, "prevfogo");
-  const basPrev = getColSum(basesEf, "prevfogo");
+  const capPrev = sumRows([manausEf], getRowPrev);
+  const intPrev = sumRows(interiorEf, getRowPrev);
+  const basPrev = sumRows(basesEf, getRowPrev);
   const totPrevRow = capPrev + intPrev + basPrev;
 
-  const capMar = getColSum([manausEf], "marinha", "icmbio");
-  const intMar = getColSum(interiorEf, "marinha", "icmbio");
-  const basMar = getColSum(basesEf, "marinha", "icmbio");
+  const capMar = sumRows([manausEf], getRowMar);
+  const intMar = sumRows(interiorEf, getRowMar);
+  const basMar = sumRows(basesEf, getRowMar);
   const totMarRow = capMar + intMar + basMar;
 
-  const capBrigMun = num(manausEf.brig_mun);
-  const intBrigMun = getColSum(interiorEf, "brig_mun");
-  const basBrigMun = getColSum(basesEf, "brig_mun");
+  const capBrigMun = sumRows([manausEf], getRowBrigMun);
+  const intBrigMun = sumRows(interiorEf, getRowBrigMun);
+  const basBrigMun = sumRows(basesEf, getRowBrigMun);
   const totBrigMunRow = capBrigMun + intBrigMun + basBrigMun;
 
-  const capBrigSema = getColSum([manausEf], "brig_semas", "brig_sema");
-  const intBrigSema = getColSum(interiorEf, "brig_semas", "brig_sema");
-  const basBrigSema = getColSum(basesEf, "brig_semas", "brig_sema");
+  const capBrigSema = sumRows([manausEf], getRowBrigSema);
+  const intBrigSema = sumRows(interiorEf, getRowBrigSema);
+  const basBrigSema = sumRows(basesEf, getRowBrigSema);
   const totBrigSemaRow = capBrigSema + intBrigSema + basBrigSema;
+
+  const capTot = capCbmam + capSeg + capFn + capPrev + capMar + capBrigMun + capBrigSema;
+  const intTot = intCbmam + intSeg + intFn + intPrev + intMar + intBrigMun + intBrigSema;
+  const basTot = basCbmam + basSeg + basFn + basPrev + basMar + basBrigMun + basBrigSema;
+  const calculatedGrandTotal = capTot + intTot + basTot;
 
   const perc = (v: number) =>
     grandTotalEfetivo > 0 ? `${((v / grandTotalEfetivo) * 100).toFixed(1)}%` : "0%";
@@ -432,10 +418,10 @@ export function buildSheetsPdfDoc(
     ["Brigadistas SEMA", capBrigSema, intBrigSema, basBrigSema, totBrigSemaRow, perc(totBrigSemaRow)],
     [
       "TOTAL GERAL",
-      capCbmam + capSeg + capFn + capPrev + capMar + capBrigMun + capBrigSema,
-      intCbmam + intSeg + intFn + intPrev + intMar + intBrigMun + intBrigSema,
-      basCbmam + basSeg + basFn + basPrev + basMar + basBrigMun + basBrigSema,
-      grandTotalEfetivo,
+      capTot,
+      intTot,
+      basTot,
+      calculatedGrandTotal || grandTotalEfetivo,
       "100%",
     ],
   ];
@@ -482,10 +468,6 @@ export function buildSheetsPdfDoc(
   });
 
   // Tabela Territorial (Capital vs Interior vs Bases)
-  const capTot = calculateRowTotal(manausEf, fullEfetivoCols);
-  const basTot = basesEf.reduce((s, r) => s + calculateRowTotal(r, fullEfetivoCols), 0);
-  const intTot = grandTotalEfetivo - capTot - basTot;
-
   autoTable(doc, {
     startY: 255,
     margin: { left: 564 },
@@ -511,7 +493,7 @@ export function buildSheetsPdfDoc(
       ["Capital (Manaus)", capTot, perc(capTot)],
       ["Interior (Municípios Polos)", intTot, perc(intTot)],
       ["Bases Temporárias / Postos", basTot, perc(basTot)],
-      ["TOTAL DA FORÇA EMPREGADA", grandTotalEfetivo, "100%"],
+      ["TOTAL DA FORÇA EMPREGADA", calculatedGrandTotal || grandTotalEfetivo, "100%"],
     ],
     styles: { fontSize: 6.5, cellPadding: 2.2, lineColor: BORDER_COLOR, lineWidth: 0.25 },
     alternateRowStyles: { fillColor: BG_LIGHT_ROW },
@@ -577,35 +559,39 @@ export function buildSheetsPdfDoc(
     "ABT", "AT", "ATP", "ATA", "ABF", "ATF", "ABS", "PIPA", "DOSA", "CRS", "AR", "UR", "GSE", "MT", "TA", "EMBARC.", "PIC.FN", "PIC.MUNI", "AUTOARP", "HELIC.", "AVIÃO", "JET SKI", "QUADRIC.", "AEM"
   ];
 
-  const recTotaisCols = recKeys.map((k) => recursosList.reduce((s, r) => s + num(r[k]), 0));
+  const recMap: Record<string, number> = {};
+  for (const k of recKeys) {
+    recMap[k] = recursosList.reduce((s, r) => s + num(r[k]), 0);
+  }
+  const recTotaisCols = recKeys.map((k) => recMap[k] || 0);
   const recGrandTotal = recTotaisCols.reduce((a, b) => a + b, 0);
 
-  // Totais por Categorias de Meios Materiais
+  // Totais por Categorias de Meios Materiais mapeados com precisão
   const totCombate =
-    recTotaisCols[0] + // ABT
-    recTotaisCols[1] + // AT
-    recTotaisCols[2] + // ATP
-    recTotaisCols[3] + // ATA
-    recTotaisCols[4] + // ABF
-    recTotaisCols[5] + // ATF
-    recTotaisCols[7] + // PIPA
-    recTotaisCols[23]; // AEM
+    (recMap["abt"] || 0) +
+    (recMap["at"] || 0) +
+    (recMap["atp"] || 0) +
+    (recMap["ata"] || 0) +
+    (recMap["abf"] || 0) +
+    (recMap["atf"] || 0) +
+    (recMap["pipa"] || 0) +
+    (recMap["aem"] || 0);
 
-  const totAereos = recTotaisCols[19] + recTotaisCols[20]; // Helicópteros + Aviões
-  const totFluviais = recTotaisCols[15] + recTotaisCols[21]; // Embarcações + Jet Skis
+  const totAereos = (recMap["aviao"] || 0) + (recMap["helicoptero"] || 0);
+  const totFluviais = (recMap["embarcacao"] || 0) + (recMap["jetski"] || 0);
   const totApoioResgate =
-    recTotaisCols[6] + // ABS
-    recTotaisCols[8] + // DOSA
-    recTotaisCols[9] + // CRS
-    recTotaisCols[10] + // AR
-    recTotaisCols[11] + // UR
-    recTotaisCols[12] + // GSE
-    recTotaisCols[13] + // MT
-    recTotaisCols[14] + // TA
-    recTotaisCols[16] + // PIC FN
-    recTotaisCols[17] + // PIC MUNI
-    recTotaisCols[18] + // AUTOARP
-    recTotaisCols[22]; // Quadriciclos
+    (recMap["abs"] || 0) +
+    (recMap["crs"] || 0) +
+    (recMap["ar"] || 0) +
+    (recMap["ur"] || 0) +
+    (recMap["gse"] || 0) +
+    (recMap["mt"] || 0) +
+    (recMap["ta"] || 0) +
+    (recMap["dosa"] || 0) +
+    (recMap["autoarp"] || 0) +
+    (recMap["picape_fn"] || 0) +
+    (recMap["picape_muni"] || 0) +
+    (recMap["quadriciclo"] || 0);
 
   // Cards de Recursos (Y: 62)
   drawKpiCards(62, [
@@ -695,14 +681,14 @@ export function buildSheetsPdfDoc(
 
   // --- Painéis da Direita: Resumos Especializados por Tipo de Recurso (tableWidth: 262, left: 564) ---
   const resumoViaturasCombate = [
-    ["ABT - Auto Bomba Tanque", recTotaisCols[0] || 0],
-    ["AT - Auto Tanque", recTotaisCols[1] || 0],
-    ["ATP - Auto Tanque Pesado", recTotaisCols[2] || 0],
-    ["ATA - Auto Tanque Apoio", recTotaisCols[3] || 0],
-    ["ABF - Auto Bomba Florestal", recTotaisCols[4] || 0],
-    ["ATF - Auto Tanque Florestal", recTotaisCols[5] || 0],
-    ["PIPA - Caminhão Tanque Pipa", recTotaisCols[7] || 0],
-    ["AEM - Auto Escada Mecânica", recTotaisCols[24] || 0],
+    ["ABT - Auto Bomba Tanque", recMap["abt"] || 0],
+    ["AT - Auto Tanque", recMap["at"] || 0],
+    ["ATP - Auto Tanque Pesado", recMap["atp"] || 0],
+    ["ATA - Auto Tanque Apoio", recMap["ata"] || 0],
+    ["ABF - Auto Bomba Florestal", recMap["abf"] || 0],
+    ["ATF - Auto Tanque Florestal", recMap["atf"] || 0],
+    ["PIPA - Caminhão Tanque Pipa", recMap["pipa"] || 0],
+    ["AEM - Auto Escada Mecânica", recMap["aem"] || 0],
     ["SUBTOTAL COMBATE A INCÊNDIO", totCombate],
   ];
 
@@ -744,10 +730,10 @@ export function buildSheetsPdfDoc(
   });
 
   const resumoViaturasApoio = [
-    ["ABS / CRS - Busca e Salvamento", (recTotaisCols[6] || 0) + (recTotaisCols[9] || 0)],
-    ["AR / UR / GSE - Resgate e Emergência (inclui 4x4)", (recTotaisCols[10] || 0) + (recTotaisCols[11] || 0) + (recTotaisCols[12] || 0)],
-    ["MT / TA / DOSA / AutoARP - Apoio Logístico", (recTotaisCols[13] || 0) + (recTotaisCols[14] || 0) + (recTotaisCols[8] || 0) + (recTotaisCols[18] || 0)],
-    ["Picapes 4x4 (Força Nacional e Município)", (recTotaisCols[16] || 0) + (recTotaisCols[17] || 0)],
+    ["ABS / CRS - Busca e Salvamento", (recMap["abs"] || 0) + (recMap["crs"] || 0)],
+    ["AR / UR / GSE - Resgate e Emergência (inclui 4x4)", (recMap["ar"] || 0) + (recMap["ur"] || 0) + (recMap["gse"] || 0)],
+    ["MT / TA / DOSA / AutoARP - Apoio Logístico", (recMap["mt"] || 0) + (recMap["ta"] || 0) + (recMap["dosa"] || 0) + (recMap["autoarp"] || 0)],
+    ["Picapes 4x4 (Força Nacional e Município)", (recMap["picape_fn"] || 0) + (recMap["picape_muni"] || 0)],
     ["SUBTOTAL VIATURAS DE APOIO E TÁTICAS", totApoioResgate],
   ];
 
@@ -789,10 +775,10 @@ export function buildSheetsPdfDoc(
   });
 
   const resumoAereosFluviais = [
-    ["Aviões Air Tractor (Flores / Bases)", recTotaisCols[21] || 0],
-    ["Helicópteros Harpia (CIOPAER / CBMAM)", recTotaisCols[20] || 0],
-    ["Embarcações / Lanchas Rápidas", recTotaisCols[15] || 0],
-    ["Jet Skis & Quadriciclos Táticos", (recTotaisCols[22] || 0) + (recTotaisCols[23] || 0)],
+    ["Aviões Air Tractor (Flores / Bases)", recMap["aviao"] || 0],
+    ["Helicópteros Harpia (CIOPAER / CBMAM)", recMap["helicoptero"] || 0],
+    ["Embarcações / Lanchas Rápidas", recMap["embarcacao"] || 0],
+    ["Jet Skis & Quadriciclos Táticos", (recMap["jetski"] || 0) + (recMap["quadriciclo"] || 0)],
     ["TOTAL DE RECURSOS MATERIAIS GERAL", recGrandTotal],
   ];
 
@@ -969,8 +955,8 @@ export function buildSheetsPdfDoc(
       ["TOTAL DO DIA", totDiarioUrb, totDiarioFlor, totDiarioFocos, totDiarioOcorrencias],
     ],
     styles: {
-      fontSize: 5.5,
-      cellPadding: 1.15,
+      fontSize: 5.0,
+      cellPadding: { top: 0.85, bottom: 0.85, left: 1.5, right: 1.5 },
       lineColor: BORDER_COLOR,
       lineWidth: 0.25,
       valign: "middle",
@@ -980,7 +966,7 @@ export function buildSheetsPdfDoc(
       fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b],
       textColor: 255,
       fontStyle: "bold",
-      fontSize: 5.8,
+      fontSize: 5.5,
       halign: "center",
     },
     columnStyles: {
@@ -991,6 +977,13 @@ export function buildSheetsPdfDoc(
       4: { halign: "center", fontStyle: "bold", fillColor: [235, 245, 238] },
     },
   });
+
+  // Formatação segura de área sem estourar colunas
+  const formatArea = (val: number): string => {
+    if (!val || val <= 0) return "0";
+    if (Math.round(val) === val) return NF.format(val);
+    return val.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+  };
 
   // --- Tabela 2: Incêndios Acumulados do Período (Direita: 466 pt, X: 360 pt) ---
   const incAcumBody = incAcumulados.map((r, idx) => {
@@ -1007,7 +1000,7 @@ export function buildSheetsPdfDoc(
       f > 0 ? f : 0,
       foc > 0 ? foc : 0,
       sat > 0 ? sat : 0,
-      area > 0 ? NF.format(area) : 0,
+      area > 0 ? formatArea(area) : 0,
       tot > 0 ? tot : 0,
     ];
   });
@@ -1045,13 +1038,13 @@ export function buildSheetsPdfDoc(
         totAcumFlor,
         totAcumFocos,
         totAcumSat,
-        NF.format(totAcumArea),
+        formatArea(totAcumArea),
         totAcumOcorrencias,
       ],
     ],
     styles: {
-      fontSize: 5.4,
-      cellPadding: 1.15,
+      fontSize: 5.0,
+      cellPadding: { top: 0.85, bottom: 0.85, left: 1.5, right: 2.5 },
       lineColor: BORDER_COLOR,
       lineWidth: 0.25,
       valign: "middle",
@@ -1061,18 +1054,18 @@ export function buildSheetsPdfDoc(
       fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b],
       textColor: 255,
       fontStyle: "bold",
-      fontSize: 5.6,
+      fontSize: 5.5,
       halign: "center",
     },
     columnStyles: {
-      0: { cellWidth: 18, halign: "center" },
+      0: { cellWidth: 16, halign: "center" },
       1: { cellWidth: 90, fontStyle: "bold" },
-      2: { halign: "center" },
-      3: { halign: "center" },
-      4: { halign: "center" },
-      5: { halign: "center" },
-      6: { halign: "right" },
-      7: { halign: "center", fontStyle: "bold", fillColor: [235, 245, 238] },
+      2: { cellWidth: 42, halign: "center" },
+      3: { cellWidth: 46, halign: "center" },
+      4: { cellWidth: 46, halign: "center" },
+      5: { cellWidth: 44, halign: "center" },
+      6: { cellWidth: 114, halign: "right" },
+      7: { cellWidth: 68, halign: "center", fontStyle: "bold", fillColor: [235, 245, 238] },
     },
   });
 
@@ -1082,8 +1075,8 @@ export function buildSheetsPdfDoc(
   const rawOccsToRender = isPeriodRange
     ? (data.occurrences ?? [])
     : (() => {
-        const { rows: filteredOccs } = filterOccurrencesByDate(data.occurrences ?? [], reportDate);
-        return filteredOccs.length > 0 ? filteredOccs : (data.occurrences ?? []);
+        const { rows: filteredOccs, filtered } = filterOccurrencesByDate(data.occurrences ?? [], reportDate);
+        return filtered ? filteredOccs : (data.occurrences ?? []).filter((r) => rowMatchesDate(r.data, reportDate));
       })();
   const occsToRender = rawOccsToRender.filter((occ) => isIncendio(occ.natureza));
 
@@ -1110,7 +1103,7 @@ export function buildSheetsPdfDoc(
 
     autoTable(doc, {
       startY: 65,
-      margin: { left: 16 },
+      margin: { left: 16, right: 16, bottom: 65 },
       tableWidth: 810,
       head: [
         [
@@ -1183,10 +1176,9 @@ export function buildSheetsPdfDoc(
   // ---------------------------------------------------------------------------
   // ASSINATURA OFICIAL DE QUEM ESTÁ LOGADO (OPERADOR DA SALA DE SITUAÇÃO)
   // ---------------------------------------------------------------------------
-  // Assinatura na última página operacional com o nome do militar/usuário logado
+  // Assinatura na última página operacional do documento com o nome do militar/usuário logado
   const totalDocPages = (doc as any).internal.getNumberOfPages();
-  const sigPage = totalDocPages >= 3 ? 3 : totalDocPages;
-  doc.setPage(sigPage);
+  doc.setPage(totalDocPages);
   const sigY = pageH - 42;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);

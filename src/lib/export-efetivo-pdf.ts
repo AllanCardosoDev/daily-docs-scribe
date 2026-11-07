@@ -5,6 +5,7 @@ import { canonicalMunicipio, isNonMunicipioTroop, deduplicateAndOrderMunicipios 
 import { resolveEfetivoColumns, calculateRowTotal } from "./dashboard-columns";
 import { fmtDateBR, fmtDateStamp } from "./report-date";
 import { NF } from "./formatters";
+import { EFETIVO_BASES_PADRAO, norm } from "./efetivo-mapas";
 
 // Cores Institucionais CBMAM 100% Verde
 const BRAND_DARK = { r: 8, g: 46, b: 31 };     // #082e1f - Verde Floresta Amazônica Profundo
@@ -68,34 +69,32 @@ export function buildEfetivoPdfDoc(options: ExportEfetivoPdfOptions): jsPDF {
   const opDate = reportDate ?? new Date();
   const opDateStr = periodoLabel || `${fmtDateBR(opDate)} — 24H`;
 
-  // Cálculos de Grupos
-  const totalCbmam = efetivoList.reduce(
-    (s, r) =>
-      s +
-      num(r.ord) +
-      num(r.cbmam) +
-      num(r.servico) +
-      num(r.opamv) +
-      num(r.opam_ref) +
-      num(r.inc1) +
-      num(r.inc_1) +
-      num(r.inc2) +
-      num(r.inc_2) +
-      num(r.inc3) +
-      num(r.inc_3) +
-      num(r.seg),
-    0,
-  );
+  // Helpers para cálculo seguro de efetivo por linha sem duplicidade de sinônimos (cbmam, ord, servico)
+  const getRowCbmam = (r: any): number => {
+    const regular = Number(r.cbmam) || Number(r.servico) || Number(r.ord) || Number(r.serv_ord) || 0;
+    const opamv = Number(r.opamv) || 0;
+    const opam_ref = Number(r.opam_ref) || 0;
+    const inc1 = Number(r.inc1 || r.inc_1) || 0;
+    const inc2 = Number(r.inc2 || r.inc_2) || 0;
+    const inc3 = Number(r.inc3 || r.inc_3) || 0;
+    const cbmsp = Number(r.cbmsp) || 0;
+    return regular + opamv + opam_ref + inc1 + inc2 + inc3 + cbmsp;
+  };
 
-  const totalFederais = efetivoList.reduce(
-    (s, r) => s + num(r.fn) + num(r.prevfogo) + num(r.marinha) + num(r.icmbio),
-    0,
-  );
+  const getRowSeg = (r: any): number => Number(r.seg) || 0;
+  const getRowFn = (r: any): number => Number(r.fn) || 0;
+  const getRowPrev = (r: any): number => Number(r.prevfogo) || 0;
+  const getRowMar = (r: any): number => Number(r.marinha || 0) + Number(r.icmbio || 0);
+  const getRowBrigMun = (r: any): number => Number(r.brig_mun) || 0;
+  const getRowBrigSema = (r: any): number => Number(r.brig_semas || r.brig_sema || 0);
 
-  const totalBrigadistas = efetivoList.reduce(
-    (s, r) => s + num(r.brig_mun) + num(r.brig) + num(r.brig_semas) + num(r.brig_sema),
-    0,
-  );
+  // Cálculos de Grupos (sem duplicações)
+  const totalCbmam = efetivoList.reduce((s, r) => s + getRowCbmam(r) + getRowSeg(r), 0);
+  const totalFn = efetivoList.reduce((s, r) => s + getRowFn(r), 0);
+  const totalPrevfogo = efetivoList.reduce((s, r) => s + getRowPrev(r), 0);
+  const totalMarinha = efetivoList.reduce((s, r) => s + getRowMar(r), 0);
+  const totalFederais = totalFn + totalPrevfogo + totalMarinha;
+  const totalBrigadistas = efetivoList.reduce((s, r) => s + getRowBrigMun(r) + getRowBrigSema(r), 0);
 
   const grandTotalEfetivo = efetivoList.reduce(
     (s, r) => s + calculateRowTotal(r, fullCols),
@@ -321,49 +320,49 @@ export function buildEfetivoPdfDoc(options: ExportEfetivoPdfOptions): jsPDF {
   // ---------------------------------------------------------------------------
   // PAINEL LATERAL DIREITO (left: 564, tableWidth: 262)
   // ---------------------------------------------------------------------------
-  const manausEf = efetivoList.find((r) => r.mun?.toLowerCase() === "manaus") ?? { mun: "Manaus" };
-  const interiorEf = efetivoList.filter(
-    (r) =>
-      r.mun?.toLowerCase() !== "manaus" &&
-      !r.mun?.toLowerCase().includes("posto") &&
-      !r.mun?.toLowerCase().includes("base"),
-  );
-  const basesEf = efetivoList.filter(
-    (r) =>
-      r.mun?.toLowerCase().includes("posto") ||
-      r.mun?.toLowerCase().includes("base") ||
-      r.mun?.toLowerCase().includes("km 53"),
-  );
+  const baseNormSet = new Set(EFETIVO_BASES_PADRAO.map((b) => norm(b)));
+  const isBaseRow = (r: any) =>
+    baseNormSet.has(norm(r?.mun)) || /posto|base\b|km\s*53/i.test(r?.mun || "");
+  const isCapitalRow = (r: any) => norm(r?.mun) === "manaus";
 
-  const getColSum = (list: any[], ...keys: string[]) => {
-    return list.reduce((acc, row) => {
-      return acc + keys.reduce((s, k) => s + num(row[k]), 0);
-    }, 0);
-  };
+  const manausEf = efetivoList.find(isCapitalRow) ?? { mun: "Manaus" };
+  const basesEf = efetivoList.filter(isBaseRow);
+  const interiorEf = efetivoList.filter((r) => !isCapitalRow(r) && !isBaseRow(r));
+
+  const sumList = (list: any[], fn: (r: any) => number) => list.reduce((s, r) => s + fn(r), 0);
+  const getRowRegularCbmam = (r: any) =>
+    (Number(r.cbmam) || Number(r.servico) || Number(r.ord) || Number(r.serv_ord) || 0) + Number(r.seg || 0);
+  const getRowOpam = (r: any) => Number(r.opamv || 0) + Number(r.opam_ref || 0);
+  const getRowTurmas = (r: any) =>
+    Number(r.inc1 || r.inc_1 || 0) + Number(r.inc2 || r.inc_2 || 0) + Number(r.inc3 || r.inc_3 || 0);
+  const getRowParceiros = (r: any) =>
+    Number(r.fn || 0) + Number(r.prevfogo || 0) + Number(r.marinha || 0) + Number(r.icmbio || 0);
+  const getRowBrig = (r: any) =>
+    Number(r.brig_mun || 0) + Number(r.brig_semas || r.brig_sema || 0);
 
   const getListTotal = (list: any[]) => {
     return list.reduce((s, r) => s + calculateRowTotal(r, fullCols), 0);
   };
 
-  const cbmamCapital = getColSum([manausEf], "ord", "cbmam", "servico", "seg");
-  const cbmamInterior = getColSum(interiorEf, "ord", "cbmam", "servico", "seg");
-  const cbmamBases = getColSum(basesEf, "ord", "cbmam", "servico", "seg");
+  const cbmamCapital = sumList([manausEf], getRowRegularCbmam);
+  const cbmamInterior = sumList(interiorEf, getRowRegularCbmam);
+  const cbmamBases = sumList(basesEf, getRowRegularCbmam);
 
-  const opamCapital = getColSum([manausEf], "opamv", "opam_ref");
-  const opamInterior = getColSum(interiorEf, "opamv", "opam_ref");
-  const opamBases = getColSum(basesEf, "opamv", "opam_ref");
+  const opamCapital = sumList([manausEf], getRowOpam);
+  const opamInterior = sumList(interiorEf, getRowOpam);
+  const opamBases = sumList(basesEf, getRowOpam);
 
-  const turmasCapital = getColSum([manausEf], "inc1", "inc_1", "inc2", "inc_2", "inc3", "inc_3");
-  const turmasInterior = getColSum(interiorEf, "inc1", "inc_1", "inc2", "inc_2", "inc3", "inc_3");
-  const turmasBases = getColSum(basesEf, "inc1", "inc_1", "inc2", "inc_2", "inc3", "inc_3");
+  const turmasCapital = sumList([manausEf], getRowTurmas);
+  const turmasInterior = sumList(interiorEf, getRowTurmas);
+  const turmasBases = sumList(basesEf, getRowTurmas);
 
-  const parceirosCapital = getColSum([manausEf], "fn", "prevfogo", "marinha", "icmbio");
-  const parceirosInterior = getColSum(interiorEf, "fn", "prevfogo", "marinha", "icmbio");
-  const parceirosBases = getColSum(basesEf, "fn", "prevfogo", "marinha", "icmbio");
+  const parceirosCapital = sumList([manausEf], getRowParceiros);
+  const parceirosInterior = sumList(interiorEf, getRowParceiros);
+  const parceirosBases = sumList(basesEf, getRowParceiros);
 
-  const brigCapital = getColSum([manausEf], "brig_mun", "brig", "brig_semas");
-  const brigInterior = getColSum(interiorEf, "brig_mun", "brig", "brig_semas");
-  const brigBases = getColSum(basesEf, "brig_mun", "brig", "brig_semas");
+  const brigCapital = sumList([manausEf], getRowBrig);
+  const brigInterior = sumList(interiorEf, getRowBrig);
+  const brigBases = sumList(basesEf, getRowBrig);
 
   const totalCapital = getListTotal([manausEf]);
   const totalInterior = getListTotal(interiorEf);
@@ -453,9 +452,6 @@ export function buildEfetivoPdfDoc(options: ExportEfetivoPdfOptions): jsPDF {
   const lastTableY = (doc as any).lastAutoTable.finalY + 8;
 
   // Tabela de Tropas Federais & Parceiras
-  const totalFn = efetivoList.reduce((s, r) => s + num(r.fn), 0);
-  const totalPrevfogo = efetivoList.reduce((s, r) => s + num(r.prevfogo), 0);
-  const totalMarinha = efetivoList.reduce((s, r) => s + num(r.marinha) + num(r.icmbio), 0);
   const totalCbmsp = efetivoList.reduce((s, r) => s + num(r.cbmsp), 0);
   const totalBrig = totalBrigadistas;
 
