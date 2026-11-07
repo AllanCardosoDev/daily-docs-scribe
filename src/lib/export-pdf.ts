@@ -566,12 +566,15 @@ export function buildSheetsPdfDoc(
   doc.addPage();
   drawPageHeader(2, "RECURSOS, EQUIPAMENTOS E MATERIAIS EMPREGADOS");
 
-  const recursosList = data.recursos ?? [];
+  const recursosList = (data.recursos ?? []).map((r) => ({
+    ...r,
+    ar: num(r.ar) + num(r.picape_esfron) + num(r.pickup_esfron) + num(r.esfron),
+  }));
   const recKeys = [
-    "abt", "at", "atp", "ata", "abf", "atf", "abs", "pipa", "dosa", "crs", "ar", "ur", "gse", "mt", "ta", "embarcacao", "picape_fn", "picape_muni", "autoarp", "picape_esfron", "helicoptero", "aviao", "jetski", "quadriciclo", "aem"
+    "abt", "at", "atp", "ata", "abf", "atf", "abs", "pipa", "dosa", "crs", "ar", "ur", "gse", "mt", "ta", "embarcacao", "picape_fn", "picape_muni", "autoarp", "helicoptero", "aviao", "jetski", "quadriciclo", "aem"
   ];
   const recLabels = [
-    "ABT", "AT", "ATP", "ATA", "ABF", "ATF", "ABS", "PIPA", "DOSA", "CRS", "AR", "UR", "GSE", "MT", "TA", "EMBARC.", "PIC.FN", "PIC.MUNI", "AUTOARP", "PIC.ESFRON", "HELIC.", "AVIÃO", "JET SKI", "QUADRIC.", "AEM"
+    "ABT", "AT", "ATP", "ATA", "ABF", "ATF", "ABS", "PIPA", "DOSA", "CRS", "AR", "UR", "GSE", "MT", "TA", "EMBARC.", "PIC.FN", "PIC.MUNI", "AUTOARP", "HELIC.", "AVIÃO", "JET SKI", "QUADRIC.", "AEM"
   ];
 
   const recTotaisCols = recKeys.map((k) => recursosList.reduce((s, r) => s + num(r[k]), 0));
@@ -586,10 +589,10 @@ export function buildSheetsPdfDoc(
     recTotaisCols[4] + // ABF
     recTotaisCols[5] + // ATF
     recTotaisCols[7] + // PIPA
-    recTotaisCols[24]; // AEM
+    recTotaisCols[23]; // AEM
 
-  const totAereos = recTotaisCols[20] + recTotaisCols[21]; // Helicópteros + Aviões
-  const totFluviais = recTotaisCols[15] + recTotaisCols[22]; // Embarcações + Jet Skis
+  const totAereos = recTotaisCols[19] + recTotaisCols[20]; // Helicópteros + Aviões
+  const totFluviais = recTotaisCols[15] + recTotaisCols[21]; // Embarcações + Jet Skis
   const totApoioResgate =
     recTotaisCols[6] + // ABS
     recTotaisCols[8] + // DOSA
@@ -602,8 +605,7 @@ export function buildSheetsPdfDoc(
     recTotaisCols[16] + // PIC FN
     recTotaisCols[17] + // PIC MUNI
     recTotaisCols[18] + // AUTOARP
-    recTotaisCols[19] + // PIC ESFRON
-    recTotaisCols[23]; // Quadriciclos
+    recTotaisCols[22]; // Quadriciclos
 
   // Cards de Recursos (Y: 62)
   drawKpiCards(62, [
@@ -743,9 +745,9 @@ export function buildSheetsPdfDoc(
 
   const resumoViaturasApoio = [
     ["ABS / CRS - Busca e Salvamento", (recTotaisCols[6] || 0) + (recTotaisCols[9] || 0)],
-    ["AR / UR / GSE - Resgate e Emergência", (recTotaisCols[10] || 0) + (recTotaisCols[11] || 0) + (recTotaisCols[12] || 0)],
+    ["AR / UR / GSE - Resgate e Emergência (inclui 4x4)", (recTotaisCols[10] || 0) + (recTotaisCols[11] || 0) + (recTotaisCols[12] || 0)],
     ["MT / TA / DOSA / AutoARP - Apoio Logístico", (recTotaisCols[13] || 0) + (recTotaisCols[14] || 0) + (recTotaisCols[8] || 0) + (recTotaisCols[18] || 0)],
-    ["Picapes 4x4 (Força Nacional, Muni, Esfron)", (recTotaisCols[16] || 0) + (recTotaisCols[17] || 0) + (recTotaisCols[19] || 0)],
+    ["Picapes 4x4 (Força Nacional e Município)", (recTotaisCols[16] || 0) + (recTotaisCols[17] || 0)],
     ["SUBTOTAL VIATURAS DE APOIO E TÁTICAS", totApoioResgate],
   ];
 

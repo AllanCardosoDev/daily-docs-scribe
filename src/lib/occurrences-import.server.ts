@@ -374,7 +374,17 @@ export async function processSpreadsheetBuffer(
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/[^a-z0-9]/g, "");
 
-  const header = rawRows[0].map(normKey);
+  // Procura a linha de cabeçalho real (se rawRows[0] tiver menos de 3 colunas válidas, testa as próximas linhas)
+  let headerRowIndex = 0;
+  for (let r = 0; r < Math.min(6, rawRows.length); r++) {
+    const validCells = (rawRows[r] || []).filter((c) => String(c ?? "").trim().length > 1);
+    if (validCells.length >= 3) {
+      headerRowIndex = r;
+      break;
+    }
+  }
+
+  const header = rawRows[headerRowIndex].map(normKey);
   const colIndex = (keys: string[]) => {
     const normalizedKeys = keys.map(normKey);
     // 1. Busca correspondência exata primeiro
@@ -429,8 +439,8 @@ export async function processSpreadsheetBuffer(
   ]);
   const idxAgua = colIndex(["litrosdeagua", "litrosdeaguaestimados", "litrosagua", "litros", "água", "agua"]);
   const idxLat = colIndex(["latitude", "lat"]);
-  const idxLon = colIndex(["longitude", "lon", "lng"]);
-  const idxCoords = colIndex(["coordenadas", "localização", "coordenada"]);
+  const idxLon = colIndex(["longitude", "lon", "lng", "long"]);
+  const idxCoords = colIndex(["coordenadas", "coordenada", "localização", "localizacao", "coords", "latlon", "latlong"]);
   const idxUnidade = colIndex(["filtronomeunidadeservico", "unidade", "batalhão", "batalhao", "cia"]);
   const idxRegiao = colIndex(["regiaoatuacaodescricao", "regiao", "região"]);
   const idxEquipes = colIndex(["membrosequipes", "equipe", "equipes", "efetivo", "guarnição", "guarnicao"]);
@@ -440,7 +450,7 @@ export async function processSpreadsheetBuffer(
   const totalRows = rawRows.length - 1;
   const fireOccurrences: StoredOccurrence[] = [];
 
-  for (let i = 1; i < rawRows.length; i++) {
+  for (let i = headerRowIndex + 1; i < rawRows.length; i++) {
     const row = rawRows[i];
     if (!row || row.length === 0 || row.every((c) => !c)) continue;
 
@@ -562,7 +572,21 @@ export async function processSpreadsheetBuffer(
     if (idxCoords >= 0 && row[idxCoords]) {
       coordenadas = cleanStr(row[idxCoords]);
     } else if (idxLat >= 0 && idxLon >= 0 && row[idxLat] && row[idxLon]) {
-      coordenadas = `${cleanStr(row[idxLat])}, ${cleanStr(row[idxLon])}`;
+      const latVal = cleanStr(row[idxLat]).replace(",", ".");
+      const lonVal = cleanStr(row[idxLon]).replace(",", ".");
+      coordenadas = `${latVal}, ${lonVal}`;
+    }
+
+    if (!coordenadas) {
+      const textBlock = `${rawNarrativa} ${rawRelato} ${endereco}`;
+      const coordMatch = textBlock.match(/(-?\d{1,2}[.,]\d{4,8})\s*[,;\s]\s*(-?\d{1,2}[.,]\d{4,8})/);
+      if (coordMatch) {
+        coordenadas = `${coordMatch[1].replace(",", ".")}, ${coordMatch[2].replace(",", ".")}`;
+      }
+    }
+
+    if (coordenadas) {
+      coordenadas = coordenadas.trim().replace(/;/g, ",");
     }
 
     const protocolo = cleanStr(idxProtocolo >= 0 ? row[idxProtocolo] : "");

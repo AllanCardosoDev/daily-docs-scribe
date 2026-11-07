@@ -33,11 +33,13 @@ interface OccurrenceDetailDialogProps {
 function parseCoordinates(coordStr?: string): { lat: string; lon: string; url: string } | null {
   if (!coordStr || coordStr === "—" || coordStr === "-" || coordStr === "0") return null;
 
+  const clean = coordStr.trim();
+
   // Formato WKT: POINT (-60.0058 -3.0885)
-  const pointMatch = coordStr.match(/POINT\s*\(\s*([-\d.]+)\s+([-\d.]+)\s*\)/i);
+  const pointMatch = clean.match(/POINT\s*\(\s*([-\d.,]+)\s+([-\d.,]+)\s*\)/i);
   if (pointMatch) {
-    const lon = pointMatch[1];
-    const lat = pointMatch[2];
+    const lon = pointMatch[1].replace(",", ".");
+    const lat = pointMatch[2].replace(",", ".");
     return {
       lat,
       lon,
@@ -45,8 +47,20 @@ function parseCoordinates(coordStr?: string): { lat: string; lon: string; url: s
     };
   }
 
-  // Formato lat, lon
-  const latLonMatch = coordStr.match(/([-\d.]+)\s*,\s*([-\d.]+)/);
+  // Formato lat, lon com vírgula ou ponto decimal e separadores comuns
+  const commaDecimalMatch = clean.match(/(-?\d{1,2}[.,]\d{3,8})\s*[,;\s]\s*(-?\d{1,2}[.,]\d{3,8})/);
+  if (commaDecimalMatch) {
+    const lat = commaDecimalMatch[1].replace(",", ".");
+    const lon = commaDecimalMatch[2].replace(",", ".");
+    return {
+      lat,
+      lon,
+      url: `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`,
+    };
+  }
+
+  // Formato padrão lat, lon
+  const latLonMatch = clean.match(/([-\d.]+)\s*,\s*([-\d.]+)/);
   if (latLonMatch) {
     const lat = latLonMatch[1];
     const lon = latLonMatch[2];
@@ -60,7 +74,7 @@ function parseCoordinates(coordStr?: string): { lat: string; lon: string; url: s
   return {
     lat: "",
     lon: "",
-    url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(coordStr)}`,
+    url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(clean)}`,
   };
 }
 

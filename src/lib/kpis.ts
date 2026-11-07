@@ -47,7 +47,6 @@ export function computeKpis(data: SheetsData, isRange?: boolean): Kpi[] {
         "picape_fn",
         "picape_muni",
         "autoarp",
-        "picape_esfron",
         "helicoptero",
         "aviao",
         "jetski",

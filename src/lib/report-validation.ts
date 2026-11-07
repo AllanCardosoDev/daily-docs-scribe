@@ -125,7 +125,7 @@ export function sanitizeSheetsData(data: SheetsData): SheetsData {
   const recursosKeys = [
     "viaturas", "aeronaves", "embarcacoes", "abt", "at", "aem", "atp", "ata", "abf", "ar",
     "ur", "abs", "aca", "atb", "asa", "acp", "atc", "jetski", "embarcacao", "quadriciclo",
-    "autoarp", "picape_fn", "picape_muni", "picape_esfron", "helicoptero", "aviao", "abtf"
+    "autoarp", "picape_fn", "picape_muni", "picape_esfron", "pickup_esfron", "helicoptero", "aviao", "abtf"
   ];
   const incendiosKeys = ["urb", "flor", "focos", "sat", "area", "total_periodo"];
   const occKeys = ["focos", "area", "agua"];
@@ -152,7 +152,17 @@ export function sanitizeSheetsData(data: SheetsData): SheetsData {
       coordSituacao: sanitizeOfficer(data.header?.coordSituacao, "CEL QOBM FERREIRA"),
     },
     efetivo: sanitizeRows(data.efetivo, efetivoKeys),
-    recursos: sanitizeRows(data.recursos, recursosKeys),
+    recursos: sanitizeRows(data.recursos, recursosKeys).map((rec: any) => {
+      const picapeEsfron = sanitizeNumber(rec.picape_esfron) + sanitizeNumber(rec.pickup_esfron) + sanitizeNumber(rec.esfron);
+      const copy = { ...rec };
+      if (picapeEsfron > 0) {
+        copy.ar = sanitizeNumber(copy.ar) + picapeEsfron;
+      }
+      delete copy.picape_esfron;
+      delete copy.pickup_esfron;
+      delete copy.esfron;
+      return copy;
+    }),
     incendios_diario: sanitizeRows(data.incendios_diario, incendiosKeys),
     incendios_acumulado: sanitizeRows(data.incendios_acumulado, incendiosKeys),
     occurrences: sanitizeRows(data.occurrences, occKeys).map((occ: any) => ({

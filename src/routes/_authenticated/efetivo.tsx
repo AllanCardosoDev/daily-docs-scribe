@@ -711,22 +711,23 @@ function EfetivoPage() {
                 </div>
 
                 <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
-                  <table className="w-full text-xs text-left border-collapse">
+                  <table className="w-full min-w-[1170px] text-xs text-left border-collapse table-fixed">
                     <thead className="bg-muted/80 text-[11px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border">
                       <tr>
-                        <th className="p-2.5 pl-3">Município</th>
-                        <th className="p-2.5 text-right font-mono">Serviço OP</th>
-                        <th className="p-2.5 text-right font-mono">OPAMV 26/10</th>
-                        <th className="p-2.5 text-right font-mono">OPAM REF</th>
-                        <th className="p-2.5 text-right font-mono">INC 1 29/10</th>
-                        <th className="p-2.5 text-right font-mono">INC 2 17/11</th>
-                        <th className="p-2.5 text-right font-mono">INC 3 30/10</th>
-                        <th className="p-2.5 text-right font-mono">CBMSP</th>
-                        <th className="p-2.5 text-right font-mono">PREVFOGO</th>
-                        <th className="p-2.5 text-right font-mono">FN</th>
-                        <th className="p-2.5 text-right font-mono">Brig. Mun</th>
-                        <th className="p-2.5 text-right font-mono">Brig. SEMA</th>
-                        <th className="p-2.5 pr-3 text-right font-mono font-extrabold text-foreground bg-muted">
+                        <th className="p-2.5 pl-3 w-[220px]">Município</th>
+                        <th className="p-2.5 text-right font-mono w-[72px]">Serviço OP</th>
+                        <th className="p-2.5 text-right font-mono w-[72px]">OPAMV 26/10</th>
+                        <th className="p-2.5 text-right font-mono w-[72px]">OPAM REF</th>
+                        <th className="p-2.5 text-right font-mono w-[72px]">INC 1 29/10</th>
+                        <th className="p-2.5 text-right font-mono w-[72px]">INC 2 17/11</th>
+                        <th className="p-2.5 text-right font-mono w-[72px]">INC 3 30/10</th>
+                        <th className="p-2.5 text-right font-mono w-[72px]">CBMSP</th>
+                        <th className="p-2.5 text-right font-mono w-[72px]">PREVFOGO</th>
+                        <th className="p-2.5 text-right font-mono w-[72px]">Marinha</th>
+                        <th className="p-2.5 text-right font-mono w-[72px]">FN</th>
+                        <th className="p-2.5 text-right font-mono w-[72px]">Brig. Mun</th>
+                        <th className="p-2.5 text-right font-mono w-[72px]">Brig. SEMA</th>
+                        <th className="p-2.5 pr-3 text-right font-mono font-extrabold text-foreground bg-muted w-[86px]">
                           Total
                         </th>
                       </tr>
@@ -741,135 +742,145 @@ function EfetivoPage() {
                               isCap ? "bg-emerald-50/40 dark:bg-emerald-950/20 font-semibold" : ""
                             }`}
                           >
-                            <td className="p-2.5 pl-3 flex items-center gap-1.5">
+                            <td className="p-2.5 pl-3 flex items-center gap-1.5 w-[220px]">
                               {isCap ? (
                                 <Badge variant="secondary" className="text-[10px] bg-emerald-600 text-white font-bold px-1.5 py-0">
                                   Capital
                                 </Badge>
                               ) : null}
-                              <span className="font-medium text-foreground">{m.nome}</span>
+                              <span className="font-medium text-foreground truncate">{m.nome}</span>
                             </td>
-                            <td className="p-2 text-right font-mono">
+                            <td className="p-2 text-right font-mono w-[72px]">
                               <EditableCell
                                 value={m.serv_ord}
                                 isEditing={isEditing}
                                 onChange={(v) => handleCellChange(m.nome, "serv_ord", v)}
                               />
                             </td>
-                            <td className="p-2 text-right font-mono">
+                            <td className="p-2 text-right font-mono w-[72px]">
                               <EditableCell
                                 value={m.opamv}
                                 isEditing={isEditing}
                                 onChange={(v) => handleCellChange(m.nome, "opamv", v)}
                               />
                             </td>
-                            <td className="p-2 text-right font-mono">
+                            <td className="p-2 text-right font-mono w-[72px]">
                               <EditableCell
                                 value={m.opam_ref}
                                 isEditing={isEditing}
                                 onChange={(v) => handleCellChange(m.nome, "opam_ref", v)}
                               />
                             </td>
-                            <td className="p-2 text-right font-mono">
+                            <td className="p-2 text-right font-mono w-[72px]">
                               <EditableCell
                                 value={m.inc1}
                                 isEditing={isEditing}
                                 onChange={(v) => handleCellChange(m.nome, "inc1", v)}
                               />
                             </td>
-                            <td className="p-2 text-right font-mono">
+                            <td className="p-2 text-right font-mono w-[72px]">
                               <EditableCell
                                 value={m.inc2}
                                 isEditing={isEditing}
                                 onChange={(v) => handleCellChange(m.nome, "inc2", v)}
                               />
                             </td>
-                            <td className="p-2 text-right font-mono">
+                            <td className="p-2 text-right font-mono w-[72px]">
                               <EditableCell
                                 value={m.inc3}
                                 isEditing={isEditing}
                                 onChange={(v) => handleCellChange(m.nome, "inc3", v)}
                               />
                             </td>
-                            <td className="p-2 text-right font-mono">
+                            <td className="p-2 text-right font-mono w-[72px]">
                               <EditableCell
                                 value={m.cbmsp}
                                 isEditing={isEditing}
                                 onChange={(v) => handleCellChange(m.nome, "cbmsp", v)}
                               />
                             </td>
-                            <td className="p-2 text-right font-mono">
+                            <td className="p-2 text-right font-mono w-[72px]">
                               <EditableCell
                                 value={m.prevfogo}
                                 isEditing={isEditing}
                                 onChange={(v) => handleCellChange(m.nome, "prevfogo", v)}
                               />
                             </td>
-                            <td className="p-2 text-right font-mono">
+                            <td className="p-2 text-right font-mono w-[72px]">
+                              <EditableCell
+                                value={m.marinha}
+                                isEditing={isEditing}
+                                onChange={(v) => handleCellChange(m.nome, "marinha", v)}
+                              />
+                            </td>
+                            <td className="p-2 text-right font-mono w-[72px]">
                               <EditableCell
                                 value={m.fn}
                                 isEditing={isEditing}
                                 onChange={(v) => handleCellChange(m.nome, "fn", v)}
                               />
                             </td>
-                            <td className="p-2 text-right font-mono">
+                            <td className="p-2 text-right font-mono w-[72px]">
                               <EditableCell
                                 value={m.brig_mun}
                                 isEditing={isEditing}
                                 onChange={(v) => handleCellChange(m.nome, "brig_mun", v)}
                               />
                             </td>
-                            <td className="p-2 text-right font-mono">
+                            <td className="p-2 text-right font-mono w-[72px]">
                               <EditableCell
                                 value={m.brig_semas}
                                 isEditing={isEditing}
                                 onChange={(v) => handleCellChange(m.nome, "brig_semas", v)}
                               />
                             </td>
-                            <td className="p-2.5 pr-3 text-right font-mono font-bold text-foreground bg-muted/40">
+                            <td className="p-2.5 pr-3 text-right font-mono font-bold text-foreground bg-muted/40 w-[86px]">
                               {m.total}
                             </td>
                           </tr>
                         );
                       })}
                     </tbody>
-                    <tfoot className="bg-muted font-bold text-foreground border-t-2 border-border text-[11px]">
+                    <tfoot className="bg-emerald-950 text-emerald-100 font-extrabold border-t-2 border-emerald-500 text-[11px] shadow-sm">
                       <tr>
-                        <td className="p-2.5 pl-3 uppercase">Total Municípios</td>
-                        <td className="p-2.5 text-right font-mono">
+                        <td className="p-2.5 pl-3 uppercase tracking-wider text-emerald-300 w-[220px]">Total Municípios</td>
+                        <td className="p-2.5 text-right font-mono w-[72px]">
                           {municipios.reduce((s, m) => s + m.serv_ord, 0)}
                         </td>
-                        <td className="p-2.5 text-right font-mono">
+                        <td className="p-2.5 text-right font-mono w-[72px]">
                           {municipios.reduce((s, m) => s + m.opamv, 0)}
                         </td>
-                        <td className="p-2.5 text-right font-mono">
+                        <td className="p-2.5 text-right font-mono w-[72px]">
                           {municipios.reduce((s, m) => s + m.opam_ref, 0)}
                         </td>
-                        <td className="p-2.5 text-right font-mono">
+                        <td className="p-2.5 text-right font-mono w-[72px]">
                           {municipios.reduce((s, m) => s + m.inc1, 0)}
                         </td>
-                        <td className="p-2.5 text-right font-mono">
+                        <td className="p-2.5 text-right font-mono w-[72px]">
                           {municipios.reduce((s, m) => s + m.inc2, 0)}
                         </td>
-                        <td className="p-2.5 text-right font-mono">
+                        <td className="p-2.5 text-right font-mono w-[72px]">
                           {municipios.reduce((s, m) => s + m.inc3, 0)}
                         </td>
-                        <td className="p-2.5 text-right font-mono">
+                        <td className="p-2.5 text-right font-mono w-[72px]">
                           {municipios.reduce((s, m) => s + m.cbmsp, 0)}
                         </td>
-                        <td className="p-2.5 text-right font-mono">
+                        <td className="p-2.5 text-right font-mono w-[72px]">
                           {municipios.reduce((s, m) => s + m.prevfogo, 0)}
                         </td>
-                        <td className="p-2.5 text-right font-mono">
+                        <td className="p-2.5 text-right font-mono w-[72px]">
+                          {municipios.reduce((s, m) => s + m.marinha, 0)}
+                        </td>
+                        <td className="p-2.5 text-right font-mono w-[72px]">
                           {municipios.reduce((s, m) => s + m.fn, 0)}
                         </td>
-                        <td className="p-2.5 text-right font-mono">
+                        <td className="p-2.5 text-right font-mono w-[72px]">
                           {municipios.reduce((s, m) => s + m.brig_mun, 0)}
                         </td>
-                        <td className="p-2.5 text-right font-mono">
+                        <td className="p-2.5 text-right font-mono w-[72px]">
                           {municipios.reduce((s, m) => s + m.brig_semas, 0)}
                         </td>
-                        <td className="p-2.5 pr-3 text-right font-mono font-extrabold text-emerald-700 dark:text-emerald-400 bg-muted">
+                        <td className="p-2.5 pr-3 text-right font-mono font-black text-emerald-200 bg-emerald-900/90 text-xs w-[86px]">
                           {municipios.reduce((s, m) => s + m.total, 0)}
                         </td>
                       </tr>
@@ -895,153 +906,164 @@ function EfetivoPage() {
                 </div>
 
                 <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
-                  <table className="w-full text-xs text-left border-collapse">
+                  <table className="w-full min-w-[1170px] text-xs text-left border-collapse table-fixed">
                     <thead className="bg-muted/80 text-[11px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border">
                       <tr>
-                        <th className="p-2.5 pl-3">Base Temporária</th>
-                        <th className="p-2.5 text-right font-mono">OPAMV 26/10</th>
-                        <th className="p-2.5 text-right font-mono">OPAM REF</th>
-                        <th className="p-2.5 text-right font-mono">INC 1 29/10</th>
-                        <th className="p-2.5 text-right font-mono">INC 2 17/11</th>
-                        <th className="p-2.5 text-right font-mono">INC 3 30/10</th>
-                        <th className="p-2.5 text-right font-mono">CBMSP</th>
-                        <th className="p-2.5 text-right font-mono">PREVFOGO</th>
-                        <th className="p-2.5 text-right font-mono">Marinha</th>
-                        <th className="p-2.5 text-right font-mono">FN</th>
-                        <th className="p-2.5 text-right font-mono">Brig. Mun</th>
-                        <th className="p-2.5 text-right font-mono">Brig. SEMA</th>
-                        <th className="p-2.5 pr-3 text-right font-mono font-extrabold text-foreground bg-muted">
-                          Total Geral
+                        <th className="p-2.5 pl-3 w-[220px]">Base Temporária</th>
+                        <th className="p-2.5 text-right font-mono w-[72px]">Serviço OP</th>
+                        <th className="p-2.5 text-right font-mono w-[72px]">OPAMV 26/10</th>
+                        <th className="p-2.5 text-right font-mono w-[72px]">OPAM REF</th>
+                        <th className="p-2.5 text-right font-mono w-[72px]">INC 1 29/10</th>
+                        <th className="p-2.5 text-right font-mono w-[72px]">INC 2 17/11</th>
+                        <th className="p-2.5 text-right font-mono w-[72px]">INC 3 30/10</th>
+                        <th className="p-2.5 text-right font-mono w-[72px]">CBMSP</th>
+                        <th className="p-2.5 text-right font-mono w-[72px]">PREVFOGO</th>
+                        <th className="p-2.5 text-right font-mono w-[72px]">Marinha</th>
+                        <th className="p-2.5 text-right font-mono w-[72px]">FN</th>
+                        <th className="p-2.5 text-right font-mono w-[72px]">Brig. Mun</th>
+                        <th className="p-2.5 text-right font-mono w-[72px]">Brig. SEMA</th>
+                        <th className="p-2.5 pr-3 text-right font-mono font-extrabold text-foreground bg-muted w-[86px]">
+                          Total
                         </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/60">
                       {bases.map((b) => (
                         <tr key={b.id} className="hover:bg-muted/40 transition-colors">
-                          <td className="p-2.5 pl-3 font-semibold text-foreground flex items-center gap-1.5">
+                          <td className="p-2.5 pl-3 font-semibold text-foreground flex items-center gap-1.5 w-[220px]">
                             <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" />
-                            {b.nome}
+                            <span className="truncate">{b.nome}</span>
                           </td>
-                          <td className="p-2 text-right font-mono">
+                          <td className="p-2 text-right font-mono w-[72px]">
+                            <EditableCell
+                              value={b.serv_ord}
+                              isEditing={isEditing}
+                              onChange={(v) => handleCellChange(b.nome, "serv_ord", v)}
+                            />
+                          </td>
+                          <td className="p-2 text-right font-mono w-[72px]">
                             <EditableCell
                               value={b.opamv}
                               isEditing={isEditing}
                               onChange={(v) => handleCellChange(b.nome, "opamv", v)}
                             />
                           </td>
-                          <td className="p-2 text-right font-mono">
+                          <td className="p-2 text-right font-mono w-[72px]">
                             <EditableCell
                               value={b.opam_ref}
                               isEditing={isEditing}
                               onChange={(v) => handleCellChange(b.nome, "opam_ref", v)}
                             />
                           </td>
-                          <td className="p-2 text-right font-mono">
+                          <td className="p-2 text-right font-mono w-[72px]">
                             <EditableCell
                               value={b.inc1}
                               isEditing={isEditing}
                               onChange={(v) => handleCellChange(b.nome, "inc1", v)}
                             />
                           </td>
-                          <td className="p-2 text-right font-mono">
+                          <td className="p-2 text-right font-mono w-[72px]">
                             <EditableCell
                               value={b.inc2}
                               isEditing={isEditing}
                               onChange={(v) => handleCellChange(b.nome, "inc2", v)}
                             />
                           </td>
-                          <td className="p-2 text-right font-mono">
+                          <td className="p-2 text-right font-mono w-[72px]">
                             <EditableCell
                               value={b.inc3}
                               isEditing={isEditing}
                               onChange={(v) => handleCellChange(b.nome, "inc3", v)}
                             />
                           </td>
-                          <td className="p-2 text-right font-mono">
+                          <td className="p-2 text-right font-mono w-[72px]">
                             <EditableCell
                               value={b.cbmsp}
                               isEditing={isEditing}
                               onChange={(v) => handleCellChange(b.nome, "cbmsp", v)}
                             />
                           </td>
-                          <td className="p-2 text-right font-mono">
+                          <td className="p-2 text-right font-mono w-[72px]">
                             <EditableCell
                               value={b.prevfogo}
                               isEditing={isEditing}
                               onChange={(v) => handleCellChange(b.nome, "prevfogo", v)}
                             />
                           </td>
-                          <td className="p-2 text-right font-mono">
+                          <td className="p-2 text-right font-mono w-[72px]">
                             <EditableCell
                               value={b.marinha}
                               isEditing={isEditing}
                               onChange={(v) => handleCellChange(b.nome, "marinha", v)}
                             />
                           </td>
-                          <td className="p-2 text-right font-mono">
+                          <td className="p-2 text-right font-mono w-[72px]">
                             <EditableCell
                               value={b.fn}
                               isEditing={isEditing}
                               onChange={(v) => handleCellChange(b.nome, "fn", v)}
                             />
                           </td>
-                          <td className="p-2 text-right font-mono">
+                          <td className="p-2 text-right font-mono w-[72px]">
                             <EditableCell
                               value={b.brig_mun}
                               isEditing={isEditing}
                               onChange={(v) => handleCellChange(b.nome, "brig_mun", v)}
                             />
                           </td>
-                          <td className="p-2 text-right font-mono">
+                          <td className="p-2 text-right font-mono w-[72px]">
                             <EditableCell
                               value={b.brig_semas}
                               isEditing={isEditing}
                               onChange={(v) => handleCellChange(b.nome, "brig_semas", v)}
                             />
                           </td>
-                          <td className="p-2.5 pr-3 text-right font-mono font-bold text-foreground bg-muted/40">
+                          <td className="p-2.5 pr-3 text-right font-mono font-bold text-foreground bg-muted/40 w-[86px]">
                             {b.total}
                           </td>
                         </tr>
                       ))}
                     </tbody>
-                    <tfoot className="bg-muted font-bold text-foreground border-t-2 border-border text-[11px]">
+                    <tfoot className="bg-amber-950 text-amber-100 font-extrabold border-t-2 border-amber-500 text-[11px] shadow-sm">
                       <tr>
-                        <td className="p-2.5 pl-3 uppercase">Total Bases Temporárias</td>
-                        <td className="p-2.5 text-right font-mono">
+                        <td className="p-2.5 pl-3 uppercase tracking-wider text-amber-300 w-[220px]">Total Bases Temporárias</td>
+                        <td className="p-2.5 text-right font-mono w-[72px]">
+                          {bases.reduce((s, b) => s + b.serv_ord, 0)}
+                        </td>
+                        <td className="p-2.5 text-right font-mono w-[72px]">
                           {bases.reduce((s, b) => s + b.opamv, 0)}
                         </td>
-                        <td className="p-2.5 text-right font-mono">
+                        <td className="p-2.5 text-right font-mono w-[72px]">
                           {bases.reduce((s, b) => s + b.opam_ref, 0)}
                         </td>
-                        <td className="p-2.5 text-right font-mono">
+                        <td className="p-2.5 text-right font-mono w-[72px]">
                           {bases.reduce((s, b) => s + b.inc1, 0)}
                         </td>
-                        <td className="p-2.5 text-right font-mono">
+                        <td className="p-2.5 text-right font-mono w-[72px]">
                           {bases.reduce((s, b) => s + b.inc2, 0)}
                         </td>
-                        <td className="p-2.5 text-right font-mono">
+                        <td className="p-2.5 text-right font-mono w-[72px]">
                           {bases.reduce((s, b) => s + b.inc3, 0)}
                         </td>
-                        <td className="p-2.5 text-right font-mono">
+                        <td className="p-2.5 text-right font-mono w-[72px]">
                           {bases.reduce((s, b) => s + b.cbmsp, 0)}
                         </td>
-                        <td className="p-2.5 text-right font-mono">
+                        <td className="p-2.5 text-right font-mono w-[72px]">
                           {bases.reduce((s, b) => s + b.prevfogo, 0)}
                         </td>
-                        <td className="p-2.5 text-right font-mono">
+                        <td className="p-2.5 text-right font-mono w-[72px]">
                           {bases.reduce((s, b) => s + b.marinha, 0)}
                         </td>
-                        <td className="p-2.5 text-right font-mono">
+                        <td className="p-2.5 text-right font-mono w-[72px]">
                           {bases.reduce((s, b) => s + b.fn, 0)}
                         </td>
-                        <td className="p-2.5 text-right font-mono">
+                        <td className="p-2.5 text-right font-mono w-[72px]">
                           {bases.reduce((s, b) => s + b.brig_mun, 0)}
                         </td>
-                        <td className="p-2.5 text-right font-mono">
+                        <td className="p-2.5 text-right font-mono w-[72px]">
                           {bases.reduce((s, b) => s + b.brig_semas, 0)}
                         </td>
-                        <td className="p-2.5 pr-3 text-right font-mono font-extrabold text-orange-600 dark:text-orange-400 bg-muted">
+                        <td className="p-2.5 pr-3 text-right font-mono font-black text-amber-200 bg-amber-900/90 text-xs w-[86px]">
                           {bases.reduce((s, b) => s + b.total, 0)}
                         </td>
                       </tr>
@@ -1101,19 +1123,19 @@ function EfetivoPage() {
                           </tr>
                         ))}
                       </tbody>
-                      <tfoot className="bg-muted font-bold text-foreground border-t-2 border-border text-[11px]">
+                      <tfoot className="bg-slate-900 text-white font-extrabold border-t-2 border-emerald-500 text-[11px] shadow-sm">
                         <tr>
-                          <td className="p-2.5 pl-3 uppercase">Total Geral Integrado</td>
-                          <td className="p-2.5 text-right font-mono text-emerald-700 dark:text-emerald-400 text-sm font-bold">
+                          <td className="p-2.5 pl-3 uppercase tracking-wider text-emerald-300">Total Geral Integrado</td>
+                          <td className="p-2.5 text-right font-mono text-emerald-300 text-sm font-bold">
                             {totals.capital}
                           </td>
-                          <td className="p-2.5 text-right font-mono text-amber-700 dark:text-amber-400 text-sm">
+                          <td className="p-2.5 text-right font-mono text-amber-300 text-sm font-bold">
                             {totals.interior}
                           </td>
-                          <td className="p-2.5 text-right font-mono text-emerald-700 dark:text-emerald-400 text-sm font-extrabold">
+                          <td className="p-2.5 text-right font-mono text-emerald-300 text-sm font-black bg-emerald-950/90">
                             {totals.totalGeral}
                           </td>
-                          <td className="p-2.5 pr-3 text-right font-mono text-foreground font-extrabold">
+                          <td className="p-2.5 pr-3 text-right font-mono text-white font-black bg-slate-950">
                             100.0%
                           </td>
                         </tr>

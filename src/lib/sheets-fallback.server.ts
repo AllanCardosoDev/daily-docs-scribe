@@ -34,7 +34,9 @@ const RECURSOS_ALIASES: Record<string, string> = {
   autoarp: "autoarp",
   picape_fn: "picape_fn",
   picape_muni: "picape_muni",
-  picape_esfron: "picape_esfron",
+  picape_esfron: "ar",
+  pickup_esfron: "ar",
+  esfron: "ar",
   helicoptero: "helicoptero",
   aviao: "aviao",
   abtf: "abtf",
@@ -75,7 +77,6 @@ export const RECURSOS_COLUMNS_KEYS = [
   "picape_fn",
   "picape_muni",
   "autoarp",
-  "picape_esfron",
   "helicoptero",
   "aviao",
   "jetski",
@@ -89,6 +90,8 @@ export function createDefaultRecursosRow(
   for (const k of RECURSOS_COLUMNS_KEYS) {
     row[k] = num(initial[k]);
   }
+  // Junta ESFRON em AR
+  row.ar = num(row.ar) + num(initial.picape_esfron) + num(initial.pickup_esfron) + num(initial.esfron);
   return row as { mun: string } & Record<string, any>;
 }
 

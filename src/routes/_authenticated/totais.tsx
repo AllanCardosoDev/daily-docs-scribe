@@ -83,6 +83,14 @@ type AnyRow = Record<string, any>;
 
 function getItemVal(item: AnyRow | undefined, key: string): number {
   if (!item) return 0;
+  if (key === "ar") {
+    return (
+      (Number(item.ar) || 0) +
+      (Number(item.picape_esfron) || 0) +
+      (Number(item.pickup_esfron) || 0) +
+      (Number(item.esfron) || 0)
+    );
+  }
   if (item[key] !== undefined && item[key] !== null) return Number(item[key]) || 0;
   const normTarget = key
     .normalize("NFD")
@@ -202,7 +210,6 @@ const RECURSOS_AGG_KEYS = [
   "picape_fn",
   "picape_muni",
   "autoarp",
-  "picape_esfron",
   "helicoptero",
   "aviao",
   "jetski",
