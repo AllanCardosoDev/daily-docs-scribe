@@ -53,14 +53,26 @@ export function buildDailySheetsData(
   shift: ReportShift,
   row: DailyRowLike | null | undefined,
   accumulated?: Array<{ incendios?: any[] | null }> | null,
+  operadorName?: string,
 ): SheetsData {
+  let notesHeader: any = {};
+  try {
+    if (typeof row?.notes === "string" && row.notes.startsWith("{")) {
+      notesHeader = JSON.parse(row.notes).header || {};
+    }
+  } catch {}
+
+  const operador = (operadorName || notesHeader.operador || notesHeader.responsavel || "").trim();
+
   return sanitizeSheetsData({
     header: {
       titulo: `RELATÓRIO DIÁRIO — ${SHIFT_TAB[shift].toUpperCase()}`,
       periodo: SHIFT_LABEL[shift],
-      comandanteGeral: "CEL QOBM MUNIZ",
-      subcomandante: "CEL QOBM BORGES",
-      coordSituacao: "CEL QOBM FERREIRA",
+      comandanteGeral: notesHeader.comandanteGeral || "CEL QOBM MUNIZ",
+      subcomandante: notesHeader.subcomandante || notesHeader.comandante || "CEL QOBM BORGES",
+      coordSituacao: notesHeader.coordSituacao || "CEL QOBM FERREIRA",
+      operador: operador || undefined,
+      responsavel: operador || undefined,
     },
     efetivo: (row?.efetivo ?? []) as SheetsData["efetivo"],
     recursos: (row?.recursos ?? []) as SheetsData["recursos"],
@@ -83,8 +95,9 @@ export function exportDailyPdf(opts: {
   row: DailyRowLike | null | undefined;
   accumulated?: Array<{ incendios?: any[] | null }> | null;
   quality?: PdfQuality;
+  operadorName?: string;
 }) {
-  const data = buildDailySheetsData(opts.date, opts.shift, opts.row, opts.accumulated);
+  const data = buildDailySheetsData(opts.date, opts.shift, opts.row, opts.accumulated, opts.operadorName);
   const doc = buildSheetsPdfDoc(data, isoToLocalDate(opts.date), opts.quality ?? "high");
   doc.save(`${baseName(opts.date, opts.shift, !!opts.accumulated)}.pdf`);
 }
@@ -94,8 +107,9 @@ export function exportDailyXlsx(opts: {
   shift: ReportShift;
   row: DailyRowLike | null | undefined;
   accumulated?: Array<{ incendios?: any[] | null }> | null;
+  operadorName?: string;
 }) {
-  const data = buildDailySheetsData(opts.date, opts.shift, opts.row, opts.accumulated);
+  const data = buildDailySheetsData(opts.date, opts.shift, opts.row, opts.accumulated, opts.operadorName);
   exportSheetsToXlsx(
     data,
     isoToLocalDate(opts.date),

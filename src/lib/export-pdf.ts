@@ -1183,8 +1183,10 @@ export function buildSheetsPdfDoc(
   // ---------------------------------------------------------------------------
   // ASSINATURA OFICIAL DE QUEM ESTÁ LOGADO (OPERADOR DA SALA DE SITUAÇÃO)
   // ---------------------------------------------------------------------------
-  // Assinatura na Página 3 (ou na última página) com o nome do militar/usuário logado
-  doc.setPage(3);
+  // Assinatura na última página operacional com o nome do militar/usuário logado
+  const totalDocPages = (doc as any).internal.getNumberOfPages();
+  const sigPage = totalDocPages >= 3 ? 3 : totalDocPages;
+  doc.setPage(sigPage);
   const sigY = pageH - 42;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);

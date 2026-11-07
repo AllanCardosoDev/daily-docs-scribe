@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { listDailyReports } from "@/lib/daily-reports.functions";
 import { exportDailyPdf, exportDailyXlsx, type DailyRowLike } from "@/lib/daily-export";
 import { SHIFT_LABEL, type ReportShift } from "@/lib/report-shift";
+import { useAuthProfile } from "@/hooks/use-auth-session";
 
 /**
  * Bloco final da aba de registro: gera o relatório oficial do dia/turno
@@ -21,6 +22,8 @@ export function DailyReportExportCard(props: {
   const { date, shift, row } = props;
   const [loadingAcc, setLoadingAcc] = useState(false);
   const listFn = useServerFn(listDailyReports);
+  const profileQuery = useAuthProfile();
+  const operadorName = profileQuery.data?.displayName;
 
   const hasData =
     !!row &&
@@ -51,7 +54,7 @@ export function DailyReportExportCard(props: {
     try {
       const res = await accQuery.refetch();
       const accumulated = (res.data ?? []) as Array<{ incendios?: any[] | null }>;
-      const opts = { date, shift, row, accumulated };
+      const opts = { date, shift, row, accumulated, operadorName };
       if (kind === "pdf") exportDailyPdf(opts);
       else exportDailyXlsx(opts);
       toast.success("Relatório completo gerado.");
@@ -85,7 +88,7 @@ export function DailyReportExportCard(props: {
               variant="outline"
               size="sm"
               className="gap-2"
-              onClick={() => guard() && exportDailyPdf({ date, shift, row })}
+              onClick={() => guard() && exportDailyPdf({ date, shift, row, operadorName })}
             >
               <FileText className="w-4 h-4" /> PDF do dia
             </Button>
@@ -93,7 +96,7 @@ export function DailyReportExportCard(props: {
               variant="outline"
               size="sm"
               className="gap-2"
-              onClick={() => guard() && exportDailyXlsx({ date, shift, row })}
+              onClick={() => guard() && exportDailyXlsx({ date, shift, row, operadorName })}
             >
               <FileSpreadsheet className="w-4 h-4" /> Excel do dia
             </Button>
