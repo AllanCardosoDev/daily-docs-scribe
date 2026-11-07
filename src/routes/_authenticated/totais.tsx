@@ -654,13 +654,46 @@ function TotaisPage() {
     };
   }, [incendiosFull]);
 
+  const targetRows = !isAnnualComparison ? rows : rowsComp2;
+  const latestRow = targetRows.length > 0 ? targetRows[targetRows.length - 1] : null;
+
+  const formattedActivePeriod = useMemo(() => {
+    if (isAnnualComparison) {
+      return `Comparativo ${compYear1} vs ${compYear2} (${MONTH_NAMES[compStartMonth]} a ${MONTH_NAMES[compEndMonth]})`;
+    }
+    if (scope !== "periodo") return "Consolidado Geral (Histórico Completo)";
+    if (from === to) {
+      return `Dia ${fmtDateBR(new Date(from + "T12:00:00Z"))} (Diário)`;
+    }
+    return `${fmtDateBR(new Date(from + "T12:00:00Z"))} a ${fmtDateBR(new Date(to + "T12:00:00Z"))}`;
+  }, [isAnnualComparison, scope, from, to, compYear1, compYear2, compStartMonth, compEndMonth]);
+
+  const latestDayStats = useMemo(() => {
+    if (!latestRow?.report_date) return null;
+    const incList = Array.isArray(latestRow.incendios) ? latestRow.incendios : [];
+    const urb = incList.reduce((s: number, r: any) => s + (Number(r.urb) || 0), 0);
+    const flor = incList.reduce((s: number, r: any) => s + (Number(r.flor) || 0), 0);
+    const focos = incList.reduce(
+      (s: number, r: any) => s + (Number(r.focos) || Number(r.focos_combatidos) || Number(r.sat) || 0),
+      0
+    );
+    const efList = Array.isArray(latestRow.efetivo) ? latestRow.efetivo : [];
+    const efTotal = sumAllEfetivo(efList);
+    return {
+      date: latestRow.report_date,
+      dateLabel: fmtDateBR(new Date(latestRow.report_date + "T12:00:00Z")),
+      shift: latestRow.shift,
+      urb,
+      flor,
+      totalIncendios: urb + flor,
+      focos,
+      efetivo: efTotal,
+    };
+  }, [latestRow]);
+
   // Gerador de Resumo para WhatsApp / Boletim Informativo
   const copyWhatsAppSummary = () => {
-    const periodoStr = !isAnnualComparison
-      ? scope === "periodo"
-        ? `${from} a ${to}`
-        : "Geral (Histórico Completo)"
-      : `Comparativo ${compYear1} vs ${compYear2} (${MONTH_NAMES[compStartMonth]} a ${MONTH_NAMES[compEndMonth]})`;
+    const periodoStr = formattedActivePeriod;
       
     const sourceList = !isAnnualComparison ? incendiosFull : incendiosComp2;
     const topIncendios = ([...sourceList] as Array<Record<string, any>>)
@@ -713,14 +746,7 @@ ${topIncendios || "  Nenhum registro no período."}
 
   const handleExportRelatorioCompletoAmv = async () => {
     try {
-      const periodLabel = !isAnnualComparison
-        ? scope === "periodo"
-          ? `${fmtDateBR(new Date(from + "T12:00:00Z"))} a ${fmtDateBR(new Date(to + "T12:00:00Z"))}`
-          : "Período Geral Consolidado"
-        : `Comparativo ${compYear1} vs ${compYear2} (${MONTH_NAMES[compStartMonth]} a ${MONTH_NAMES[compEndMonth]})`;
-
-      const targetRows = !isAnnualComparison ? rows : rowsComp2;
-      const latestRow = targetRows.length > 0 ? targetRows[targetRows.length - 1] : null;
+      const periodLabel = formattedActivePeriod;
       const dataDiariaLabel = latestRow?.report_date
         ? fmtDateBR(new Date(latestRow.report_date + "T12:00:00Z"))
         : (to ? fmtDateBR(new Date(to + "T12:00:00Z")) : "Último Registro");
@@ -981,16 +1007,92 @@ ${topIncendios || "  Nenhum registro no período."}
         {/* ------------------------------------------------------------- */}
         {!isAnnualComparison ? (
           <>
-            {/* KPIs gerais */}
-            <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <Kpi label="Incêndios (total)" value={totals.incendios} />
-              <Kpi label="Focos de Queimada" value={totals.focos} />
-              <Kpi label="Efetivo empenhado" value={totals.efetivo} />
+            {/* Banner de Destaque Oficial: Dados do Período / Dia Pré-escolhido */}
+            <section className="rounded-2xl bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-950 border-2 border-emerald-500/70 p-4 sm:p-5 text-white shadow-xl">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-11 h-11 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center justify-center font-bold shadow-inner shrink-0">
+                    <Calendar className="w-5 h-5 text-emerald-400" />
+                  </div>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[11px] font-black uppercase tracking-wider text-emerald-400">
+                        Dados em Destaque · Período Pré-escolhido
+                      </span>
+                      <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/25 text-emerald-300 border border-emerald-500/40">
+                        {rows.length} {rows.length === 1 ? "Dia Operacional" : "Dias Computados"}
+                      </span>
+                      {shift !== "ambos" && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                          {SHIFT_TAB[shift]}
+                        </span>
+                      )}
+                    </div>
+                    <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white mt-1">
+                      {formattedActivePeriod}
+                    </h2>
+                  </div>
+                </div>
+
+                {latestDayStats && (
+                  <div className="flex items-center gap-3 bg-slate-900/90 border border-emerald-500/40 px-4 py-2.5 rounded-xl self-start md:self-auto shadow-md">
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                    <div>
+                      <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
+                        Fechamento do Dia ({latestDayStats.dateLabel})
+                      </div>
+                      <div className="text-xs sm:text-sm font-extrabold text-emerald-300">
+                        {NF.format(latestDayStats.totalIncendios)} incêndios · {NF.format(latestDayStats.focos)} focos · {NF.format(latestDayStats.efetivo)} militares
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* KPIs gerais em Alto Destaque */}
+            <section className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+              <Kpi
+                label="Incêndios (Total do Período)"
+                value={totals.incendios}
+                variant="red"
+                icon={Flame}
+                badge={`${incendiosStats.munsAfetados} municípios`}
+                subtext={
+                  latestDayStats
+                    ? `Fechamento ${latestDayStats.dateLabel}: ${NF.format(latestDayStats.totalIncendios)} ocorrência(s)`
+                    : "Total de ocorrências registradas"
+                }
+              />
+              <Kpi
+                label="Focos de Queimada"
+                value={totals.focos}
+                variant="amber"
+                icon={Target}
+                badge="Combate in loco"
+                subtext={
+                  latestDayStats
+                    ? `Fechamento ${latestDayStats.dateLabel}: ${NF.format(latestDayStats.focos)} focos`
+                    : "Focos combatidos e atendidos"
+                }
+              />
+              <Kpi
+                label="Efetivo Empenhado"
+                value={totals.efetivo}
+                variant="emerald"
+                icon={Shield}
+                badge="Força CBMAM"
+                subtext={
+                  latestDayStats
+                    ? `Fechamento ${latestDayStats.dateLabel}: ${NF.format(latestDayStats.efetivo)} operacionais`
+                    : "Efetivo mobilizado no período"
+                }
+              />
             </section>
 
             {/* Quadro 1: Painel Executivo de Incêndios (Florestal e Urbano) */}
             <section className="rounded-2xl bg-card border border-border p-4 sm:p-5 shadow-elevated space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-border/60">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/60">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-lg bg-red-500/10 text-red-600 flex items-center justify-center font-bold">
                     <Flame className="w-4 h-4" />
@@ -1007,8 +1109,19 @@ ${topIncendios || "  Nenhum registro no período."}
                     </p>
                   </div>
                 </div>
-                <div className="text-xs text-muted-foreground font-medium bg-muted/60 px-3 py-1 rounded-md self-start sm:self-auto">
-                  📅 {scope === "periodo" ? `${from} a ${to}` : "Geral (Histórico Completo)"}
+
+                {/* Selo em Alto Destaque do Período / Dia Pré-escolhido (Substitui badge discreto) */}
+                <div className="inline-flex flex-wrap items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-950 border-2 border-emerald-500/80 shadow-md text-white self-start sm:self-auto">
+                  <div className="flex items-center gap-1.5 text-emerald-400 font-bold text-xs uppercase tracking-wider">
+                    <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Período Ativo:</span>
+                  </div>
+                  <span className="font-extrabold text-xs sm:text-sm text-emerald-200 tracking-tight">
+                    {formattedActivePeriod}
+                  </span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/25 text-emerald-300 border border-emerald-500/40">
+                    {rows.length} {rows.length === 1 ? "registro diário" : "dias"}
+                  </span>
                 </div>
               </div>
 
@@ -1961,15 +2074,76 @@ function AnnualReportsCard({
   );
 }
 
-function Kpi({ label, value }: { label: string; value: number }) {
+function Kpi({
+  label,
+  value,
+  icon: Icon,
+  variant = "default",
+  subtext,
+  badge,
+}: {
+  label: string;
+  value: number;
+  icon?: any;
+  variant?: "default" | "red" | "amber" | "emerald";
+  subtext?: string;
+  badge?: string;
+}) {
+  const borderCls =
+    variant === "red"
+      ? "border-red-500/40 hover:border-red-500/60 bg-gradient-to-br from-card via-card to-red-500/[0.05]"
+      : variant === "amber"
+      ? "border-amber-500/40 hover:border-amber-500/60 bg-gradient-to-br from-card via-card to-amber-500/[0.05]"
+      : variant === "emerald"
+      ? "border-emerald-500/40 hover:border-emerald-500/60 bg-gradient-to-br from-card via-card to-emerald-500/[0.05]"
+      : "border-border";
+
+  const iconCls =
+    variant === "red"
+      ? "bg-red-500/15 text-red-600 dark:text-red-400"
+      : variant === "amber"
+      ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+      : variant === "emerald"
+      ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+      : "bg-primary/10 text-primary";
+
+  const textValCls =
+    variant === "red"
+      ? "text-red-600 dark:text-red-400"
+      : variant === "amber"
+      ? "text-amber-600 dark:text-amber-400"
+      : variant === "emerald"
+      ? "text-emerald-600 dark:text-emerald-400"
+      : "text-foreground";
+
   return (
-    <div className="rounded-xl bg-card shadow-elevated p-4">
-      <div className="text-[11px] sm:text-xs uppercase tracking-widest text-muted-foreground">
-        {label}
+    <div className={`rounded-2xl bg-card border shadow-elevated p-4 sm:p-5 transition-all ${borderCls}`}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-muted-foreground truncate">
+            {label}
+          </div>
+          <div className={`text-2xl sm:text-3xl font-extrabold mt-1 tabular-nums tracking-tight ${textValCls}`}>
+            {value.toLocaleString("pt-BR")}
+          </div>
+        </div>
+        {Icon && (
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${iconCls}`}>
+            <Icon className="w-5 h-5" />
+          </div>
+        )}
       </div>
-      <div className="text-xl sm:text-2xl font-bold mt-1 tabular-nums">
-        {value.toLocaleString("pt-BR")}
-      </div>
+
+      {(subtext || badge) && (
+        <div className="mt-3 pt-2.5 border-t border-border/50 flex items-center justify-between text-xs text-muted-foreground gap-2">
+          {subtext && <span className="truncate">{subtext}</span>}
+          {badge && (
+            <span className="font-semibold px-2 py-0.5 rounded-full text-[10px] bg-muted/80 text-foreground border border-border/50 shrink-0">
+              {badge}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
