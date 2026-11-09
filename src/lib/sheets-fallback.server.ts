@@ -115,8 +115,9 @@ function normaliseRecursos(
   });
 }
 
-import { compareMunicipios, canonicalMunicipio, harmonizeMunicipalitySections, isNonMunicipioTroop } from "./municipio-order";
+import { compareMunicipios, canonicalMunicipio, harmonizeMunicipalitySections, isNonMunicipioTroop, isManaus } from "./municipio-order";
 import { isFlorestalAmbiental, isIncendio } from "./fire-classification";
+import { BENCHMARK_BASES_1533, norm } from "./efetivo-mapas";
 
 export const OFFICIAL_CUMULATIVE_04_08_2026 = [
   { mun: "Manaus", urb: 267, flor: 178, focos: 338, sat: 5, area: 37546 },
@@ -198,12 +199,19 @@ export function ensureAllMunicipios<T extends { mun: string }>(
   existingRows: T[],
   defaultFactory: (mun: string) => T,
 ): T[] {
+  const baseRows = existingRows.filter(
+    (r) => (r as any)?.tipo === "base" || (r as any)?.mun === "Autazes Posto Km 53"
+  );
+  const muniRows = existingRows.filter(
+    (r) => (r as any)?.tipo !== "base" && (r as any)?.mun !== "Autazes Posto Km 53"
+  );
+
   const map = new Map<string, T>();
   for (const m of STANDARD_OPERATIONAL_MUNICIPIOS) {
     const canonical = canonicalMunicipio(m);
     map.set(canonical.toLowerCase(), defaultFactory(canonical));
   }
-  for (const row of existingRows) {
+  for (const row of muniRows) {
     const rawMun = row?.mun ?? (row as any)?.municipio;
     if (!rawMun || isNonMunicipioTroop(rawMun)) continue;
     const canonical = canonicalMunicipio(rawMun);
@@ -211,7 +219,8 @@ export function ensureAllMunicipios<T extends { mun: string }>(
     const existing = map.get(canonical.toLowerCase()) ?? defaultFactory(canonical);
     map.set(canonical.toLowerCase(), { ...existing, ...row, mun: canonical });
   }
-  return Array.from(map.values()).sort((a, b) => compareMunicipios(a.mun, b.mun));
+  const sortedMunis = Array.from(map.values()).sort((a, b) => compareMunicipios(a.mun, b.mun));
+  return [...sortedMunis, ...baseRows];
 }
 
 export async function fetchIncendiosAcumulado(
@@ -315,27 +324,56 @@ function consolidateAndCanonicalizeRows<T extends Record<string, any>>(
   for (const r of rows) {
     const rawMun = r.mun ?? r.municipio;
     if (!rawMun || isNonMunicipioTroop(rawMun)) continue;
-    const mun = canonicalMunicipio(rawMun);
-    const existing = map.get(mun);
+    const isBase =
+      (r as any).tipo === "base" ||
+      norm(rawMun) === "autazes posto km 53" ||
+      norm(rawMun) === "posto km 53";
+    const mun = isBase && norm(rawMun).includes("km 53") ? "Autazes Posto Km 53" : canonicalMunicipio(rawMun);
+    const mapKey = isBase ? `base:${norm(mun)}` : `muni:${norm(mun)}`;
+    const existing = map.get(mapKey);
     if (!existing) {
-      const copy: any = { ...r, mun };
+      const copy: any = { ...r, mun, ...(isBase ? { tipo: "base" } : {}) };
       for (const [k, v] of Object.entries(r)) {
-        if (k !== "mun" && k !== "municipio" && typeof v !== "object") {
-          copy[k] = num(v);
+        if (
+          k !== "mun" &&
+          k !== "municipio" &&
+          k !== "tipo" &&
+          k !== "_custom" &&
+          k !== "id" &&
+          typeof v !== "object"
+        ) {
+          if (numericKeys.includes(k) || (!isNaN(Number(v)) && typeof v !== "boolean")) {
+            copy[k] = num(v);
+          }
         }
       }
       for (const k of numericKeys) {
         if (copy[k] === undefined) copy[k] = 0;
       }
-      map.set(mun, copy);
+      map.set(mapKey, copy);
     } else {
       for (const [k, v] of Object.entries(r)) {
-        if (k === "mun" || k === "municipio" || typeof v === "object") continue;
+        if (
+          k === "mun" ||
+          k === "municipio" ||
+          k === "tipo" ||
+          k === "_custom" ||
+          k === "id" ||
+          typeof v === "object"
+        ) {
+          continue;
+        }
         (existing as any)[k] = num((existing as any)[k]) + num(v);
       }
     }
   }
-  return Array.from(map.values()).sort((a, b) => compareMunicipios(a.mun, b.mun));
+  return Array.from(map.values()).sort((a, b) => {
+    const aBase = (a as any).tipo === "base";
+    const bBase = (b as any).tipo === "base";
+    if (aBase && !bBase) return 1;
+    if (!aBase && bBase) return -1;
+    return compareMunicipios(a.mun, b.mun);
+  });
 }
 
 /**
@@ -517,24 +555,72 @@ export async function loadReportByDate(
   const rawEfetivo: Array<{ mun: string } & Record<string, any>> = rawEfetivoRows
     .filter((r) => !isNonMunicipioTroop(r?.mun ?? r?.municipio))
     .map((r: any) => {
-    const mun = canonicalMunicipio(r.mun ?? r.municipio);
-    const isItapiranga = mun.toLowerCase().includes("itapiranga");
-    const valCbmam = num(r.cbmam ?? r.ord ?? r.servico);
-    const copy: { mun: string } & Record<string, any> = { ...r, mun };
-    for (const [k, v] of Object.entries(r)) {
-      if (k !== "mun" && k !== "municipio" && typeof v !== "object") {
-        copy[k] = num(v);
+      const rawMun = r.mun ?? r.municipio;
+      const isBase =
+        r.tipo === "base" ||
+        norm(rawMun) === "autazes posto km 53" ||
+        norm(rawMun) === "posto km 53";
+      const mun = isBase && norm(rawMun).includes("km 53") ? "Autazes Posto Km 53" : canonicalMunicipio(rawMun);
+      const isItapiranga = !isBase && mun.toLowerCase().includes("itapiranga");
+      const valCbmam = num(r.cbmam ?? r.ord ?? r.servico);
+      const copy: { mun: string } & Record<string, any> = {
+        ...r,
+        mun,
+        tipo: isBase ? "base" : (isManaus(mun) ? "capital" : "interior"),
+      };
+      for (const [k, v] of Object.entries(r)) {
+        if (
+          k !== "mun" &&
+          k !== "municipio" &&
+          k !== "tipo" &&
+          k !== "_custom" &&
+          k !== "id" &&
+          typeof v !== "object"
+        ) {
+          if (!isNaN(Number(v)) && typeof v !== "boolean") {
+            copy[k] = num(v);
+          }
+        }
       }
+      if (!isBase) {
+        copy.cbmam = isItapiranga ? valCbmam || 6 : valCbmam;
+        copy.ord = isItapiranga ? num(r.ord) || valCbmam || 6 : valCbmam;
+        copy.servico = isItapiranga ? num(r.servico) || valCbmam || 6 : valCbmam;
+        copy.seg = num(r.seg);
+        copy.brig = isItapiranga ? num(r.brig) || 12 : num(r.brig);
+      }
+      return copy;
+    });
+
+  if (!rawEfetivo.some((r) => r.mun.toLowerCase().includes("itapiranga") && r.tipo !== "base")) {
+    rawEfetivo.push({ mun: "Itapiranga", tipo: "interior", cbmam: 6, ord: 6, seg: 0, brig: 12, servico: 6, opamv: 0, opam_ref: 0, inc1: 0, inc2: 0, inc3: 0, cbmsp: 0, prevfogo: 0, fn: 0, brig_mun: 12, brig_semas: 0 });
+  }
+
+  // Se não houver bases cadastradas no efetivo, carrega as 9 bases operacionais oficiais padrão
+  if (!rawEfetivo.some((r) => r.tipo === "base")) {
+    for (const [baseName, vals] of Object.entries(BENCHMARK_BASES_1533)) {
+      rawEfetivo.push({
+        mun: baseName,
+        tipo: "base",
+        serv_ord: vals.serv_ord ?? 0,
+        cbmam: vals.serv_ord ?? 0,
+        ord: vals.serv_ord ?? 0,
+        servico: vals.serv_ord ?? 0,
+        opamv: vals.opamv ?? 0,
+        opam_ref: vals.opam_ref ?? 0,
+        inc1: vals.inc1 ?? 0,
+        inc2: vals.inc2 ?? 0,
+        inc3: vals.inc3 ?? 0,
+        cbmsp: vals.cbmsp ?? 0,
+        prevfogo: vals.prevfogo ?? 0,
+        fn: vals.fn ?? 0,
+        marinha: vals.marinha ?? 0,
+        seg: 0,
+        brig_mun: vals.brig_mun ?? 0,
+        brig_semas: vals.brig_semas ?? 0,
+        total: Object.values(vals).reduce((s: number, v: any) => s + (Number(v) || 0), 0),
+      });
     }
-    copy.cbmam = isItapiranga ? valCbmam || 6 : valCbmam;
-    copy.ord = isItapiranga ? num(r.ord) || valCbmam || 6 : valCbmam;
-    copy.servico = isItapiranga ? num(r.servico) || valCbmam || 6 : valCbmam;
-    copy.seg = num(r.seg);
-    copy.brig = isItapiranga ? num(r.brig) || 12 : num(r.brig);
-    return copy;
-  });
-  if (!rawEfetivo.some((r) => r.mun.toLowerCase().includes("itapiranga"))) {
-    rawEfetivo.push({ mun: "Itapiranga", cbmam: 6, ord: 6, seg: 0, brig: 12, servico: 6, opamv: 0, opam_ref: 0, inc1: 0, inc2: 0, inc3: 0, cbmsp: 0, prevfogo: 0, fn: 0, brig_mun: 12, brig_semas: 0 });
   }
 
   const rawInc = asRows(row?.incendios)
@@ -837,9 +923,14 @@ export async function loadReportRange(
   );
 
   // Efetivo e Recursos pegamos o snapshot do último dia do range
+  const EFETIVO_RANGE_KEYS = [
+    "cbmam", "ord", "seg", "brig", "servico", "opamv", "opam_ref",
+    "inc1", "inc2", "inc3", "cbmsp", "prevfogo", "fn", "marinha",
+    "sec", "brig_mun", "brig_semas"
+  ];
   const lastRow = validRows.length > 0 ? validRows[validRows.length - 1] : null;
   let lastEfetivo = lastRow
-    ? (consolidateAndCanonicalizeRows(asRows(lastRow.efetivo), ["cbmam", "ord", "seg", "brig"]) as any)
+    ? (consolidateAndCanonicalizeRows(asRows(lastRow.efetivo), EFETIVO_RANGE_KEYS) as any)
     : [];
   let lastRecursos = lastRow ? normaliseRecursos(asRows(lastRow.recursos)) : [];
 
@@ -847,11 +938,38 @@ export async function loadReportRange(
     const donor = await fetchOperationalDonor(supabase, endIso);
     if (donor) {
       if (lastEfetivo.length === 0 && donor.efetivo?.length) {
-        lastEfetivo = consolidateAndCanonicalizeRows(asRows(donor.efetivo), ["cbmam", "ord", "seg", "brig"]);
+        lastEfetivo = consolidateAndCanonicalizeRows(asRows(donor.efetivo), EFETIVO_RANGE_KEYS);
       }
       if (lastRecursos.length === 0 && donor.recursos?.length) {
         lastRecursos = normaliseRecursos(asRows(donor.recursos));
       }
+    }
+  }
+
+  // Garante bases padrão se ausentes no efetivo consolidado do range
+  if (!lastEfetivo.some((r: any) => r.tipo === "base")) {
+    for (const [baseName, vals] of Object.entries(BENCHMARK_BASES_1533)) {
+      lastEfetivo.push({
+        mun: baseName,
+        tipo: "base",
+        serv_ord: vals.serv_ord ?? 0,
+        cbmam: vals.serv_ord ?? 0,
+        ord: vals.serv_ord ?? 0,
+        servico: vals.serv_ord ?? 0,
+        opamv: vals.opamv ?? 0,
+        opam_ref: vals.opam_ref ?? 0,
+        inc1: vals.inc1 ?? 0,
+        inc2: vals.inc2 ?? 0,
+        inc3: vals.inc3 ?? 0,
+        cbmsp: vals.cbmsp ?? 0,
+        prevfogo: vals.prevfogo ?? 0,
+        fn: vals.fn ?? 0,
+        marinha: vals.marinha ?? 0,
+        seg: 0,
+        brig_mun: vals.brig_mun ?? 0,
+        brig_semas: vals.brig_semas ?? 0,
+        total: Object.values(vals).reduce((s: number, v: any) => s + (Number(v) || 0), 0),
+      });
     }
   }
 

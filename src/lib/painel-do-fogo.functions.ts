@@ -422,3 +422,4 @@ export const getPainelDoFogoEventoDetalhes = createServerFn({ method: "GET" })
       evolucoes,
     };
   });
+

@@ -4,6 +4,7 @@ import { requireBackendAuth } from "@/integrations/backend/auth-middleware";
 import { dbFail } from "./server-errors";
 import { ShiftEnum } from "./report-shift";
 import { canonicalMunicipio, compareMunicipios, harmonizeMunicipalitySections, isNonMunicipioTroop } from "./municipio-order";
+import { norm, BENCHMARK_BASES_1533 } from "./efetivo-mapas";
 
 // ---------- Schemas ----------
 
@@ -197,25 +198,37 @@ export const getDailyReport = createServerFn({ method: "GET" })
 
     if (row) {
       const num = (v: any) => (Number(v) || 0);
-      const cleanList = <T extends Record<string, any>>(list: any[], numericKeys: string[]): T[] => {
+      const cleanList = <T extends Record<string, any>>(list: any[], numericKeys: string[], isEfetivo = false): T[] => {
         if (!Array.isArray(list)) return [];
         const map = new Map<string, T>();
         for (const r of list) {
           const rawMun = r?.mun ?? r?.municipio;
           if (!rawMun || isNonMunicipioTroop(rawMun)) continue;
-          const mun = canonicalMunicipio(rawMun);
-          const existing = map.get(mun);
+          const isBase =
+            isEfetivo &&
+            ((r as any)?.tipo === "base" ||
+              norm(rawMun) === "autazes posto km 53" ||
+              norm(rawMun) === "posto km 53");
+          const mun = isBase && norm(rawMun).includes("km 53") ? "Autazes Posto Km 53" : canonicalMunicipio(rawMun);
+          const mapKey = isBase ? `base:${norm(mun)}` : `muni:${norm(mun)}`;
+          const existing = map.get(mapKey);
           if (!existing) {
-            const copy = { ...r, mun };
-            for (const k of numericKeys) (copy as any)[k] = num(r[k]);
-            map.set(mun, copy);
+            const copy: any = { ...r, mun, ...(isBase ? { tipo: "base" } : {}) };
+            for (const k of numericKeys) copy[k] = num(r[k]);
+            map.set(mapKey, copy);
           } else {
             for (const k of numericKeys) {
               (existing as any)[k] = num((existing as any)[k]) + num(r[k]);
             }
           }
         }
-        return Array.from(map.values()).sort((a, b) => compareMunicipios(a.mun, b.mun));
+        return Array.from(map.values()).sort((a, b) => {
+          const aBase = (a as any).tipo === "base";
+          const bBase = (b as any).tipo === "base";
+          if (aBase && !bBase) return 1;
+          if (!aBase && bBase) return -1;
+          return compareMunicipios(a.mun, b.mun);
+        });
       };
 
       const EFETIVO_NUMERIC_KEYS = [
@@ -223,7 +236,33 @@ export const getDailyReport = createServerFn({ method: "GET" })
         "opamv", "opam_ref", "inc1", "inc2", "inc3", "cbmsp",
         "prevfogo", "fn", "marinha", "sec", "brig_mun", "brig_semas", "total"
       ];
-      (row as any).efetivo = cleanList((row as any).efetivo, EFETIVO_NUMERIC_KEYS);
+      (row as any).efetivo = cleanList((row as any).efetivo, EFETIVO_NUMERIC_KEYS, true);
+      // Garante bases padrão se ausentes no efetivo
+      if (!(row as any).efetivo.some((r: any) => r.tipo === "base")) {
+        for (const [baseName, vals] of Object.entries(BENCHMARK_BASES_1533)) {
+          (row as any).efetivo.push({
+            mun: baseName,
+            tipo: "base",
+            serv_ord: vals.serv_ord ?? 0,
+            cbmam: vals.serv_ord ?? 0,
+            ord: vals.serv_ord ?? 0,
+            servico: vals.serv_ord ?? 0,
+            opamv: vals.opamv ?? 0,
+            opam_ref: vals.opam_ref ?? 0,
+            inc1: vals.inc1 ?? 0,
+            inc2: vals.inc2 ?? 0,
+            inc3: vals.inc3 ?? 0,
+            cbmsp: vals.cbmsp ?? 0,
+            prevfogo: vals.prevfogo ?? 0,
+            fn: vals.fn ?? 0,
+            marinha: vals.marinha ?? 0,
+            seg: 0,
+            brig_mun: vals.brig_mun ?? 0,
+            brig_semas: vals.brig_semas ?? 0,
+            total: Object.values(vals).reduce((s: number, v: any) => s + (Number(v) || 0), 0),
+          });
+        }
+      }
       (row as any).incendios = cleanList((row as any).incendios, ["urb", "flor", "focos"]);
       (row as any).outras = cleanList((row as any).outras, ["salvamento", "acidentes", "aph", "prevencao", "servicos"]);
 

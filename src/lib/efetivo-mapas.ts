@@ -188,7 +188,7 @@ function extractEfetivoValues(
       brig_semas;
 
     return {
-      id: `muni_${norm(nome).replace(/\s+/g, "_")}`,
+      id: `${tipo}_${norm(nome).replace(/\s+/g, "_")}`,
       nome,
       tipo,
       serv_ord,
@@ -236,7 +236,7 @@ function extractEfetivoValues(
       brig_semas;
 
     return {
-      id: `muni_${norm(nome).replace(/\s+/g, "_")}`,
+      id: `${tipo}_${norm(nome).replace(/\s+/g, "_")}`,
       nome,
       tipo,
       serv_ord,
@@ -283,7 +283,7 @@ function extractEfetivoValues(
     brig_semas;
 
   return {
-    id: `muni_${norm(nome).replace(/\s+/g, "_")}`,
+    id: `${tipo}_${norm(nome).replace(/\s+/g, "_")}`,
     nome,
     tipo,
     serv_ord,
@@ -316,29 +316,47 @@ export function buildEfetivoMapasData(
   mode: "diario" | "consolidado" = "diario",
 ): EfetivoMapasCalculado {
   const existingRows = (data?.efetivo || []).filter((r) => !isNonMunicipioTroop(r?.mun));
+  const baseNormalizedSet = new Set(EFETIVO_BASES_PADRAO.map((b) => norm(b)));
   const rowMap = new Map<string, any>();
 
   for (const r of existingRows) {
     if (!r?.mun || isNonMunicipioTroop(r.mun)) continue;
-    const can = canonicalMunicipio(r.mun);
+    const isBase =
+      r.tipo === "base" ||
+      norm(r.mun) === "autazes posto km 53" ||
+      norm(r.mun) === "posto km 53";
+    const can = isBase && norm(r.mun).includes("km 53") ? "Autazes Posto Km 53" : canonicalMunicipio(r.mun);
     if (isNonMunicipioTroop(can)) continue;
-    rowMap.set(norm(can), r);
-    rowMap.set(norm(r.mun), r);
+
+    if (isBase) {
+      rowMap.set(`base:${norm(can)}`, r);
+      rowMap.set(`base:${norm(r.mun)}`, r);
+    } else {
+      rowMap.set(`muni:${norm(can)}`, r);
+      rowMap.set(`muni:${norm(r.mun)}`, r);
+    }
+    if (!rowMap.has(norm(can))) rowMap.set(norm(can), r);
+    if (!rowMap.has(norm(r.mun))) rowMap.set(norm(r.mun), r);
   }
 
-  // 1. Monta as 9 Bases Temporárias
-  const baseNormalizedSet = new Set(EFETIVO_BASES_PADRAO.map((b) => norm(b)));
+  // 1. Monta as 9 Bases Temporárias (isoladas com tipo="base")
   const bases: EfetivoMapasItem[] = EFETIVO_BASES_PADRAO.map((baseName) => {
-    const raw = rowMap.get(norm(baseName));
+    const raw =
+      rowMap.get(`base:${norm(baseName)}`) ||
+      (rowMap.get(norm(baseName))?.tipo === "base" ? rowMap.get(norm(baseName)) : undefined);
     const fb = BENCHMARK_BASES_1533[baseName] || {};
     return extractEfetivoValues(raw, baseName, "base", fb, mode);
   });
 
-  // 2. Monta os Municípios (excluindo estritamente tropas externas como Militares SP)
+  // 2. Monta os Municípios (excluindo estritamente bases e tropas externas)
   const muniNames = [...EFETIVO_MUNICIPIOS_PADRAO];
-  // Adiciona municípios adicionais da tabela do dia que não estão na lista fixa nem nas bases
   for (const r of existingRows) {
     if (!r?.mun || isNonMunicipioTroop(r.mun)) continue;
+    const isBase =
+      r.tipo === "base" ||
+      norm(r.mun) === "autazes posto km 53" ||
+      norm(r.mun) === "posto km 53";
+    if (isBase) continue;
     const can = canonicalMunicipio(r.mun);
     if (isNonMunicipioTroop(can)) continue;
     const n = norm(can);
@@ -348,7 +366,9 @@ export function buildEfetivoMapasData(
   }
 
   const municipios: EfetivoMapasItem[] = muniNames.map((muniName) => {
-    const raw = rowMap.get(norm(muniName));
+    const raw =
+      rowMap.get(`muni:${norm(muniName)}`) ||
+      (rowMap.get(norm(muniName))?.tipo !== "base" ? rowMap.get(norm(muniName)) : undefined);
     const tipo = isManaus(muniName) ? "capital" : "interior";
     const fb = BENCHMARK_MUNICIPIOS_1533[muniName] || {};
     return extractEfetivoValues(raw, muniName, tipo, fb, mode);
@@ -382,10 +402,9 @@ export function buildEfetivoMapasData(
   }
   for (const b of bases) {
     totalBases += b.total;
-    totalInterior += b.total; // Bases contam como Interior no quadro institucional
   }
 
-  const totalGeral = totalCapital + totalInterior;
+  const totalGeral = totalCapital + totalInterior + totalBases;
 
   const resumo: ResumoMissaoItem[] = missoesDefs.map((def) => {
     let cap = 0;

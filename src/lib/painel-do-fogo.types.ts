@@ -130,3 +130,4 @@ export interface PainelDoFogoOverviewResponse {
   prioridades_am: PainelDoFogoPrioridade[];
   municipios_am: PainelDoFogoMunicipioIbge[];
 }
+

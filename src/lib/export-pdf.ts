@@ -9,7 +9,7 @@ import { NF } from "./formatters";
 import { fmtDateBR, fmtDateStamp, filterOccurrencesByDate, rowMatchesDate } from "./report-date";
 import { CBMAM_LOGO_BASE64 } from "./cbmam-logo";
 import { isIncendio } from "./fire-classification";
-import { EFETIVO_BASES_PADRAO, norm } from "./efetivo-mapas";
+import { EFETIVO_BASES_PADRAO, norm, buildEfetivoMapasData } from "./efetivo-mapas";
 
 export function reportFilename(
   reportDate: Date | null,
@@ -198,7 +198,46 @@ export function buildSheetsPdfDoc(
   // ===========================================================================
   drawPageHeader(1, "EFETIVO DIÁRIO MOBILIZADO");
 
-  const efetivoList = data.efetivo ?? [];
+  const isBaseRow = (r: any) =>
+    r?.tipo === "base" ||
+    norm(r?.mun) === "autazes posto km 53" ||
+    norm(r?.mun) === "posto km 53" ||
+    /posto\s*km\s*53|base\b/i.test(r?.mun || "");
+
+  const isCapitalRow = (r: any) => r?.tipo === "capital" || norm(r?.mun) === "manaus";
+  const isInteriorRow = (r: any) => !isCapitalRow(r) && !isBaseRow(r);
+
+  // Se a lista de efetivo não contiver bases explícitas, carrega as 9 bases do gerador de efetivo
+  let efetivoList = [...(data.efetivo ?? [])];
+  if (!efetivoList.some(isBaseRow)) {
+    const calc = buildEfetivoMapasData(data, "diario");
+    if (calc.bases && calc.bases.length > 0) {
+      const baseRows = calc.bases.map((b) => ({
+        mun: b.nome,
+        tipo: "base",
+        serv_ord: b.serv_ord,
+        cbmam: b.serv_ord,
+        ord: b.serv_ord,
+        servico: b.serv_ord,
+        opamv: b.opamv,
+        opam_ref: b.opam_ref,
+        inc1: b.inc1,
+        inc2: b.inc2,
+        inc3: b.inc3,
+        cbmsp: b.cbmsp,
+        prevfogo: b.prevfogo,
+        fn: b.fn,
+        marinha: b.marinha,
+        seg: 0,
+        brig_mun: b.brig_mun,
+        brig_semas: b.brig_semas,
+        total: b.total,
+        _custom: true,
+      }));
+      efetivoList = [...efetivoList, ...baseRows];
+    }
+  }
+
   const fullEfetivoCols = resolveEfetivoColumns(efetivoList, data.custom_columns?.efetivo);
   // Colunas numéricas de dados (exclui mun, total e tropas externas)
   const activeDataCols = fullEfetivoCols.filter(
@@ -354,11 +393,6 @@ export function buildSheetsPdfDoc(
   });
 
   // --- Painel Direito: Síntese por Missão / Órgão & Território (tableWidth: 262, left: 564) ---
-  const baseNormSet = new Set(EFETIVO_BASES_PADRAO.map((b) => norm(b)));
-  const isBaseRow = (r: any) =>
-    baseNormSet.has(norm(r?.mun)) || /posto|base\b|km\s*53/i.test(r?.mun || "");
-  const isCapitalRow = (r: any) => norm(r?.mun) === "manaus";
-
   const manausEf = efetivoList.find(isCapitalRow) ?? { mun: "Manaus" };
   const basesEf = efetivoList.filter(isBaseRow);
   const interiorEf = efetivoList.filter((r) => !isCapitalRow(r) && !isBaseRow(r));
@@ -404,9 +438,10 @@ export function buildSheetsPdfDoc(
   const intTot = intCbmam + intSeg + intFn + intPrev + intMar + intBrigMun + intBrigSema;
   const basTot = basCbmam + basSeg + basFn + basPrev + basMar + basBrigMun + basBrigSema;
   const calculatedGrandTotal = capTot + intTot + basTot;
+  const finalGrandTotal = calculatedGrandTotal > 0 ? calculatedGrandTotal : grandTotalEfetivo;
 
   const perc = (v: number) =>
-    grandTotalEfetivo > 0 ? `${((v / grandTotalEfetivo) * 100).toFixed(1)}%` : "0%";
+    finalGrandTotal > 0 ? `${((v / finalGrandTotal) * 100).toFixed(1)}%` : "0%";
 
   const missoesBody = [
     ["Militares CBMAM", capCbmam, intCbmam, basCbmam, totCbmamRow, perc(totCbmamRow)],
@@ -421,7 +456,7 @@ export function buildSheetsPdfDoc(
       capTot,
       intTot,
       basTot,
-      calculatedGrandTotal || grandTotalEfetivo,
+      finalGrandTotal,
       "100%",
     ],
   ];
@@ -493,7 +528,7 @@ export function buildSheetsPdfDoc(
       ["Capital (Manaus)", capTot, perc(capTot)],
       ["Interior (Municípios Polos)", intTot, perc(intTot)],
       ["Bases Temporárias / Postos", basTot, perc(basTot)],
-      ["TOTAL DA FORÇA EMPREGADA", calculatedGrandTotal || grandTotalEfetivo, "100%"],
+      ["TOTAL DA FORÇA EMPREGADA", finalGrandTotal, "100%"],
     ],
     styles: { fontSize: 6.5, cellPadding: 2.2, lineColor: BORDER_COLOR, lineWidth: 0.25 },
     alternateRowStyles: { fillColor: BG_LIGHT_ROW },

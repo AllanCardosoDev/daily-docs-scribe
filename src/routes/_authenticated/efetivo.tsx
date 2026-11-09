@@ -123,18 +123,30 @@ function EfetivoPage() {
 
   const { exportXlsx } = useExporters(rawData, reportDate);
 
-  // Aplica edições locais em tempo real para recálculo instantâneo
+  // Aplica edições locais em tempo real para recálculo instantâneo segregando municípios e bases
   const effectiveSheetsData = useMemo(() => {
     const baseEfetivo = [...(rawData.efetivo || [])].filter((r) => !isNonMunicipioTroop(r?.mun));
     if (Object.keys(localEdits).length === 0) return { ...rawData, efetivo: baseEfetivo };
     const currentEfetivo = [...baseEfetivo];
-    for (const [nome, edits] of Object.entries(localEdits)) {
-      if (isNonMunicipioTroop(nome)) continue;
-      const idx = currentEfetivo.findIndex((r) => norm(r.mun) === norm(nome));
+
+    for (const [editKey, edits] of Object.entries(localEdits)) {
+      const parts = editKey.split(":");
+      const tipo = parts.length > 1 ? parts[0] : (EFETIVO_BASES_PADRAO.some((b) => norm(b) === norm(editKey)) ? "base" : "interior");
+      const normalizedName = parts.length > 1 ? parts.slice(1).join(":") : norm(editKey);
+      const isBase = tipo === "base";
+
+      const idx = currentEfetivo.findIndex((r) => {
+        const rTipo = r.tipo || (EFETIVO_BASES_PADRAO.some((b) => norm(b) === norm(r.mun)) ? "base" : (isManaus(r.mun) ? "capital" : "interior"));
+        return norm(r.mun) === normalizedName && rTipo === tipo;
+      });
+
       if (idx >= 0) {
-        currentEfetivo[idx] = { ...currentEfetivo[idx], ...edits, _custom: true };
+        currentEfetivo[idx] = { ...currentEfetivo[idx], ...edits, tipo, _custom: true };
       } else {
-        currentEfetivo.push({ mun: nome, ...edits, _custom: true });
+        const originalName = isBase
+          ? (EFETIVO_BASES_PADRAO.find((b) => norm(b) === normalizedName) || normalizedName)
+          : (EFETIVO_MUNICIPIOS_PADRAO.find((m) => norm(m) === normalizedName) || normalizedName);
+        currentEfetivo.push({ mun: originalName, ...edits, tipo, _custom: true });
       }
     }
     return { ...rawData, efetivo: currentEfetivo };
@@ -145,36 +157,39 @@ function EfetivoPage() {
     return buildEfetivoMapasData(effectiveSheetsData, viewMode);
   }, [effectiveSheetsData, viewMode]);
 
-  const handleCellChange = useCallback((nome: string, colKey: string, val: number) => {
-    const currentItem = [...efetivoCalculado.municipios, ...efetivoCalculado.bases].find(
-      (it) => norm(it.nome) === norm(nome)
-    );
+  const handleCellChange = useCallback(
+    (nome: string, colKey: string, val: number, tipo: "capital" | "interior" | "base" = "interior") => {
+      const editKey = `${tipo}:${norm(nome)}`;
+      const currentList = tipo === "base" ? efetivoCalculado.bases : efetivoCalculado.municipios;
+      const currentItem = currentList.find((it) => norm(it.nome) === norm(nome));
 
-    setLocalEdits((prev) => {
-      const existingRow = prev[nome] || {
-        serv_ord: currentItem?.serv_ord ?? 0,
-        opamv: currentItem?.opamv ?? 0,
-        opam_ref: currentItem?.opam_ref ?? 0,
-        inc1: currentItem?.inc1 ?? 0,
-        inc2: currentItem?.inc2 ?? 0,
-        inc3: currentItem?.inc3 ?? 0,
-        cbmsp: currentItem?.cbmsp ?? 0,
-        prevfogo: currentItem?.prevfogo ?? 0,
-        fn: currentItem?.fn ?? 0,
-        marinha: currentItem?.marinha ?? 0,
-        brig_mun: currentItem?.brig_mun ?? 0,
-        brig_semas: currentItem?.brig_semas ?? 0,
-      };
+      setLocalEdits((prev) => {
+        const existingRow = prev[editKey] || {
+          serv_ord: currentItem?.serv_ord ?? 0,
+          opamv: currentItem?.opamv ?? 0,
+          opam_ref: currentItem?.opam_ref ?? 0,
+          inc1: currentItem?.inc1 ?? 0,
+          inc2: currentItem?.inc2 ?? 0,
+          inc3: currentItem?.inc3 ?? 0,
+          cbmsp: currentItem?.cbmsp ?? 0,
+          prevfogo: currentItem?.prevfogo ?? 0,
+          fn: currentItem?.fn ?? 0,
+          marinha: currentItem?.marinha ?? 0,
+          brig_mun: currentItem?.brig_mun ?? 0,
+          brig_semas: currentItem?.brig_semas ?? 0,
+        };
 
-      return {
-        ...prev,
-        [nome]: {
-          ...existingRow,
-          [colKey]: Math.max(0, val),
-        },
-      };
-    });
-  }, [efetivoCalculado]);
+        return {
+          ...prev,
+          [editKey]: {
+            ...existingRow,
+            [colKey]: Math.max(0, val),
+          },
+        };
+      });
+    },
+    [efetivoCalculado],
+  );
 
   const handleSaveEdits = useCallback(async () => {
     try {
@@ -182,8 +197,11 @@ function EfetivoPage() {
       const allItems = [...efetivoCalculado.municipios, ...efetivoCalculado.bases];
 
       const rowsToSave: EfetivoRow[] = allItems.map((item) => {
-        const rawRow = (rawData.efetivo || []).find((r) => norm(r.mun) === norm(item.nome));
-        const seg = Number(rawRow?.seg) || 0;
+        const rawRow = (rawData.efetivo || []).find((r) => {
+          const rTipo = r.tipo || (EFETIVO_BASES_PADRAO.some((b) => norm(b) === norm(r.mun)) ? "base" : (isManaus(r.mun) ? "capital" : "interior"));
+          return norm(r.mun) === norm(item.nome) && rTipo === item.tipo;
+        });
+        const seg = item.tipo === "base" ? 0 : (Number(rawRow?.seg) || 0);
         return {
           ...rawRow,
           mun: item.nome,
@@ -209,9 +227,12 @@ function EfetivoPage() {
         };
       });
 
-      const savedNames = new Set(allItems.map((it) => norm(it.nome)));
+      const savedKeys = new Set(allItems.map((it) => `${it.tipo}:${norm(it.nome)}`));
       for (const extra of rawData.efetivo || []) {
-        if (extra?.mun && !isNonMunicipioTroop(extra.mun) && !savedNames.has(norm(extra.mun))) {
+        if (!extra?.mun || isNonMunicipioTroop(extra.mun)) continue;
+        const extraTipo = extra.tipo || (EFETIVO_BASES_PADRAO.some((b) => norm(b) === norm(extra.mun)) ? "base" : (isManaus(extra.mun) ? "capital" : "interior"));
+        const key = `${extraTipo}:${norm(extra.mun)}`;
+        if (!savedKeys.has(key)) {
           rowsToSave.push(extra);
         }
       }
@@ -318,14 +339,14 @@ function EfetivoPage() {
   const handleExportDiarioOficial = useCallback(async () => {
     try {
       const { exportSheetsToPdf } = await import("@/lib/export-pdf");
-      exportSheetsToPdf(rawData, reportDate);
+      exportSheetsToPdf(effectiveSheetsData, reportDate);
       toast.success("Relatório Diário Oficial (PDF) gerado com sucesso!");
     } catch (e) {
       toast.error("Falha ao gerar Relatório Diário Oficial", {
         description: (e as Error)?.message,
       });
     }
-  }, [rawData, reportDate]);
+  }, [effectiveSheetsData, reportDate]);
 
   const handleExportXlsx = useCallback(() => {
     try {
@@ -942,84 +963,84 @@ function EfetivoPage() {
                               <EditableCell
                                 value={m.serv_ord}
                                 isEditing={isEditing}
-                                onChange={(v) => handleCellChange(m.nome, "serv_ord", v)}
+                                onChange={(v) => handleCellChange(m.nome, "serv_ord", v, m.tipo)}
                               />
                             </td>
                             <td className="p-2 text-right font-mono w-[72px]">
                               <EditableCell
                                 value={m.opamv}
                                 isEditing={isEditing}
-                                onChange={(v) => handleCellChange(m.nome, "opamv", v)}
+                                onChange={(v) => handleCellChange(m.nome, "opamv", v, m.tipo)}
                               />
                             </td>
                             <td className="p-2 text-right font-mono w-[72px]">
                               <EditableCell
                                 value={m.opam_ref}
                                 isEditing={isEditing}
-                                onChange={(v) => handleCellChange(m.nome, "opam_ref", v)}
+                                onChange={(v) => handleCellChange(m.nome, "opam_ref", v, m.tipo)}
                               />
                             </td>
                             <td className="p-2 text-right font-mono w-[72px]">
                               <EditableCell
                                 value={m.inc1}
                                 isEditing={isEditing}
-                                onChange={(v) => handleCellChange(m.nome, "inc1", v)}
+                                onChange={(v) => handleCellChange(m.nome, "inc1", v, m.tipo)}
                               />
                             </td>
                             <td className="p-2 text-right font-mono w-[72px]">
                               <EditableCell
                                 value={m.inc2}
                                 isEditing={isEditing}
-                                onChange={(v) => handleCellChange(m.nome, "inc2", v)}
+                                onChange={(v) => handleCellChange(m.nome, "inc2", v, m.tipo)}
                               />
                             </td>
                             <td className="p-2 text-right font-mono w-[72px]">
                               <EditableCell
                                 value={m.inc3}
                                 isEditing={isEditing}
-                                onChange={(v) => handleCellChange(m.nome, "inc3", v)}
+                                onChange={(v) => handleCellChange(m.nome, "inc3", v, m.tipo)}
                               />
                             </td>
                             <td className="p-2 text-right font-mono w-[72px]">
                               <EditableCell
                                 value={m.cbmsp}
                                 isEditing={isEditing}
-                                onChange={(v) => handleCellChange(m.nome, "cbmsp", v)}
+                                onChange={(v) => handleCellChange(m.nome, "cbmsp", v, m.tipo)}
                               />
                             </td>
                             <td className="p-2 text-right font-mono w-[72px]">
                               <EditableCell
                                 value={m.prevfogo}
                                 isEditing={isEditing}
-                                onChange={(v) => handleCellChange(m.nome, "prevfogo", v)}
+                                onChange={(v) => handleCellChange(m.nome, "prevfogo", v, m.tipo)}
                               />
                             </td>
                             <td className="p-2 text-right font-mono w-[72px]">
                               <EditableCell
                                 value={m.marinha}
                                 isEditing={isEditing}
-                                onChange={(v) => handleCellChange(m.nome, "marinha", v)}
+                                onChange={(v) => handleCellChange(m.nome, "marinha", v, m.tipo)}
                               />
                             </td>
                             <td className="p-2 text-right font-mono w-[72px]">
                               <EditableCell
                                 value={m.fn}
                                 isEditing={isEditing}
-                                onChange={(v) => handleCellChange(m.nome, "fn", v)}
+                                onChange={(v) => handleCellChange(m.nome, "fn", v, m.tipo)}
                               />
                             </td>
                             <td className="p-2 text-right font-mono w-[72px]">
                               <EditableCell
                                 value={m.brig_mun}
                                 isEditing={isEditing}
-                                onChange={(v) => handleCellChange(m.nome, "brig_mun", v)}
+                                onChange={(v) => handleCellChange(m.nome, "brig_mun", v, m.tipo)}
                               />
                             </td>
                             <td className="p-2 text-right font-mono w-[72px]">
                               <EditableCell
                                 value={m.brig_semas}
                                 isEditing={isEditing}
-                                onChange={(v) => handleCellChange(m.nome, "brig_semas", v)}
+                                onChange={(v) => handleCellChange(m.nome, "brig_semas", v, m.tipo)}
                               />
                             </td>
                             <td className="p-2.5 pr-3 text-right font-mono font-bold text-foreground bg-muted/40 w-[86px]">
@@ -1126,84 +1147,84 @@ function EfetivoPage() {
                             <EditableCell
                               value={b.serv_ord}
                               isEditing={isEditing}
-                              onChange={(v) => handleCellChange(b.nome, "serv_ord", v)}
+                              onChange={(v) => handleCellChange(b.nome, "serv_ord", v, "base")}
                             />
                           </td>
                           <td className="p-2 text-right font-mono w-[72px]">
                             <EditableCell
                               value={b.opamv}
                               isEditing={isEditing}
-                              onChange={(v) => handleCellChange(b.nome, "opamv", v)}
+                              onChange={(v) => handleCellChange(b.nome, "opamv", v, "base")}
                             />
                           </td>
                           <td className="p-2 text-right font-mono w-[72px]">
                             <EditableCell
                               value={b.opam_ref}
                               isEditing={isEditing}
-                              onChange={(v) => handleCellChange(b.nome, "opam_ref", v)}
+                              onChange={(v) => handleCellChange(b.nome, "opam_ref", v, "base")}
                             />
                           </td>
                           <td className="p-2 text-right font-mono w-[72px]">
                             <EditableCell
                               value={b.inc1}
                               isEditing={isEditing}
-                              onChange={(v) => handleCellChange(b.nome, "inc1", v)}
+                              onChange={(v) => handleCellChange(b.nome, "inc1", v, "base")}
                             />
                           </td>
                           <td className="p-2 text-right font-mono w-[72px]">
                             <EditableCell
                               value={b.inc2}
                               isEditing={isEditing}
-                              onChange={(v) => handleCellChange(b.nome, "inc2", v)}
+                              onChange={(v) => handleCellChange(b.nome, "inc2", v, "base")}
                             />
                           </td>
                           <td className="p-2 text-right font-mono w-[72px]">
                             <EditableCell
                               value={b.inc3}
                               isEditing={isEditing}
-                              onChange={(v) => handleCellChange(b.nome, "inc3", v)}
+                              onChange={(v) => handleCellChange(b.nome, "inc3", v, "base")}
                             />
                           </td>
                           <td className="p-2 text-right font-mono w-[72px]">
                             <EditableCell
                               value={b.cbmsp}
                               isEditing={isEditing}
-                              onChange={(v) => handleCellChange(b.nome, "cbmsp", v)}
+                              onChange={(v) => handleCellChange(b.nome, "cbmsp", v, "base")}
                             />
                           </td>
                           <td className="p-2 text-right font-mono w-[72px]">
                             <EditableCell
                               value={b.prevfogo}
                               isEditing={isEditing}
-                              onChange={(v) => handleCellChange(b.nome, "prevfogo", v)}
+                              onChange={(v) => handleCellChange(b.nome, "prevfogo", v, "base")}
                             />
                           </td>
                           <td className="p-2 text-right font-mono w-[72px]">
                             <EditableCell
                               value={b.marinha}
                               isEditing={isEditing}
-                              onChange={(v) => handleCellChange(b.nome, "marinha", v)}
+                              onChange={(v) => handleCellChange(b.nome, "marinha", v, "base")}
                             />
                           </td>
                           <td className="p-2 text-right font-mono w-[72px]">
                             <EditableCell
                               value={b.fn}
                               isEditing={isEditing}
-                              onChange={(v) => handleCellChange(b.nome, "fn", v)}
+                              onChange={(v) => handleCellChange(b.nome, "fn", v, "base")}
                             />
                           </td>
                           <td className="p-2 text-right font-mono w-[72px]">
                             <EditableCell
                               value={b.brig_mun}
                               isEditing={isEditing}
-                              onChange={(v) => handleCellChange(b.nome, "brig_mun", v)}
+                              onChange={(v) => handleCellChange(b.nome, "brig_mun", v, "base")}
                             />
                           </td>
                           <td className="p-2 text-right font-mono w-[72px]">
                             <EditableCell
                               value={b.brig_semas}
                               isEditing={isEditing}
-                              onChange={(v) => handleCellChange(b.nome, "brig_semas", v)}
+                              onChange={(v) => handleCellChange(b.nome, "brig_semas", v, "base")}
                             />
                           </td>
                           <td className="p-2.5 pr-3 text-right font-mono font-bold text-foreground bg-muted/40 w-[86px]">

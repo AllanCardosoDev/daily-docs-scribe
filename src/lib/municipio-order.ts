@@ -16,8 +16,8 @@ const CANONICAL_MUNICIPIOS: Record<string, string> = {
   "atalaia do norte": "Atalaia do Norte",
   "atalaiado norte": "Atalaia do Norte",
   "autazes": "Autazes",
-  "autazes posto km 53": "Autazes",
-  "posto km 53": "Autazes",
+  "autazes posto km 53": "Autazes Posto Km 53",
+  "posto km 53": "Autazes Posto Km 53",
   "barcelos": "Barcelos",
   "barreirinha": "Barreirinha",
   "benjamim constant": "Benjamin Constant",
@@ -207,17 +207,21 @@ export function deduplicateAndOrderMunicipios<T extends Record<string, any>>(row
   for (const r of rows) {
     const rawMun = r?.mun ?? r?.municipio;
     if (!rawMun || isNonMunicipioTroop(rawMun)) continue;
-    const mun = canonicalMunicipio(rawMun);
-    const key = mun.toLowerCase();
+    const isBase =
+      (r as any)?.tipo === "base" ||
+      rawMun.toLowerCase().includes("km 53") ||
+      rawMun.toLowerCase().includes("posto km 53");
+    const mun = isBase && rawMun.toLowerCase().includes("km 53") ? "Autazes Posto Km 53" : canonicalMunicipio(rawMun);
+    const key = isBase ? `base:${mun.toLowerCase()}` : `muni:${mun.toLowerCase()}`;
 
     const existing = map.get(key);
     if (!existing) {
-      const copy = { ...r, mun };
+      const copy = { ...r, mun, ...(isBase ? { tipo: "base" } : {}) };
       if ("municipio" in copy) delete (copy as any).municipio;
       map.set(key, copy);
     } else {
       for (const [k, v] of Object.entries(r)) {
-        if (k === "mun" || k === "municipio") continue;
+        if (k === "mun" || k === "municipio" || k === "tipo" || k === "_custom" || k === "id") continue;
         const num1 = Number((existing as any)[k]) || 0;
         const num2 = Number(v) || 0;
         (existing as any)[k] = num1 + num2;
@@ -226,9 +230,13 @@ export function deduplicateAndOrderMunicipios<T extends Record<string, any>>(row
   }
 
   const result = Array.from(map.values());
-  const manaus = result.filter((r) => isManaus(r?.mun));
-  const rest = result.filter((r) => !isManaus(r?.mun));
-  return [...manaus, ...rest];
+  const manaus = result.filter((r) => isManaus(r?.mun) && (r as any)?.tipo !== "base");
+  const interior = result
+    .filter((r) => !isManaus(r?.mun) && (r as any)?.tipo !== "base")
+    .sort((a, b) => compareMunicipios(a.mun, b.mun));
+  const bases = result.filter((r) => (r as any)?.tipo === "base");
+
+  return [...manaus, ...interior, ...bases];
 }
 
 /**
@@ -307,9 +315,26 @@ export function harmonizeMunicipalitySections<
   defaultIncendios: (mun: string) => I,
 ): { efetivo: E[]; recursos: R[]; incendios: I[] } {
   const munSet = new Set<string>();
+  const baseEfetivoRows: E[] = [];
+
+  const normLocal = (s: string) =>
+    (s ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
 
   for (const r of efetivo ?? []) {
-    if (r?.mun && r.mun !== "—" && !isNonMunicipioTroop(r.mun)) munSet.add(canonicalMunicipio(r.mun));
+    if (!r?.mun || isNonMunicipioTroop(r.mun)) continue;
+    const isBase =
+      (r as any).tipo === "base" ||
+      normLocal(r.mun) === "autazes posto km 53" ||
+      normLocal(r.mun) === "posto km 53";
+    if (isBase) {
+      baseEfetivoRows.push({ ...r, tipo: "base" } as E);
+      continue;
+    }
+    if (r.mun !== "—") munSet.add(canonicalMunicipio(r.mun));
   }
   for (const r of recursos ?? []) {
     if (r?.mun && r.mun !== "—" && !isNonMunicipioTroop(r.mun)) munSet.add(canonicalMunicipio(r.mun));
@@ -323,7 +348,13 @@ export function harmonizeMunicipalitySections<
 
   const efMap = new Map<string, E>();
   for (const r of efetivo ?? []) {
-    if (r?.mun && !isNonMunicipioTroop(r.mun)) efMap.set(canonicalMunicipio(r.mun).toLowerCase(), r);
+    if (!r?.mun || isNonMunicipioTroop(r.mun)) continue;
+    const isBase =
+      (r as any).tipo === "base" ||
+      normLocal(r.mun) === "autazes posto km 53" ||
+      normLocal(r.mun) === "posto km 53";
+    if (isBase) continue;
+    efMap.set(canonicalMunicipio(r.mun).toLowerCase(), r);
   }
 
   const recMap = new Map<string, R>();
@@ -354,7 +385,7 @@ export function harmonizeMunicipalitySections<
   });
 
   return {
-    efetivo: outEfetivo,
+    efetivo: [...outEfetivo, ...baseEfetivoRows],
     recursos: outRecursos,
     incendios: outIncendios,
   };

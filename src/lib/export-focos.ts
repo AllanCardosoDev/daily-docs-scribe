@@ -106,3 +106,4 @@ export function exportFocosXlsx(data: PainelDoFogoOverviewResponse) {
   const fileName = `Painel_do_Fogo_CENSIPAM_Amazonas_${fmtDateStamp()}_${data.horas_filtro}h.xlsx`;
   XLSX.writeFile(wb, fileName);
 }
+

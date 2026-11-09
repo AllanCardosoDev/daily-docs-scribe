@@ -5,7 +5,7 @@ import { canonicalMunicipio, isNonMunicipioTroop, deduplicateAndOrderMunicipios 
 import { resolveEfetivoColumns, calculateRowTotal } from "./dashboard-columns";
 import { fmtDateBR, fmtDateStamp } from "./report-date";
 import { NF } from "./formatters";
-import { EFETIVO_BASES_PADRAO, norm } from "./efetivo-mapas";
+import { EFETIVO_BASES_PADRAO, norm, buildEfetivoMapasData } from "./efetivo-mapas";
 
 // Cores Institucionais CBMAM 100% Verde
 const BRAND_DARK = { r: 8, g: 46, b: 31 };     // #082e1f - Verde Floresta Amazônica Profundo
@@ -58,8 +58,44 @@ export function buildEfetivoPdfDoc(options: ExportEfetivoPdfOptions): jsPDF {
 
   const num = (v: any) => Math.max(0, Math.abs(typeof v === "number" && !isNaN(v) ? v : Number(v) || 0));
 
-  // Ordenação institucional: Manaus primeiro, depois municípios alfabéticos (sem duplicidades)
-  const efetivoList = deduplicateAndOrderMunicipios(rawEfetivo || []);
+  const isBaseRow = (r: any) =>
+    r?.tipo === "base" ||
+    norm(r?.mun) === "autazes posto km 53" ||
+    norm(r?.mun) === "posto km 53" ||
+    /posto\s*km\s*53|base\b/i.test(r?.mun || "");
+
+  const isCapitalRow = (r: any) => r?.tipo === "capital" || norm(r?.mun) === "manaus";
+
+  // Ordenação institucional: Manaus primeiro, depois municípios alfabéticos e bases
+  let efetivoList = deduplicateAndOrderMunicipios(rawEfetivo || []);
+  if (!efetivoList.some(isBaseRow)) {
+    const calc = buildEfetivoMapasData({ efetivo: efetivoList } as any, "diario");
+    if (calc.bases && calc.bases.length > 0) {
+      const baseRows = calc.bases.map((b) => ({
+        mun: b.nome,
+        tipo: "base",
+        serv_ord: b.serv_ord,
+        cbmam: b.serv_ord,
+        ord: b.serv_ord,
+        servico: b.serv_ord,
+        opamv: b.opamv,
+        opam_ref: b.opam_ref,
+        inc1: b.inc1,
+        inc2: b.inc2,
+        inc3: b.inc3,
+        cbmsp: b.cbmsp,
+        prevfogo: b.prevfogo,
+        fn: b.fn,
+        marinha: b.marinha,
+        seg: 0,
+        brig_mun: b.brig_mun,
+        brig_semas: b.brig_semas,
+        total: b.total,
+        _custom: true,
+      }));
+      efetivoList = [...efetivoList, ...baseRows];
+    }
+  }
 
   const fullCols = resolveEfetivoColumns(efetivoList);
   const activeDataCols = fullCols.filter(
@@ -320,11 +356,6 @@ export function buildEfetivoPdfDoc(options: ExportEfetivoPdfOptions): jsPDF {
   // ---------------------------------------------------------------------------
   // PAINEL LATERAL DIREITO (left: 564, tableWidth: 262)
   // ---------------------------------------------------------------------------
-  const baseNormSet = new Set(EFETIVO_BASES_PADRAO.map((b) => norm(b)));
-  const isBaseRow = (r: any) =>
-    baseNormSet.has(norm(r?.mun)) || /posto|base\b|km\s*53/i.test(r?.mun || "");
-  const isCapitalRow = (r: any) => norm(r?.mun) === "manaus";
-
   const manausEf = efetivoList.find(isCapitalRow) ?? { mun: "Manaus" };
   const basesEf = efetivoList.filter(isBaseRow);
   const interiorEf = efetivoList.filter((r) => !isCapitalRow(r) && !isBaseRow(r));
