@@ -120,8 +120,16 @@ export const DashboardHeader = memo(function DashboardHeader({
             to="/totais" 
             className="text-sm font-bold text-white/90 hover:text-white flex items-center gap-2 transition-colors [&.active]:text-emerald-300"
           >
-            <Flame className="w-4 h-4" />
+            <BarChart3 className="w-4 h-4" />
             Totais
+          </Link>
+          <Link 
+            to="/focos" 
+            className="text-sm font-bold text-white/90 hover:text-white flex items-center gap-2 transition-colors [&.active]:text-amber-300"
+            title="Painel do Fogo (CENSIPAM) · Focos e Queimadas no Amazonas"
+          >
+            <Flame className="w-4 h-4 text-amber-400" />
+            Focos
           </Link>
         </nav>
 
@@ -204,6 +212,11 @@ export const DashboardHeader = memo(function DashboardHeader({
               <DropdownMenuItem asChild>
                 <Link to="/totais">
                   <BarChart3 className="w-4 h-4 mr-2" /> Totais acumulados
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/focos">
+                  <Flame className="w-4 h-4 mr-2 text-amber-500" /> Focos (Painel do Fogo)
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>

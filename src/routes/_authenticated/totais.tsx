@@ -970,6 +970,18 @@ ${topIncendios || "  Nenhum registro no período."}
               asChild
               variant="secondary"
               size="sm"
+              className="bg-amber-500 hover:bg-amber-600 text-white font-semibold gap-1.5 shadow-sm"
+              title="Monitoramento em Tempo Real do Painel do Fogo (CENSIPAM)"
+            >
+              <Link to="/focos">
+                <Flame className="w-4 h-4" />
+                Focos (CENSIPAM)
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant="secondary"
+              size="sm"
               className="bg-white/95 text-foreground"
             >
               <Link to="/registro">Registro do dia</Link>

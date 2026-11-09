@@ -16,6 +16,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedEfetivoRouteImport } from './routes/_authenticated/efetivo'
 import { Route as AuthenticatedEscalaRouteImport } from './routes/_authenticated/escala'
+import { Route as AuthenticatedFocosRouteImport } from './routes/_authenticated/focos'
 import { Route as AuthenticatedPainelRouteImport } from './routes/_authenticated/painel'
 import { Route as AuthenticatedRegistroRouteImport } from './routes/_authenticated/registro'
 import { Route as AuthenticatedStatusRouteImport } from './routes/_authenticated/status'
@@ -56,6 +57,11 @@ const AuthenticatedEfetivoRoute = AuthenticatedEfetivoRouteImport.update({
 const AuthenticatedEscalaRoute = AuthenticatedEscalaRouteImport.update({
   id: '/escala',
   path: '/escala',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedFocosRoute = AuthenticatedFocosRouteImport.update({
+  id: '/focos',
+  path: '/focos',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedPainelRoute = AuthenticatedPainelRouteImport.update({
@@ -102,6 +108,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/efetivo': typeof AuthenticatedEfetivoRoute
   '/escala': typeof AuthenticatedEscalaRoute
+  '/focos': typeof AuthenticatedFocosRoute
   '/painel': typeof AuthenticatedPainelRoute
   '/registro': typeof AuthenticatedRegistroRoute
   '/status': typeof AuthenticatedStatusRoute
@@ -117,6 +124,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/efetivo': typeof AuthenticatedEfetivoRoute
   '/escala': typeof AuthenticatedEscalaRoute
+  '/focos': typeof AuthenticatedFocosRoute
   '/painel': typeof AuthenticatedPainelRoute
   '/registro': typeof AuthenticatedRegistroRoute
   '/status': typeof AuthenticatedStatusRoute
@@ -134,6 +142,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/efetivo': typeof AuthenticatedEfetivoRoute
   '/_authenticated/escala': typeof AuthenticatedEscalaRoute
+  '/_authenticated/focos': typeof AuthenticatedFocosRoute
   '/_authenticated/painel': typeof AuthenticatedPainelRoute
   '/_authenticated/registro': typeof AuthenticatedRegistroRoute
   '/_authenticated/status': typeof AuthenticatedStatusRoute
@@ -151,6 +160,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/efetivo'
     | '/escala'
+    | '/focos'
     | '/painel'
     | '/registro'
     | '/status'
@@ -166,6 +176,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/efetivo'
     | '/escala'
+    | '/focos'
     | '/painel'
     | '/registro'
     | '/status'
@@ -182,6 +193,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/efetivo'
     | '/_authenticated/escala'
+    | '/_authenticated/focos'
     | '/_authenticated/painel'
     | '/_authenticated/registro'
     | '/_authenticated/status'
@@ -252,6 +264,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedEscalaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/focos': {
+      id: '/_authenticated/focos'
+      path: '/focos'
+      fullPath: '/focos'
+      preLoaderRoute: typeof AuthenticatedFocosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/painel': {
       id: '/_authenticated/painel'
       path: '/painel'
@@ -308,6 +327,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedEfetivoRoute: typeof AuthenticatedEfetivoRoute
   AuthenticatedEscalaRoute: typeof AuthenticatedEscalaRoute
+  AuthenticatedFocosRoute: typeof AuthenticatedFocosRoute
   AuthenticatedPainelRoute: typeof AuthenticatedPainelRoute
   AuthenticatedRegistroRoute: typeof AuthenticatedRegistroRoute
   AuthenticatedStatusRoute: typeof AuthenticatedStatusRoute
@@ -318,6 +338,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedEfetivoRoute: AuthenticatedEfetivoRoute,
   AuthenticatedEscalaRoute: AuthenticatedEscalaRoute,
+  AuthenticatedFocosRoute: AuthenticatedFocosRoute,
   AuthenticatedPainelRoute: AuthenticatedPainelRoute,
   AuthenticatedRegistroRoute: AuthenticatedRegistroRoute,
   AuthenticatedStatusRoute: AuthenticatedStatusRoute,
