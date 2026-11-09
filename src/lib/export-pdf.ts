@@ -583,11 +583,13 @@ export function buildSheetsPdfDoc(
     (recMap["ata"] || 0) +
     (recMap["abf"] || 0) +
     (recMap["atf"] || 0) +
+    (recMap["abtf"] || 0) +
     (recMap["pipa"] || 0) +
     (recMap["aem"] || 0);
 
   const totAereos = (recMap["aviao"] || 0) + (recMap["helicoptero"] || 0);
-  const totFluviais = (recMap["embarcacao"] || 0) + (recMap["jetski"] || 0);
+  const totFluviais = (recMap["embarcacao"] || 0) + (recMap["jetski"] || 0) + (recMap["quadriciclo"] || 0);
+  const totEspeciais = totAereos + totFluviais;
   const totApoioResgate =
     (recMap["abs"] || 0) +
     (recMap["crs"] || 0) +
@@ -599,14 +601,13 @@ export function buildSheetsPdfDoc(
     (recMap["dosa"] || 0) +
     (recMap["autoarp"] || 0) +
     (recMap["picape_fn"] || 0) +
-    (recMap["picape_muni"] || 0) +
-    (recMap["quadriciclo"] || 0);
+    (recMap["picape_muni"] || 0);
 
   // Cards de Recursos (Y: 62)
   drawKpiCards(62, [
     {
       label: "Total de Meios Materiais",
-      value: NF.format(recGrandTotal),
+      value: NF.format(recGrandTotal || (totCombate + totApoioResgate + totEspeciais)),
       subtext: "Recursos Ativos em Campo",
       highlight: true,
     },
@@ -788,7 +789,8 @@ export function buildSheetsPdfDoc(
     ["Helicópteros Harpia (CIOPAER / CBMAM)", recMap["helicoptero"] || 0],
     ["Embarcações / Lanchas Rápidas", recMap["embarcacao"] || 0],
     ["Jet Skis & Quadriciclos Táticos", (recMap["jetski"] || 0) + (recMap["quadriciclo"] || 0)],
-    ["TOTAL DE RECURSOS MATERIAIS GERAL", recGrandTotal],
+    ["SUBTOTAL MEIOS ESPECIAIS & FLUVIAIS", totEspeciais],
+    ["TOTAL DE RECURSOS MATERIAIS GERAL", recGrandTotal || (totCombate + totApoioResgate + totEspeciais)],
   ];
 
   autoTable(doc, {

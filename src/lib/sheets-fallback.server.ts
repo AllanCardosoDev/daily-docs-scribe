@@ -665,20 +665,6 @@ export async function loadReportByDate(
       (occ.municipio?.length ?? 0) <= 35,
   );
 
-  // Se a data consultada ainda não tiver ocorrências próprias (ex.: início de turno),
-  // herda as ocorrências do ciclo operacional anterior mais recente (doador):
-  if (dayOccurrences.length === 0) {
-    if (donor && Array.isArray((donor as any).occurrences) && (donor as any).occurrences.length > 0) {
-      dayOccurrences = (donor as any).occurrences;
-    } else {
-      const { getLatestOccurrenceDate } = await import("./occurrences-store.server");
-      const latestDate = getLatestOccurrenceDate();
-      if (latestDate && latestDate <= dateIso) {
-        dayOccurrences = getOccurrencesForDate(latestDate);
-      }
-    }
-  }
-
   // Sempre que há ocorrências do CAD para a data, sintetizamos e harmonizamos
   // as contagens municipais de incêndio a partir das ocorrências oficiais:
   // - Naturezas ambientais (vegetação, florestal, lixo/entulho, lavoura/pastagem/mata) -> Incêndio Florestal (flor)
@@ -756,10 +742,10 @@ export async function loadReportByDate(
   const data: SheetsData = {
     header: {
       titulo: headerObj.titulo ?? "Relatório Diário — Sala de Situação",
-      periodo: headerObj.periodo ?? `${dateStr} · ${shiftLabel}`,
-      proximoPeriodo: headerObj.proximoPeriodo ?? "",
-      reuniaoPlanejamento: headerObj.reuniaoPlanejamento ?? `${dateStr} – 8H15`,
-      reuniaoBriefing: headerObj.reuniaoBriefing ?? `${dateStr} – 8H30`,
+      periodo: `${dateStr} · ${shiftLabel}`,
+      proximoPeriodo: headerObj.proximoPeriodo || `D+1 — 08H00`,
+      reuniaoPlanejamento: `${dateStr} — 08H15`,
+      reuniaoBriefing: `${dateStr} — 08H30`,
       comandanteGeral: headerObj.comandanteGeral ?? "CEL QOBM MUNIZ",
       subcomandante: headerObj.subcomandante ?? headerObj.comandante ?? "CEL QOBM BORGES",
       coordSituacao: safeCoordSituacao,

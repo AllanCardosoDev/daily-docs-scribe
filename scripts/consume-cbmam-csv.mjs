@@ -197,22 +197,47 @@ async function run() {
     const id = clean(row[colMap["id"]]) || `occ-${i}`;
     const protocolo = clean(row[colMap["nrProtocolo"]]) || "—";
 
-    const dateCandidates = [
-      clean(row[colMap["dataHoraFato"]]),
-      clean(row[colMap["dataFato"]]),
-      clean(row[colMap["dataHoraRegistroUTC"]]),
-    ];
+    // 1. Prioridade Máxima: Data do Protocolo Operacional do CAD (ex: CGOE20261104... ou COBOM20261103...)
     let parsedDate = null;
-    for (const cand of dateCandidates) {
-      if (cand) {
-        parsedDate = parseDateAny(cand);
-        if (parsedDate) break;
+    const protoMatch = protocolo.match(/(\d{4})(\d{2})(\d{2})/);
+    if (protoMatch) {
+      const y = Number(protoMatch[1]);
+      const m = Number(protoMatch[2]);
+      const d = Number(protoMatch[3]);
+      if (y >= 2024 && y <= 2027 && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+        const timeMatch = protocolo.match(/(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})/);
+        const timeStr = timeMatch ? `${timeMatch[4]}:${timeMatch[5]}` : "—";
+        const iso = `${protoMatch[1]}-${protoMatch[2]}-${protoMatch[3]}`;
+        const br = `${protoMatch[3]}/${protoMatch[2]}/${protoMatch[1]}`;
+        parsedDate = { iso, br, time: timeStr };
+      }
+    }
+
+    if (!parsedDate) {
+      const dateCandidates = [
+        clean(row[colMap["dataHoraRegistroUTC"]]),
+        clean(row[colMap["dataHoraFato"]]),
+        clean(row[colMap["dataFato"]]),
+      ];
+      for (const cand of dateCandidates) {
+        if (cand) {
+          parsedDate = parseDateAny(cand);
+          if (parsedDate) break;
+        }
       }
     }
 
     if (!parsedDate) {
       skippedDates++;
       continue;
+    }
+
+    if (parsedDate.time === "—") {
+      const timeCand = clean(row[colMap["dataHoraFato"]]) || clean(row[colMap["dataHoraRegistroUTC"]]);
+      const pTime = parseDateAny(timeCand);
+      if (pTime && pTime.time !== "—") {
+        parsedDate.time = pTime.time;
+      }
     }
 
     const munRaw = clean(row[colMap["nomeMunicipio"]]) || "Manaus";
