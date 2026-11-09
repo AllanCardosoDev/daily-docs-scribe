@@ -181,27 +181,33 @@ function EfetivoPage() {
       setIsSaving(true);
       const allItems = [...efetivoCalculado.municipios, ...efetivoCalculado.bases];
 
-      const rowsToSave: EfetivoRow[] = allItems.map((item) => ({
-        mun: item.nome,
-        tipo: item.tipo,
-        serv_ord: item.serv_ord,
-        cbmam: item.serv_ord,
-        ord: item.serv_ord,
-        servico: item.serv_ord,
-        opamv: item.opamv,
-        opam_ref: item.opam_ref,
-        inc1: item.inc1,
-        inc2: item.inc2,
-        inc3: item.inc3,
-        cbmsp: item.cbmsp,
-        prevfogo: item.prevfogo,
-        fn: item.fn,
-        marinha: item.marinha,
-        brig_mun: item.brig_mun,
-        brig_semas: item.brig_semas,
-        total: item.total,
-        _custom: true,
-      }));
+      const rowsToSave: EfetivoRow[] = allItems.map((item) => {
+        const rawRow = (rawData.efetivo || []).find((r) => norm(r.mun) === norm(item.nome));
+        const seg = Number(rawRow?.seg) || 0;
+        return {
+          ...rawRow,
+          mun: item.nome,
+          tipo: item.tipo,
+          serv_ord: item.serv_ord,
+          cbmam: item.serv_ord,
+          ord: item.serv_ord,
+          servico: item.serv_ord,
+          opamv: item.opamv,
+          opam_ref: item.opam_ref,
+          inc1: item.inc1,
+          inc2: item.inc2,
+          inc3: item.inc3,
+          cbmsp: item.cbmsp,
+          prevfogo: item.prevfogo,
+          fn: item.fn,
+          marinha: item.marinha,
+          seg: seg,
+          brig_mun: item.brig_mun,
+          brig_semas: item.brig_semas,
+          total: item.total + seg,
+          _custom: true,
+        };
+      });
 
       const savedNames = new Set(allItems.map((it) => norm(it.nome)));
       for (const extra of rawData.efetivo || []) {
