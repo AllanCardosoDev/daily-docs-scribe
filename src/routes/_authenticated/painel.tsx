@@ -88,7 +88,7 @@ function PainelPage() {
     setPreviewMounted(true);
     setPreviewOpen(true);
   }, []);
-  const { exportXlsx, exportPdf, exportEfetivoMapasXlsx } = useExporters(
+  const { exportXlsx, exportPdf, exportEfetivoPdf, exportCompletoAmvPdf, exportEfetivoMapasXlsx } = useExporters(
     data, 
     reportDate, 
     "standard",
@@ -207,6 +207,8 @@ function PainelPage() {
               onExportXlsx={exportXlsx}
               onExportPdf={exportPdf}
               onPreviewPdf={openPreview}
+              onExportEfetivoPdf={exportEfetivoPdf}
+              onExportCompletoAmvPdf={exportCompletoAmvPdf}
               onExportEfetivoMapas={exportEfetivoMapasXlsx}
               existingMunicipios={existingMunicipios}
               onAddMunicipio={handleAddMunicipio}

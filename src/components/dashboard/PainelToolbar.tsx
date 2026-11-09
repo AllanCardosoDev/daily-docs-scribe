@@ -37,6 +37,8 @@ interface Props {
   onExportXlsx: () => void;
   onExportPdf: () => void;
   onPreviewPdf: () => void;
+  onExportEfetivoPdf?: () => void;
+  onExportCompletoAmvPdf?: () => void;
   onExportEfetivoMapas?: () => void;
   existingMunicipios?: string[];
   onAddMunicipio?: (name: string) => Promise<void> | void;
@@ -58,6 +60,8 @@ export const PainelToolbar = memo(function PainelToolbar({
   onExportXlsx,
   onExportPdf,
   onPreviewPdf,
+  onExportEfetivoPdf,
+  onExportCompletoAmvPdf,
   onExportEfetivoMapas,
   existingMunicipios = [],
   onAddMunicipio,
@@ -195,9 +199,31 @@ export const PainelToolbar = memo(function PainelToolbar({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-80 p-2 shadow-2xl border-border">
                 <DropdownMenuLabel className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold px-2 py-1.5">
-                  Opções de Emissão de Relatório
+                  Relatórios Oficiais em PDF
                 </DropdownMenuLabel>
-                
+
+                {onExportCompletoAmvPdf && (
+                  <DropdownMenuItem
+                    onClick={onExportCompletoAmvPdf}
+                    className="flex items-start gap-3 p-2.5 cursor-pointer rounded-lg hover:bg-muted focus:bg-muted transition-colors"
+                  >
+                    <div className="p-2 rounded-md bg-emerald-700 text-white dark:bg-emerald-800 mt-0.5 shadow-xs">
+                      <FileText className="w-4 h-4 shrink-0" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-sm text-foreground flex items-center gap-1.5">
+                        Relatório Completo AM+V
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-extrabold uppercase">
+                          Completo
+                        </span>
+                      </div>
+                      <div className="text-xs text-muted-foreground leading-snug">
+                        Todas as informações: Ocorrências CAD, Efetivo, Viaturas e Meios Materiais (Diário × Totais).
+                      </div>
+                    </div>
+                  </DropdownMenuItem>
+                )}
+
                 <DropdownMenuItem
                   onClick={onExportPdf}
                   className="flex items-start gap-3 p-2.5 cursor-pointer rounded-lg hover:bg-muted focus:bg-muted transition-colors"
@@ -212,6 +238,23 @@ export const PainelToolbar = memo(function PainelToolbar({
                     </div>
                   </div>
                 </DropdownMenuItem>
+
+                {onExportEfetivoPdf && (
+                  <DropdownMenuItem
+                    onClick={onExportEfetivoPdf}
+                    className="flex items-start gap-3 p-2.5 cursor-pointer rounded-lg hover:bg-muted focus:bg-muted transition-colors"
+                  >
+                    <div className="p-2 rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 mt-0.5">
+                      <Users className="w-4 h-4 shrink-0" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-sm text-foreground">Relatório do Efetivo (PDF)</div>
+                      <div className="text-xs text-muted-foreground leading-snug">
+                        Síntese do efetivo por força integrada (CBMAM, SEG, FN, Brigadas) e distribuição territorial.
+                      </div>
+                    </div>
+                  </DropdownMenuItem>
+                )}
 
                 <DropdownMenuItem
                   onClick={onPreviewPdf}
@@ -229,6 +272,10 @@ export const PainelToolbar = memo(function PainelToolbar({
                 </DropdownMenuItem>
 
                 <DropdownMenuSeparator className="my-1.5" />
+
+                <DropdownMenuLabel className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold px-2 py-1.5">
+                  Planilhas & Totais Acumulados
+                </DropdownMenuLabel>
 
                 <DropdownMenuItem
                   onClick={onExportXlsx}

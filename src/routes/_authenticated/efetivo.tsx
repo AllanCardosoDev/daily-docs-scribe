@@ -11,6 +11,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
+import { Link } from "@tanstack/react-router";
+import {
   Users,
   Shield,
   MapPin,
@@ -30,6 +39,8 @@ import {
   Save,
   X,
   RotateCcw,
+  ChevronDown,
+  Layers,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useSheetsDashboard } from "@/hooks/use-sheets";
@@ -243,6 +254,73 @@ function EfetivoPage() {
     }
   }, [effectiveSheetsData, reportDate, rawData.header]);
 
+  const handleExportEfetivoGeral = useCallback(async () => {
+    try {
+      const { exportEfetivoPdf } = await import("@/lib/export-efetivo-pdf");
+      const periodLabel = "Consolidado Geral — Operação Amazonas + Verde";
+      exportEfetivoPdf({
+        efetivo: effectiveSheetsData.efetivo || [],
+        periodoLabel,
+        reportDate,
+        comandanteGeral: rawData.header?.comandanteGeral || "CEL QOBM MUNIZ",
+        subcomandante: rawData.header?.subcomandante || rawData.header?.comandante || "CEL QOBM BORGES",
+        coordSituacao: rawData.header?.coordSituacao || rawData.header?.coordenador || "CEL QOBM FERREIRA",
+        coordenador: rawData.header?.coordenador || "CEL QOBM FERREIRA",
+      });
+      toast.success("Relatório Geral do Efetivo (PDF) gerado com sucesso!", {
+        description: `Período: ${periodLabel}`,
+      });
+    } catch (e) {
+      toast.error("Falha ao gerar Relatório Geral do Efetivo", {
+        description: (e as Error)?.message,
+      });
+    }
+  }, [effectiveSheetsData, reportDate, rawData.header]);
+
+  const handleExportCompletoAmv = useCallback(async () => {
+    try {
+      const { exportRelatorioCompletoAmvPdf } = await import("@/lib/export-completo-amv-pdf");
+      const dateLabel = reportDate ? fmtDateBR(reportDate) : "Fechamento Diário";
+      const periodLabel = "Operação Amazonas + Verde 2026";
+      exportRelatorioCompletoAmvPdf({
+        periodoLabel,
+        dataDiariaLabel: dateLabel,
+        reportDate,
+        comandanteGeral: rawData.header?.comandanteGeral || "CEL QOBM MUNIZ",
+        subcomandante: rawData.header?.subcomandante || rawData.header?.comandante || "CEL QOBM BORGES",
+        coordSituacao: rawData.header?.coordSituacao || rawData.header?.coordenador || "CEL QOBM FERREIRA",
+        coordenador: rawData.header?.coordenador || "CEL QOBM FERREIRA",
+        chefeCapital: rawData.header?.chefeCapital || "CEL QOBM MENEZES",
+        chefeInterior: rawData.header?.chefeInterior || "CEL QOBM MONTEIRO",
+        ocorrenciasDiarias: rawData.incendios_diario || [],
+        ocorrenciasTotais: rawData.incendios_acumulado || rawData.incendios_diario || [],
+        efetivoDiario: effectiveSheetsData.efetivo || [],
+        efetivoGeral: effectiveSheetsData.efetivo || [],
+        viaturasDiarias: rawData.recursos || [],
+        viaturasTotais: rawData.recursos || [],
+      });
+      toast.success("Relatório Completo AM+V gerado com sucesso!", {
+        description: `Diário: ${dateLabel} · Período: ${periodLabel}`,
+      });
+    } catch (e) {
+      toast.error("Falha ao gerar Relatório Completo AM+V", {
+        description: (e as Error)?.message,
+      });
+    }
+  }, [rawData, effectiveSheetsData, reportDate]);
+
+  const handleExportDiarioOficial = useCallback(async () => {
+    try {
+      const { exportSheetsToPdf } = await import("@/lib/export-pdf");
+      exportSheetsToPdf(rawData, reportDate);
+      toast.success("Relatório Diário Oficial (PDF) gerado com sucesso!");
+    } catch (e) {
+      toast.error("Falha ao gerar Relatório Diário Oficial", {
+        description: (e as Error)?.message,
+      });
+    }
+  }, [rawData, reportDate]);
+
   const handleExportXlsx = useCallback(() => {
     try {
       exportEfetivoMapasXlsx(effectiveSheetsData, reportDate);
@@ -364,15 +442,119 @@ function EfetivoPage() {
                     <RefreshCw className="w-4 h-4 text-muted-foreground" />
                   </Button>
 
-                  {/* Gerar Relatório PDF do Efetivo */}
-                  <Button
-                    onClick={handleExportPdf}
-                    className="h-10 px-4 bg-emerald-800 hover:bg-emerald-900 text-white font-bold gap-2 shadow-sm"
-                    title="Gerar Relatório Oficial do Efetivo CBMAM em formato PDF"
-                  >
-                    <FileText className="w-4 h-4" />
-                    <span>Relatório Efetivo (PDF)</span>
-                  </Button>
+                  {/* Menu Gerar Relatório com Múltiplas Opções */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        className="h-10 px-4 bg-emerald-800 hover:bg-emerald-900 text-white font-bold gap-2 shadow-sm"
+                        title="Escolha o relatório em PDF para download"
+                      >
+                        <FileText className="w-4 h-4" />
+                        <span>Gerar Relatório</span>
+                        <ChevronDown className="w-4 h-4 opacity-80" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-84 p-2 shadow-2xl border-border">
+                      <DropdownMenuLabel className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold px-2 py-1.5">
+                        Relatórios Oficiais em PDF
+                      </DropdownMenuLabel>
+
+                      {/* 1. Relatório Completo AM+V */}
+                      <DropdownMenuItem
+                        onClick={handleExportCompletoAmv}
+                        className="flex items-start gap-3 p-2.5 cursor-pointer rounded-lg hover:bg-muted focus:bg-muted transition-colors"
+                      >
+                        <div className="p-2 rounded-md bg-emerald-700 text-white dark:bg-emerald-800 mt-0.5 shadow-xs">
+                          <FileText className="w-4 h-4 shrink-0" />
+                        </div>
+                        <div>
+                          <div className="font-bold text-sm text-foreground flex items-center gap-1.5">
+                            Relatório Completo AM+V
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-extrabold uppercase">
+                              Completo
+                            </span>
+                          </div>
+                          <div className="text-xs text-muted-foreground leading-snug">
+                            Todas as informações: Ocorrências CAD, Efetivo, Viaturas e Meios Materiais (Diário × Totais).
+                          </div>
+                        </div>
+                      </DropdownMenuItem>
+
+                      {/* 2. Efetivo do Dia */}
+                      <DropdownMenuItem
+                        onClick={handleExportPdf}
+                        className="flex items-start gap-3 p-2.5 cursor-pointer rounded-lg hover:bg-muted focus:bg-muted transition-colors"
+                      >
+                        <div className="p-2 rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 mt-0.5">
+                          <Users className="w-4 h-4 shrink-0" />
+                        </div>
+                        <div>
+                          <div className="font-bold text-sm text-foreground">
+                            Efetivo do Dia ({reportDate ? fmtDateBR(reportDate) : "Hoje"})
+                          </div>
+                          <div className="text-xs text-muted-foreground leading-snug">
+                            Distribuição detalhada de militares e brigadistas empenhados na data selecionada.
+                          </div>
+                        </div>
+                      </DropdownMenuItem>
+
+                      {/* 3. Efetivo Total / Geral */}
+                      <DropdownMenuItem
+                        onClick={handleExportEfetivoGeral}
+                        className="flex items-start gap-3 p-2.5 cursor-pointer rounded-lg hover:bg-muted focus:bg-muted transition-colors"
+                      >
+                        <div className="p-2 rounded-md bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300 mt-0.5">
+                          <Users className="w-4 h-4 shrink-0" />
+                        </div>
+                        <div>
+                          <div className="font-bold text-sm text-foreground flex items-center gap-1.5">
+                            Efetivo Total / Geral (PDF)
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-800 dark:text-amber-300 font-bold uppercase">
+                              Totais
+                            </span>
+                          </div>
+                          <div className="text-xs text-muted-foreground leading-snug">
+                            Consolidado geral de todo o efetivo mobilizado na Operação Amazonas + Verde.
+                          </div>
+                        </div>
+                      </DropdownMenuItem>
+
+                      {/* 4. Relatório Diário Geral */}
+                      <DropdownMenuItem
+                        onClick={handleExportDiarioOficial}
+                        className="flex items-start gap-3 p-2.5 cursor-pointer rounded-lg hover:bg-muted focus:bg-muted transition-colors"
+                      >
+                        <div className="p-2 rounded-md bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 mt-0.5">
+                          <FileText className="w-4 h-4 shrink-0" />
+                        </div>
+                        <div>
+                          <div className="font-bold text-sm text-foreground">Relatório Diário Oficial da Sala</div>
+                          <div className="text-xs text-muted-foreground leading-snug">
+                            Documento oficial padrão da Sala de Situação com efetivo, recursos e incêndios.
+                          </div>
+                        </div>
+                      </DropdownMenuItem>
+
+                      <DropdownMenuSeparator className="my-1.5" />
+
+                      <DropdownMenuItem
+                        asChild
+                        className="flex items-start gap-3 p-2.5 cursor-pointer rounded-lg hover:bg-muted focus:bg-muted transition-colors"
+                      >
+                        <Link to="/totais">
+                          <div className="p-2 rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 mt-0.5">
+                            <Layers className="w-4 h-4 shrink-0" />
+                          </div>
+                          <div>
+                            <div className="font-bold text-sm text-foreground">Central de Relatórios & Totais</div>
+                            <div className="text-xs text-muted-foreground leading-snug">
+                              Consultar históricos, consolidados de períodos customizados e comparativos.
+                            </div>
+                          </div>
+                        </Link>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
 
                   {/* Botão Oficial: Exportar Efetivo p/ o Sistema de Mapas */}
                   <Button
