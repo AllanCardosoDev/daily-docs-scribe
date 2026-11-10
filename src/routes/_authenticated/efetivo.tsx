@@ -78,6 +78,12 @@ function EditableCell({
   isEditing: boolean;
   onChange: (val: number) => void;
 }) {
+  const [localText, setLocalText] = useState(String(value ?? 0));
+
+  useEffect(() => {
+    setLocalText(String(value ?? 0));
+  }, [value]);
+
   if (!isEditing) {
     return <>{value ?? 0}</>;
   }
@@ -85,8 +91,12 @@ function EditableCell({
     <input
       type="number"
       min={0}
-      value={value ?? 0}
-      onChange={(e) => onChange(Number(e.target.value) || 0)}
+      value={localText}
+      onChange={(e) => {
+        setLocalText(e.target.value);
+        const parsed = parseInt(e.target.value, 10);
+        onChange(Number.isNaN(parsed) ? 0 : Math.max(0, parsed));
+      }}
       onFocus={(e) => e.target.select()}
       className="w-14 h-7 text-right font-mono text-xs px-1 py-0.5 rounded border border-input bg-background text-foreground focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none transition-colors"
     />
