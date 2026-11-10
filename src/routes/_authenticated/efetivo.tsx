@@ -48,12 +48,14 @@ import { useExporters } from "@/hooks/use-exporters";
 import { getLatestReportDate } from "@/lib/daily-reports.functions";
 import { EMPTY_SHEETS_DATA, type SheetsData, type EfetivoRow } from "@/lib/sheets.types";
 import { fmtDateBR } from "@/lib/report-date";
-import { canonicalMunicipio, isNonMunicipioTroop } from "@/lib/municipio-order";
+import { canonicalMunicipio, isNonMunicipioTroop, isManaus } from "@/lib/municipio-order";
 import {
   buildEfetivoMapasData,
   exportEfetivoMapasXlsx,
   exportEfetivoMapasJson,
   norm,
+  EFETIVO_BASES_PADRAO,
+  EFETIVO_MUNICIPIOS_PADRAO,
   type EfetivoMapasItem,
 } from "@/lib/efetivo-mapas";
 
@@ -299,7 +301,7 @@ function EfetivoPage() {
   const handleExportEfetivoGeral = useCallback(async () => {
     try {
       const { exportEfetivoPdf } = await import("@/lib/export-efetivo-pdf");
-      const periodLabel = "Consolidado Geral — Operação Amazonas + Verde";
+      const periodoLabel = "Consolidado Geral — Operação Amazonas + Verde";
       exportEfetivoPdf({
         efetivo: effectiveSheetsData.efetivo || [],
         periodoLabel,
@@ -310,7 +312,7 @@ function EfetivoPage() {
         coordenador: rawData.header?.coordenador || "CEL QOBM FERREIRA",
       });
       toast.success("Relatório Geral do Efetivo (PDF) gerado com sucesso!", {
-        description: `Período: ${periodLabel}`,
+        description: `Período: ${periodoLabel}`,
       });
     } catch (e) {
       toast.error("Falha ao gerar Relatório Geral do Efetivo", {
@@ -323,7 +325,7 @@ function EfetivoPage() {
     try {
       const { exportRelatorioCompletoAmvPdf } = await import("@/lib/export-completo-amv-pdf");
       const dateLabel = reportDate ? fmtDateBR(reportDate) : "Fechamento Diário";
-      const periodLabel = "Operação Amazonas + Verde 2026";
+      const periodoLabel = "Operação Amazonas + Verde 2026";
       exportRelatorioCompletoAmvPdf({
         periodoLabel,
         dataDiariaLabel: dateLabel,
@@ -342,7 +344,7 @@ function EfetivoPage() {
         viaturasTotais: rawData.recursos || [],
       });
       toast.success("Relatório Completo AM+V gerado com sucesso!", {
-        description: `Diário: ${dateLabel} · Período: ${periodLabel}`,
+        description: `Diário: ${dateLabel} · Período: ${periodoLabel}`,
       });
     } catch (e) {
       toast.error("Falha ao gerar Relatório Completo AM+V", {

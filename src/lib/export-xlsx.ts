@@ -211,7 +211,7 @@ export function exportTotaisToXlsx(
     ["RELATÓRIO:", "TOTAIS ACUMULADOS E CONSOLIDADOS DO PERÍODO"],
     ["PERÍODO OPERACIONAL:", periodoLabel || "Consolidado Geral"],
     ["DATA DE EMISSÃO:", new Date().toLocaleString("pt-BR")],
-    ["RESPONSÁVEL / PREENCHIMENTO:", data.header?.operador || data.header?.responsavel || "OPERADOR DA SALA DE SITUAÇÃO — CBMAM"],
+    ["RESPONSÁVEL / PREENCHIMENTO:", "OPERADOR DA SALA DE SITUAÇÃO — CBMAM"],
     ["COORDENAÇÃO:", "SALA DE SITUAÇÃO — OPERAÇÃO AMAZONAS + VERDE"],
   ];
   const wsHeader = XLSX.utils.aoa_to_sheet(headerRows);

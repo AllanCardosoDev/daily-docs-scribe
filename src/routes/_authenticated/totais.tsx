@@ -814,12 +814,12 @@ ${topIncendios || "  Nenhum registro no período."}
         },
         efetivo: !isAnnualComparison ? efetivoFull : efetivoComp2,
         recursos: !isAnnualComparison ? recursosFull : recursosComp2,
-        incendios_diario: !isAnnualComparison ? incendiosFull : incendiosComp2,
-        incendios_acumulado: (!isAnnualComparison ? incendiosFull : incendiosComp2).map((r) => ({
+        incendios_diario: (!isAnnualComparison ? incendiosFull : incendiosComp2) as any,
+        incendios_acumulado: (!isAnnualComparison ? incendiosFull : incendiosComp2).map((r: any) => ({
           mun: r.mun,
-          urb: r.urb ?? 0,
-          flor: r.flor ?? 0,
-          focos: r.focos ?? 0,
+          urb: Number(r.urb) || 0,
+          flor: Number(r.flor) || 0,
+          focos: Number(r.focos) || 0,
           sat: 0,
           area: 0,
         })),
