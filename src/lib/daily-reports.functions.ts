@@ -106,9 +106,11 @@ export const getLatestReportDate = createServerFn({ method: "GET" })
       dbClient = context.supabase;
     }
     const { getLatestOccurrenceDate } = await import("./occurrences-store.server");
+    const todayIso = new Date().toISOString().split("T")[0];
     const { data } = await dbClient
       .from("daily_reports")
       .select("report_date")
+      .lte("report_date", todayIso)
       .order("report_date", { ascending: false })
       .order("shift", { ascending: false })
       .limit(1)

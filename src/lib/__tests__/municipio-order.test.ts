@@ -14,8 +14,8 @@ describe("municipio-order", () => {
     it("deve normalizar apelidos e evitar duplicidades históricas", () => {
       expect(canonicalMunicipio("Careiro")).toBe("Careiro Castanho");
       expect(canonicalMunicipio("Careiro Castanho")).toBe("Careiro Castanho");
-      expect(canonicalMunicipio("Autazes Posto Km 53")).toBe("Autazes");
-      expect(canonicalMunicipio("Posto Km 53")).toBe("Autazes");
+      expect(canonicalMunicipio("Autazes Posto Km 53")).toBe("Autazes Posto Km 53");
+      expect(canonicalMunicipio("Posto Km 53")).toBe("Autazes Posto Km 53");
       expect(canonicalMunicipio("Boca do Acre")).toBe("Boca do Acre");
       expect(canonicalMunicipio("Boca de Acre")).toBe("Boca do Acre");
       expect(canonicalMunicipio("Boca doAcre")).toBe("Boca do Acre");
@@ -68,14 +68,14 @@ describe("municipio-order", () => {
   });
 
   describe("manausFirst", () => {
-    it("deve mover Manaus para o topo mantendo a ordem relativa dos demais", () => {
+    it("deve mover Manaus para o topo e ordenar os demais alfabeticamente", () => {
       const input = [{ mun: "Tefé" }, { mun: "Humaitá" }, { mun: "Manaus" }, { mun: "Coari" }];
       const result = manausFirst(input);
       expect(result).toEqual([
         { mun: "Manaus" },
-        { mun: "Tefé" },
-        { mun: "Humaitá" },
         { mun: "Coari" },
+        { mun: "Humaitá" },
+        { mun: "Tefé" },
       ]);
     });
 

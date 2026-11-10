@@ -93,7 +93,7 @@ function EditableCell({
 
 function EfetivoPage() {
   const [reportDate, setReportDate] = useState<Date | null>(new Date());
-  const [viewMode, setViewMode] = useState<"consolidado" | "diario">("consolidado");
+  const [viewMode, setViewMode] = useState<"consolidado" | "diario">("diario");
   const [activeTab, setActiveTab] = useState<"todos" | "municipios" | "bases" | "resumo">("todos");
   const [copiedApi, setCopiedApi] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -202,27 +202,42 @@ function EfetivoPage() {
           return norm(r.mun) === norm(item.nome) && rTipo === item.tipo;
         });
         const seg = item.tipo === "base" ? 0 : (Number(rawRow?.seg) || 0);
+        const servOrd = Number(item.serv_ord) || 0;
+        const opamv = Number(item.opamv) || 0;
+        const opamRef = Number(item.opam_ref) || 0;
+        const inc1 = Number(item.inc1) || 0;
+        const inc2 = Number(item.inc2) || 0;
+        const inc3 = Number(item.inc3) || 0;
+        const cbmsp = Number(item.cbmsp) || 0;
+        const prevfogo = Number(item.prevfogo) || 0;
+        const fn = Number(item.fn) || 0;
+        const marinha = Number(item.marinha) || 0;
+        const brigMun = Number(item.brig_mun) || 0;
+        const brigSemas = Number(item.brig_semas) || 0;
+        const calculatedTotal =
+          servOrd + opamv + opamRef + inc1 + inc2 + inc3 + cbmsp + prevfogo + fn + marinha + brigMun + brigSemas + seg;
+
         return {
           ...rawRow,
           mun: item.nome,
           tipo: item.tipo,
-          serv_ord: item.serv_ord,
-          cbmam: item.serv_ord,
-          ord: item.serv_ord,
-          servico: item.serv_ord,
-          opamv: item.opamv,
-          opam_ref: item.opam_ref,
-          inc1: item.inc1,
-          inc2: item.inc2,
-          inc3: item.inc3,
-          cbmsp: item.cbmsp,
-          prevfogo: item.prevfogo,
-          fn: item.fn,
-          marinha: item.marinha,
+          serv_ord: servOrd,
+          cbmam: servOrd,
+          ord: servOrd,
+          servico: servOrd,
+          opamv: opamv,
+          opam_ref: opamRef,
+          inc1: inc1,
+          inc2: inc2,
+          inc3: inc3,
+          cbmsp: cbmsp,
+          prevfogo: prevfogo,
+          fn: fn,
+          marinha: marinha,
           seg: seg,
-          brig_mun: item.brig_mun,
-          brig_semas: item.brig_semas,
-          total: item.total + seg,
+          brig_mun: brigMun,
+          brig_semas: brigSemas,
+          total: calculatedTotal,
           _custom: true,
         };
       });
@@ -608,7 +623,10 @@ function EfetivoPage() {
                   {!isEditing ? (
                     <Button
                       variant="default"
-                      onClick={() => setIsEditing(true)}
+                      onClick={() => {
+                        setViewMode("diario");
+                        setIsEditing(true);
+                      }}
                       className="h-10 px-4 bg-amber-600 hover:bg-amber-700 text-white font-bold gap-2 shadow-sm"
                       title="Ativar edição direta dos valores de efetivo nas tabelas"
                     >
