@@ -154,7 +154,7 @@ export const getAnnualIncendios = createServerFn({ method: "GET" })
         const cur = bucket.incMap.get(mun) ?? { mun, urb: 0, flor: 0, focos: 0, total: 0 };
         const urb = Number(item?.urb) || 0;
         const flor = Number(item?.flor) || 0;
-        const focos = Number(item?.focos) || 0;
+        const focos = Number(item?.focos) || Number(item?.focos_combatidos) || Number(item?.focos_atendidos) || 0;
         cur.urb += urb;
         cur.flor += flor;
         cur.focos += focos;
@@ -181,9 +181,9 @@ export const getAnnualIncendios = createServerFn({ method: "GET" })
         if (!rawMun) continue;
         const mun = canonicalMunicipio(rawMun);
         if (mun === "—") continue;
-        const ord = Number(item?.ord) || 0;
+        const ord = Number(item?.ord) || Number(item?.cbmam) || Number(item?.servico) || Number(item?.serv_ord) || 0;
         const seg = Number(item?.seg) || 0;
-        const brig = Number(item?.brig) || 0;
+        const brig = Number(item?.brig) || Number(item?.brig_mun) || Number(item?.brig_semas) || Number(item?.brig_sema) || 0;
         bucket.efMap.set(mun, { mun, ord, seg, brig, total: ord + seg + brig });
       }
 

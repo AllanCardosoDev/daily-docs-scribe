@@ -93,6 +93,37 @@ function getItemVal(item: AnyRow | undefined, key: string): number {
       (Number(item.esfron) || 0)
     );
   }
+  if (key === "focos" || key === "focos_combatidos" || key === "focos_atendidos") {
+    return (
+      Number(item.focos) ||
+      Number(item.focos_combatidos) ||
+      Number(item.focos_atendidos) ||
+      0
+    );
+  }
+  if (key === "ord") {
+    return (
+      Number(item.ord) ||
+      Number(item.cbmam) ||
+      Number(item.servico) ||
+      Number(item.serv_ord) ||
+      0
+    );
+  }
+  if (key === "brig") {
+    return (
+      Number(item.brig) ||
+      Number(item.brig_mun) ||
+      0
+    );
+  }
+  if (key === "brig_semas") {
+    return (
+      Number(item.brig_semas) ||
+      Number(item.brig_sema) ||
+      0
+    );
+  }
   if (item[key] !== undefined && item[key] !== null) return Number(item[key]) || 0;
   const normTarget = key
     .normalize("NFD")
@@ -471,9 +502,6 @@ function TotaisPage() {
         "urb",
         "flor",
         "focos",
-        "focos_combatidos",
-        "focos_atendidos",
-        "sat",
       ]),
     [rows],
   );
@@ -491,11 +519,11 @@ function TotaisPage() {
     [rows],
   );
   
-  const incendiosComp1 = useMemo(() => aggregateSum(rowsComp1, "incendios", ["urb", "flor", "focos", "focos_combatidos", "focos_atendidos", "sat"]), [rowsComp1]);
+  const incendiosComp1 = useMemo(() => aggregateSum(rowsComp1, "incendios", ["urb", "flor", "focos"]), [rowsComp1]);
   const efetivoComp1 = useMemo(() => aggregateSnapshot(rowsComp1, "efetivo", EFETIVO_AGG_KEYS), [rowsComp1]);
   const recursosComp1 = useMemo(() => aggregateSnapshot(rowsComp1, "recursos", RECURSOS_AGG_KEYS), [rowsComp1]);
 
-  const incendiosComp2 = useMemo(() => aggregateSum(rowsComp2, "incendios", ["urb", "flor", "focos", "focos_combatidos", "focos_atendidos", "sat"]), [rowsComp2]);
+  const incendiosComp2 = useMemo(() => aggregateSum(rowsComp2, "incendios", ["urb", "flor", "focos"]), [rowsComp2]);
   const efetivoComp2 = useMemo(() => aggregateSnapshot(rowsComp2, "efetivo", EFETIVO_AGG_KEYS), [rowsComp2]);
   const recursosComp2 = useMemo(() => aggregateSnapshot(rowsComp2, "recursos", RECURSOS_AGG_KEYS), [rowsComp2]);
 
@@ -541,7 +569,7 @@ function TotaisPage() {
     return {
       dias: rows.length,
       incendios: sum(incendiosFull, ["urb", "flor"]),
-      focos: sum(incendiosFull, ["focos", "focos_combatidos", "focos_atendidos", "sat"]),
+      focos: sum(incendiosFull, ["focos"]),
       efetivo: sumAllEfetivo(efetivoFull),
     };
   }, [rows, incendiosFull, efetivoFull]);
@@ -554,7 +582,7 @@ function TotaisPage() {
       incendios: sum(incendiosComp1, ["urb", "flor"]),
       flor: sum(incendiosComp1, ["flor"]),
       urb: sum(incendiosComp1, ["urb"]),
-      focos: sum(incendiosComp1, ["focos", "focos_combatidos", "focos_atendidos", "sat"]),
+      focos: sum(incendiosComp1, ["focos"]),
       efetivo: sumAllEfetivo(efetivoComp1),
     };
   }, [rowsComp1, incendiosComp1, efetivoComp1]);
@@ -567,7 +595,7 @@ function TotaisPage() {
       incendios: sum(incendiosComp2, ["urb", "flor"]),
       flor: sum(incendiosComp2, ["flor"]),
       urb: sum(incendiosComp2, ["urb"]),
-      focos: sum(incendiosComp2, ["focos", "focos_combatidos", "focos_atendidos", "sat"]),
+      focos: sum(incendiosComp2, ["focos"]),
       efetivo: sumAllEfetivo(efetivoComp2),
     };
   }, [rowsComp2, incendiosComp2, efetivoComp2]);
@@ -625,7 +653,7 @@ function TotaisPage() {
       const r = item as Record<string, any>;
       const flor = Number(r.flor) || 0;
       const urb = Number(r.urb) || 0;
-      const focos = Number(r.focos) || Number(r.focos_combatidos) || Number(r.sat) || 0;
+      const focos = Number(r.focos) || Number(r.focos_combatidos) || Number(r.focos_atendidos) || 0;
       florTotal += flor;
       urbTotal += urb;
       focosTotal += focos;
@@ -674,7 +702,7 @@ function TotaisPage() {
     const urb = incList.reduce((s: number, r: any) => s + (Number(r.urb) || 0), 0);
     const flor = incList.reduce((s: number, r: any) => s + (Number(r.flor) || 0), 0);
     const focos = incList.reduce(
-      (s: number, r: any) => s + (Number(r.focos) || Number(r.focos_combatidos) || Number(r.sat) || 0),
+      (s: number, r: any) => s + (Number(r.focos) || Number(r.focos_combatidos) || Number(r.focos_atendidos) || 0),
       0
     );
     const efList = Array.isArray(latestRow.efetivo) ? latestRow.efetivo : [];
@@ -753,7 +781,7 @@ ${topIncendios || "  Nenhum registro no período."}
 
       // Ocorrências: diário do último dia vs acumulado do período
       const occDiarias = latestRow
-        ? aggregateSum([latestRow], "incendios", ["urb", "flor", "focos", "sat"])
+        ? aggregateSum([latestRow], "incendios", ["urb", "flor", "focos"])
         : (!isAnnualComparison ? incendiosFull : incendiosComp2);
       const occTotais = !isAnnualComparison ? incendiosFull : incendiosComp2;
 

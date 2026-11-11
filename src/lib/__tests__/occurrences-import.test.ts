@@ -1,10 +1,24 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { processSpreadsheetBuffer } from "../occurrences-import.server";
 import { isNonMunicipioTroop, canonicalMunicipio } from "../municipio-order";
 import fs from "fs";
 import path from "path";
 
 describe("occurrences-import", () => {
+  const occPath = path.resolve(process.cwd(), "src/data/occurrences.json");
+  let originalOccContent = "";
+
+  beforeAll(() => {
+    if (fs.existsSync(occPath)) {
+      originalOccContent = fs.readFileSync(occPath, "utf-8");
+    }
+  });
+
+  afterAll(() => {
+    if (originalOccContent && fs.existsSync(occPath)) {
+      fs.writeFileSync(occPath, originalOccContent, "utf-8");
+    }
+  });
   it("deve identificar e rejeitar UUIDs e tropas externas como município", () => {
     expect(isNonMunicipioTroop("612efaa8-bfe4-4840-bbbc-07d573359d99")).toBe(true);
     expect(isNonMunicipioTroop("34686d6e-771c-4f9a-9c1a-db7ceefe8cf3")).toBe(true);

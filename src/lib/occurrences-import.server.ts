@@ -319,12 +319,25 @@ export async function processSpreadsheetBuffer(
         if (db) {
           const { data: existing } = await db
             .from("daily_reports")
-            .select("id")
+            .select("id, notes")
             .eq("report_date", reportDate)
             .eq("shift", shift)
             .maybeSingle();
 
           if (existing) {
+            let mergedNotes = {
+              header: parsed.header,
+              incendios_acumulado: manausFirst(parsed.incendios_acumulado),
+            };
+            if (existing.notes) {
+              try {
+                const prev = typeof existing.notes === "string" ? JSON.parse(existing.notes) : existing.notes;
+                if (prev && typeof prev === "object") {
+                  mergedNotes = { ...prev, ...mergedNotes };
+                }
+              } catch {}
+            }
+            payload.notes = JSON.stringify(mergedNotes);
             await db.from("daily_reports").update(payload).eq("id", existing.id);
           } else {
             await db.from("daily_reports").insert(payload);
@@ -729,13 +742,23 @@ export async function processSpreadsheetBuffer(
               (mun) => ({ mun, urb: 0, flor: 0, focos: 0, total_periodo: 0 }),
             );
 
+            let mergedNotes: Record<string, any> = { occurrences: dayOccs };
+            if (existingReport.notes) {
+              try {
+                const prev = typeof existingReport.notes === "string" ? JSON.parse(existingReport.notes) : existingReport.notes;
+                if (prev && typeof prev === "object") {
+                  mergedNotes = { ...prev, occurrences: dayOccs };
+                }
+              } catch {}
+            }
+
             await supabaseClient
               .from("daily_reports")
               .update({
                 efetivo: harmonized.efetivo,
                 recursos: harmonized.recursos,
                 incendios: harmonized.incendios,
-                notes: JSON.stringify({ occurrences: dayOccs }),
+                notes: JSON.stringify(mergedNotes),
                 updated_at: new Date().toISOString(),
               })
               .eq("id", existingReport.id);
