@@ -268,7 +268,14 @@ function RegistroPage() {
     setRecursos(harmonized.recursos);
     setIncendios(harmonized.incendios);
     setDadosComplementares((row?.dados_complementares as DadosComplementaresState) ?? {});
-    setNotes(row?.notes ?? "");
+    let notesText = row?.notes ?? "";
+    if (typeof notesText === "string" && notesText.trim().startsWith("{")) {
+      try {
+        const parsed = JSON.parse(notesText.trim());
+        notesText = parsed.observacoes || "";
+      } catch {}
+    }
+    setNotes(notesText);
     loadedKeyRef.current = key;
     dirtyRef.current = false;
   }, [

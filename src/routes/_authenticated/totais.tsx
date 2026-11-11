@@ -769,6 +769,14 @@ ${topIncendios || "  Nenhum registro no período."}
         : (!isAnnualComparison ? recursosFull : recursosComp2);
       const recTotais = !isAnnualComparison ? recursosFull : recursosComp2;
 
+      let latestOccs: any[] = [];
+      if (latestRow?.notes) {
+        try {
+          const parsed = typeof latestRow.notes === "string" ? JSON.parse(latestRow.notes) : latestRow.notes;
+          if (Array.isArray(parsed?.occurrences)) latestOccs = parsed.occurrences;
+        } catch {}
+      }
+
       const { exportRelatorioCompletoAmvPdf } = await import("@/lib/export-completo-amv-pdf");
       exportRelatorioCompletoAmvPdf({
         periodoLabel: periodLabel,
@@ -780,6 +788,7 @@ ${topIncendios || "  Nenhum registro no período."}
         efetivoGeral: efGeral,
         viaturasDiarias: recDiario,
         viaturasTotais: recTotais,
+        occurrences: latestOccs,
       });
 
       toast.success("Relatório Completo AM+V (PDF) gerado com sucesso!", {
@@ -797,6 +806,24 @@ ${topIncendios || "  Nenhum registro no período."}
       const periodLabel = scope === "periodo"
         ? `${fmtDateBR(new Date(from + "T12:00:00Z"))} a ${fmtDateBR(new Date(to + "T12:00:00Z"))}`
         : "Consolidado Geral";
+
+      const periodOccurrences: any[] = [];
+      const occKeys = new Set<string>();
+      for (const rep of (reports || [])) {
+        if (!rep.notes) continue;
+        try {
+          const parsed = typeof rep.notes === "string" ? JSON.parse(rep.notes) : rep.notes;
+          if (Array.isArray(parsed?.occurrences)) {
+            for (const occ of parsed.occurrences) {
+              const k = (occ.protocolo && occ.protocolo !== "-" ? occ.protocolo : "") || `${occ.data}|${occ.horario}|${occ.municipio}|${occ.endereco}`;
+              if (!occKeys.has(k)) {
+                occKeys.add(k);
+                periodOccurrences.push(occ);
+              }
+            }
+          }
+        } catch {}
+      }
 
       const periodSheetsData = {
         header: {
@@ -824,7 +851,7 @@ ${topIncendios || "  Nenhum registro no período."}
           area: 0,
         })),
         outras_diarias: !isAnnualComparison ? outrasFull : [],
-        occurrences: [],
+        occurrences: periodOccurrences,
         isRange: true,
       };
 

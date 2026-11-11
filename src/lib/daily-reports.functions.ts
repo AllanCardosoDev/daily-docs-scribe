@@ -404,7 +404,7 @@ export const saveDailyReport = createServerFn({ method: "POST" })
       dbClient.from("user_roles").select("role").eq("user_id", context.userId),
       dbClient
         .from("daily_reports")
-        .select("id, created_by")
+        .select("id, created_by, notes")
         .eq("report_date", data.report_date)
         .eq("shift", data.shift)
         .maybeSingle(),
@@ -424,14 +424,90 @@ export const saveDailyReport = createServerFn({ method: "POST" })
       (mun) => ({ mun, urb: 0, flor: 0, focos: 0, total_periodo: 0 }),
     );
 
+    // Preserva o envelope JSON em notes (header, occurrences, incendios_acumulado)
+    let existingNotesObj: Record<string, any> = {};
+    if (existing?.notes) {
+      try {
+        existingNotesObj = typeof existing.notes === "string" ? JSON.parse(existing.notes) : existing.notes;
+      } catch {
+        existingNotesObj = {};
+      }
+    }
+
+    let inputNotesObj: Record<string, any> = {};
+    let observacoesText = "";
+    if (data.notes) {
+      const trimmedNotes = String(data.notes).trim();
+      if (trimmedNotes.startsWith("{")) {
+        try {
+          inputNotesObj = JSON.parse(trimmedNotes);
+        } catch {
+          observacoesText = trimmedNotes;
+        }
+      } else {
+        observacoesText = trimmedNotes;
+      }
+    }
+
+    const { getOccurrencesForDate } = await import("./occurrences-store.server");
+    const officialOccs = getOccurrencesForDate(data.report_date);
+    const occurrencesToKeep =
+      (inputNotesObj.occurrences && Array.isArray(inputNotesObj.occurrences) && inputNotesObj.occurrences.length > 0)
+        ? inputNotesObj.occurrences
+        : (existingNotesObj.occurrences && Array.isArray(existingNotesObj.occurrences) && existingNotesObj.occurrences.length > 0)
+        ? existingNotesObj.occurrences
+        : officialOccs;
+
+    const mergedNotes = JSON.stringify({
+      ...existingNotesObj,
+      ...inputNotesObj,
+      occurrences: occurrencesToKeep,
+      ...(observacoesText ? { observacoes: observacoesText } : {}),
+    });
+
+    let finalIncendios = harmonized.incendios;
+    if (occurrencesToKeep.length > 0) {
+      const hasFiresInInput = finalIncendios.some(
+        (r: any) => (Number(r.urb) || 0) > 0 || (Number(r.flor) || 0) > 0,
+      );
+      if (!hasFiresInInput) {
+        const { isFlorestalAmbiental } = await import("./fire-classification");
+        const muniFires = new Map<string, { urb: number; flor: number; focos: number }>();
+        for (const occ of occurrencesToKeep) {
+          const mun = canonicalMunicipio(occ.municipio);
+          const cur = muniFires.get(mun) || { urb: 0, flor: 0, focos: 0 };
+          if (isFlorestalAmbiental(occ.natureza)) cur.flor += 1;
+          else cur.urb += 1;
+          cur.focos += Math.max(1, occ.focos || 1);
+          muniFires.set(mun, cur);
+        }
+        const incMap = new Map<string, any>();
+        for (const r of finalIncendios) {
+          if (r?.mun) incMap.set(canonicalMunicipio(r.mun), { ...r });
+        }
+        for (const [mun, vals] of muniFires.entries()) {
+          const ex = incMap.get(mun);
+          if (ex) {
+            ex.urb = vals.urb;
+            ex.flor = vals.flor;
+            ex.focos = vals.focos;
+            ex.total_periodo = vals.urb + vals.flor;
+          } else {
+            incMap.set(mun, { mun, urb: vals.urb, flor: vals.flor, focos: vals.focos, total_periodo: vals.urb + vals.flor });
+          }
+        }
+        finalIncendios = Array.from(incMap.values()).sort((a, b) => compareMunicipios(a.mun, b.mun));
+      }
+    }
+
     const payload = {
       report_date: data.report_date,
       shift: data.shift,
       efetivo: harmonized.efetivo as any,
       recursos: harmonized.recursos as any,
-      incendios: harmonized.incendios as any,
+      incendios: finalIncendios as any,
       outras: data.outras as any,
-      notes: data.notes ?? null,
+      notes: mergedNotes,
       updated_by: context.userId,
     };
 

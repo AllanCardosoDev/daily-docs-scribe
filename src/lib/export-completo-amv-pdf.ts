@@ -4,6 +4,8 @@ import { CBMAM_LOGO_BASE64 } from "./cbmam-logo";
 import { canonicalMunicipio, isNonMunicipioTroop, compareMunicipios, deduplicateAndOrderMunicipios } from "./municipio-order";
 import { fmtDateBR, fmtDateStamp } from "./report-date";
 import { NF } from "./formatters";
+import { isIncendio } from "./fire-classification";
+import type { OccurrenceRow } from "./sheets.types";
 
 // Cores Institucionais Militares CBMAM 100% Verde
 const BRAND_DARK = { r: 8, g: 46, b: 31 };     // #082e1f - Verde Floresta Amazônica Profundo
@@ -35,6 +37,9 @@ export interface RelatorioCompletoAmvOptions {
   // 3ª Seção: Viaturas / Recursos
   viaturasDiarias: Array<Record<string, any>>;
   viaturasTotais: Array<Record<string, any>>;
+
+  // 4ª Seção: Ocorrências Detalhadas (CAD / CIODS)
+  occurrences?: OccurrenceRow[];
 }
 
 export function exportRelatorioCompletoAmvPdf(options: RelatorioCompletoAmvOptions) {
@@ -808,6 +813,135 @@ export function buildRelatorioCompletoAmvDoc(options: RelatorioCompletoAmvOption
       4: { fontStyle: "bold", halign: "center", fillColor: [235, 245, 238], textColor: [16, 78, 46] },
     },
   });
+
+  // ===========================================================================
+  // 4ª SEÇÃO: REGISTRO OPERACIONAL DE ATENDIMENTOS DE INCÊNDIO (CAD)
+  // SEMPRE INCLUÍDA NA ÚLTIMA PÁGINA — COM VALORES ZERADOS SE NÃO HOUVER DADOS
+  // ===========================================================================
+  doc.addPage();
+  const cadStartPage = (doc as any).internal.getNumberOfPages();
+  drawPageHeader(cadStartPage, "REGISTRO OPERACIONAL DE ATENDIMENTOS DE INCÊNDIO (CAD)");
+
+  const rawOccs = (options.occurrences || []).filter((occ) => isIncendio(occ.natureza));
+
+  const occsBody = rawOccs.length > 0
+    ? rawOccs.map((occ) => [
+        occ.data || dataDiariaLabel,
+        (occ.municipio || "Manaus").toUpperCase(),
+        occ.horario || "—",
+        occ.natureza || "Incêndio Florestal",
+        occ.endereco || "Não Informado",
+        occ.focos || 0,
+        occ.area ? NF.format(occ.area) : "0",
+        occ.agua ? NF.format(occ.agua) : "0",
+        occ.unidade || occ.equipes || "—",
+      ])
+    : [
+        [
+          dataDiariaLabel,
+          "—",
+          "—",
+          "Nenhuma ocorrência registrada no período",
+          "—",
+          0,
+          "0",
+          "0",
+          "—",
+        ],
+      ];
+
+  const cadTotFocos = rawOccs.reduce((s, r) => s + num(r.focos), 0);
+  const cadTotArea = rawOccs.reduce((s, r) => s + num(r.area), 0);
+  const cadTotAgua = rawOccs.reduce((s, r) => s + num(r.agua), 0);
+
+  autoTable(doc, {
+    startY: 65,
+    margin: { left: 16, right: 16, bottom: 65 },
+    tableWidth: pageW - 32,
+    head: [
+      [
+        {
+          content: `OCORRÊNCIAS DETALHADAS DE INCÊNDIO — REGISTRO OPERACIONAL CAD / CIODS (${dataDiariaLabel})`,
+          colSpan: 9,
+          styles: {
+            fillColor: [BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b],
+            textColor: 255,
+            fontStyle: "bold",
+            halign: "center",
+            fontSize: 7.2,
+          },
+        },
+      ],
+      [
+        "DATA",
+        "MUNICÍPIO",
+        "HORÁRIO",
+        "NATUREZA",
+        "LOCALIDADE / ENDEREÇO",
+        "FOCOS",
+        "ÁREA (M²)",
+        "ÁGUA (L)",
+        "RECURSOS EMPREGADOS",
+      ],
+    ],
+    body: [
+      ...occsBody,
+      [
+        "TOTAL",
+        "",
+        "",
+        `${rawOccs.length} registro(s)`,
+        "",
+        cadTotFocos,
+        NF.format(cadTotArea),
+        NF.format(cadTotAgua),
+        "",
+      ],
+    ],
+    styles: { fontSize: 6.2, cellPadding: 2, lineColor: BORDER_COLOR, lineWidth: 0.25 },
+    alternateRowStyles: { fillColor: BG_LIGHT_ROW },
+    headStyles: {
+      fillColor: [BRAND_GREEN.r, BRAND_GREEN.g, BRAND_GREEN.b],
+      textColor: 255,
+      fontStyle: "bold",
+      fontSize: 6.4,
+      halign: "center",
+    },
+    columnStyles: {
+      0: { cellWidth: 55, halign: "center" },
+      1: { cellWidth: 85, fontStyle: "bold" },
+      2: { cellWidth: 45, halign: "center" },
+      3: { cellWidth: 140 },
+      4: { cellWidth: 200 },
+      5: { cellWidth: 45, halign: "center", fontStyle: "bold" },
+      6: { cellWidth: 65, halign: "right" },
+      7: { cellWidth: 55, halign: "right" },
+      8: { cellWidth: 120 },
+    },
+    didDrawPage: (data) => {
+      if (data.pageNumber > cadStartPage) {
+        drawPageHeader(data.pageNumber, "REGISTRO OPERACIONAL DE ATENDIMENTOS DE INCÊNDIO (CAD) — CONTINUAÇÃO");
+      }
+    },
+  });
+
+  // Assinatura na última página
+  const lastPageNum = (doc as any).internal.getNumberOfPages();
+  doc.setPage(lastPageNum);
+  const sigY = pageH - 42;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.setTextColor(BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b);
+
+  doc.setDrawColor(BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b);
+  doc.setLineWidth(0.6);
+  doc.line(pageW / 2 - 180, sigY - 14, pageW / 2 + 180, sigY - 14);
+
+  doc.text("SALA DE SITUAÇÃO — CBMAM", pageW / 2, sigY - 2, { align: "center" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.setTextColor(80, 90, 85);
+  doc.text("Responsável pelo Preenchimento · Comando Operacional Integrado", pageW / 2, sigY + 8, { align: "center" });
 
   // Rodapé em todas as páginas
   const totalPages = (doc as any).internal.getNumberOfPages();

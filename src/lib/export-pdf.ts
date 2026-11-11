@@ -1116,7 +1116,7 @@ export function buildSheetsPdfDoc(
   });
 
   // ===========================================================================
-  // OCORRÊNCIAS DETALHADAS DE INCÊNDIO (CAD)
+  // OCORRÊNCIAS DETALHADAS DE INCÊNDIO (CAD) — SEMPRE INCLUÍDA NA ÚLTIMA PÁGINA
   // ===========================================================================
   const rawOccsToRender = isPeriodRange
     ? (data.occurrences ?? [])
@@ -1126,98 +1126,110 @@ export function buildSheetsPdfDoc(
       })();
   const occsToRender = rawOccsToRender.filter((occ) => isIncendio(occ.natureza));
 
-  if (occsToRender.length > 0) {
-    doc.addPage();
-    const cadPageNum = (doc as any).internal.getNumberOfPages();
-    drawPageHeader(cadPageNum, "REGISTRO OPERACIONAL DE ATENDIMENTOS DE INCÊNDIO (CAD)");
+  doc.addPage();
+  const cadPageNum = (doc as any).internal.getNumberOfPages();
+  drawPageHeader(cadPageNum, "REGISTRO OPERACIONAL DE ATENDIMENTOS DE INCÊNDIO (CAD)");
 
-    const occsBody = occsToRender.map((occ) => [
-      occ.data || opDateStr,
-      (occ.municipio || "Manaus").toUpperCase(),
-      occ.horario || "—",
-      occ.natureza || "Incêndio Florestal",
-      occ.endereco || "Não Informado",
-      occ.focos || 0,
-      occ.area ? NF.format(occ.area) : "0",
-      occ.agua ? NF.format(occ.agua) : "0",
-      occ.unidade || occ.equipes || "—",
-    ]);
-
-    const cadTotFocos = occsToRender.reduce((s, r) => s + num(r.focos), 0);
-    const cadTotArea = occsToRender.reduce((s, r) => s + num(r.area), 0);
-    const cadTotAgua = occsToRender.reduce((s, r) => s + num(r.agua), 0);
-
-    autoTable(doc, {
-      startY: 65,
-      margin: { left: 16, right: 16, bottom: 65 },
-      tableWidth: 810,
-      head: [
+  const occsBody = occsToRender.length > 0
+    ? occsToRender.map((occ) => [
+        occ.data || opDateStr,
+        (occ.municipio || "Manaus").toUpperCase(),
+        occ.horario || "—",
+        occ.natureza || "Incêndio Florestal",
+        occ.endereco || "Não Informado",
+        occ.focos || 0,
+        occ.area ? NF.format(occ.area) : "0",
+        occ.agua ? NF.format(occ.agua) : "0",
+        occ.unidade || occ.equipes || "—",
+      ])
+    : [
         [
-          {
-            content: `OCORRÊNCIAS DETALHADAS DE INCÊNDIO — REGISTRO OPERACIONAL CAD / CIODS (${opDateStr})`,
-            colSpan: 9,
-            styles: {
-              fillColor: [HEADER_NAVY.r, HEADER_NAVY.g, HEADER_NAVY.b],
-              textColor: 255,
-              fontStyle: "bold",
-              halign: "center",
-              fontSize: 7.2,
-            },
+          opDateStr,
+          "—",
+          "—",
+          "Nenhuma ocorrência registrada no período",
+          "—",
+          0,
+          "0",
+          "0",
+          "—",
+        ],
+      ];
+
+  const cadTotFocos = occsToRender.reduce((s, r) => s + num(r.focos), 0);
+  const cadTotArea = occsToRender.reduce((s, r) => s + num(r.area), 0);
+  const cadTotAgua = occsToRender.reduce((s, r) => s + num(r.agua), 0);
+
+  autoTable(doc, {
+    startY: 65,
+    margin: { left: 16, right: 16, bottom: 65 },
+    tableWidth: 810,
+    head: [
+      [
+        {
+          content: `OCORRÊNCIAS DETALHADAS DE INCÊNDIO — REGISTRO OPERACIONAL CAD / CIODS (${opDateStr})`,
+          colSpan: 9,
+          styles: {
+            fillColor: [HEADER_NAVY.r, HEADER_NAVY.g, HEADER_NAVY.b],
+            textColor: 255,
+            fontStyle: "bold",
+            halign: "center",
+            fontSize: 7.2,
           },
-        ],
-        [
-          "DATA",
-          "MUNICÍPIO",
-          "HORÁRIO",
-          "NATUREZA",
-          "LOCALIDADE / ENDEREÇO",
-          "FOCOS",
-          "ÁREA (M²)",
-          "ÁGUA (L)",
-          "RECURSOS EMPREGADOS",
-        ],
+        },
       ],
-      body: [
-        ...occsBody,
-        [
-          "TOTAL",
-          "",
-          "",
-          `${occsToRender.length} registro(s)`,
-          "",
-          cadTotFocos,
-          NF.format(cadTotArea),
-          NF.format(cadTotAgua),
-          "",
-        ],
+      [
+        "DATA",
+        "MUNICÍPIO",
+        "HORÁRIO",
+        "NATUREZA",
+        "LOCALIDADE / ENDEREÇO",
+        "FOCOS",
+        "ÁREA (M²)",
+        "ÁGUA (L)",
+        "RECURSOS EMPREGADOS",
       ],
-      styles: { fontSize: 6.2, cellPadding: 2, lineColor: BORDER_COLOR, lineWidth: 0.25 },
-      alternateRowStyles: { fillColor: BG_LIGHT_ROW },
-      headStyles: {
-        fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b],
-        textColor: 255,
-        fontStyle: "bold",
-        fontSize: 6.4,
-        halign: "center",
-      },
-      columnStyles: {
-        0: { cellWidth: 55, halign: "center" },
-        1: { cellWidth: 85, fontStyle: "bold" },
-        2: { cellWidth: 45, halign: "center" },
-        3: { cellWidth: 140 },
-        4: { cellWidth: 200 },
-        5: { cellWidth: 45, halign: "center", fontStyle: "bold" },
-        6: { cellWidth: 65, halign: "right" },
-        7: { cellWidth: 55, halign: "right" },
-        8: { cellWidth: 120 },
-      },
-      didDrawPage: (hookData) => {
-        if (hookData.pageNumber > cadPageNum) {
-          drawPageHeader(hookData.pageNumber, "REGISTRO OPERACIONAL DE ATENDIMENTOS DE INCÊNDIO (CAD)", "DETALHAMENTO");
-        }
-      },
-    });
-  }
+    ],
+    body: [
+      ...occsBody,
+      [
+        "TOTAL",
+        "",
+        "",
+        `${occsToRender.length} registro(s)`,
+        "",
+        cadTotFocos,
+        NF.format(cadTotArea),
+        NF.format(cadTotAgua),
+        "",
+      ],
+    ],
+    styles: { fontSize: 6.2, cellPadding: 2, lineColor: BORDER_COLOR, lineWidth: 0.25 },
+    alternateRowStyles: { fillColor: BG_LIGHT_ROW },
+    headStyles: {
+      fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b],
+      textColor: 255,
+      fontStyle: "bold",
+      fontSize: 6.4,
+      halign: "center",
+    },
+    columnStyles: {
+      0: { cellWidth: 55, halign: "center" },
+      1: { cellWidth: 85, fontStyle: "bold" },
+      2: { cellWidth: 45, halign: "center" },
+      3: { cellWidth: 140 },
+      4: { cellWidth: 200 },
+      5: { cellWidth: 45, halign: "center", fontStyle: "bold" },
+      6: { cellWidth: 65, halign: "right" },
+      7: { cellWidth: 55, halign: "right" },
+      8: { cellWidth: 120 },
+    },
+    didDrawPage: (hookData) => {
+      if (hookData.pageNumber > cadPageNum) {
+        drawPageHeader(hookData.pageNumber, "REGISTRO OPERACIONAL DE ATENDIMENTOS DE INCÊNDIO (CAD)", "DETALHAMENTO");
+      }
+    },
+  });
 
   // ---------------------------------------------------------------------------
   // ASSINATURA OFICIAL DE QUEM ESTÁ LOGADO (OPERADOR DA SALA DE SITUAÇÃO)

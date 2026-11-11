@@ -170,6 +170,7 @@ export function useExporters(
         efetivoGeral: cleanData.efetivo || [],
         viaturasDiarias: cleanData.recursos || [],
         viaturasTotais: cleanData.recursos || [],
+        occurrences: cleanData.occurrences || [],
       });
       toast.success("Relatório Completo AM+V gerado com sucesso!", {
         description: `Período: ${periodoLabel}`,

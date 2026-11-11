@@ -47,8 +47,26 @@ describe("buildRelatorioCompletoAmvDoc", () => {
 
     expect(doc).toBeDefined();
     const pageCount = (doc as any).internal.getNumberOfPages();
-    // Deve possuir no mínimo 3 páginas (1: Ocorrências, 2: Efetivo, 3: Viaturas)
-    expect(pageCount).toBeGreaterThanOrEqual(3);
+    // Deve possuir no mínimo 4 páginas (1: Ocorrências, 2: Efetivo, 3: Viaturas, 4: CAD Ocorrências Detalhadas)
+    expect(pageCount).toBeGreaterThanOrEqual(4);
+  });
+
+  it("deve renderizar a 4ª página discriminada mesmo quando não houver ocorrências (zerado)", () => {
+    const doc = buildRelatorioCompletoAmvDoc({
+      periodoLabel: "10/11/2026",
+      dataDiariaLabel: "10/11/2026",
+      ocorrenciasDiarias: [],
+      ocorrenciasTotais: [],
+      efetivoDiario: [],
+      efetivoGeral: [],
+      viaturasDiarias: [],
+      viaturasTotais: [],
+      occurrences: [],
+    });
+
+    expect(doc).toBeDefined();
+    const pageCount = (doc as any).internal.getNumberOfPages();
+    expect(pageCount).toBeGreaterThanOrEqual(4);
   });
 });
 

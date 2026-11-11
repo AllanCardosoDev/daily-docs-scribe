@@ -352,6 +352,7 @@ function EfetivoPage() {
         efetivoGeral: effectiveSheetsData.efetivo || [],
         viaturasDiarias: rawData.recursos || [],
         viaturasTotais: rawData.recursos || [],
+        occurrences: effectiveSheetsData.occurrences || rawData.occurrences || [],
       });
       toast.success("Relatório Completo AM+V gerado com sucesso!", {
         description: `Diário: ${dateLabel} · Período: ${periodoLabel}`,
