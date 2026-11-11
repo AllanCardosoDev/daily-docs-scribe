@@ -8,6 +8,7 @@
  */
 import * as XLSX from "xlsx";
 import { canonicalMunicipio, isNonMunicipioTroop } from "./municipio-order";
+import { isIncendio, isFlorestalAmbiental } from "./fire-classification";
 import {
   addOccurrences,
   type StoredOccurrence,
@@ -138,58 +139,28 @@ function parseDateAny(rawStr: string): { iso: string; br: string; time: string }
 }
 
 function isStrictFireNature(natureza: string, tipo: string, narrativa: string): boolean {
-  const combined = `${natureza} ${tipo} ${narrativa}`.toLowerCase();
+  if (isIncendio(natureza)) return true;
+  if (isIncendio(tipo)) return true;
 
-  // Testes de sistema e registros inativos devem ser sempre descartados
+  const combined = `${natureza} ${tipo} ${narrativa}`.toLowerCase();
+  // Se contiver menção explícita de teste, trote, simulado ou ação preventiva, descarta
   if (
     combined.includes("teste de sistema") ||
     combined.includes("treinamento interno") ||
     combined.includes("simulado de mesa") ||
     combined.includes("registro cancelado") ||
     combined.includes("sem alteracao") ||
-    combined.includes("trote")
+    combined.includes("trote") ||
+    combined.includes("acao preventiva") ||
+    combined.includes("acoes de prevencao") ||
+    combined.includes("orientacao preventiva") ||
+    combined.includes("vistoria") ||
+    combined.includes("monitoramento")
   ) {
     return false;
   }
 
-  // Se for explicitamente salvamento/aph/animal sem incêndio, descartar
-  if (
-    (combined.includes("salvamento") || combined.includes("aph") || combined.includes("resgate de animal") || combined.includes("acidente de trânsito")) &&
-    !combined.includes("incêndio") &&
-    !combined.includes("fogo") &&
-    !combined.includes("queimada")
-  ) {
-    return false;
-  }
-
-  // Somente naturezas que contenham termos relacionados a incêndios/queimadas
-  const firePatterns = [
-    "incêndio",
-    "incendio",
-    "fogo",
-    "queimada",
-    "vegetação",
-    "vegetacao",
-    "florestal",
-    "lixo",
-    "entulho",
-    "residência",
-    "residencia",
-    "comercial",
-    "edificação",
-    "edificacao",
-    "veículo",
-    "veiculo",
-    "embarcação",
-    "embarcacao",
-    "indústria",
-    "industria",
-    "pastagem",
-    "mata",
-    "palha",
-  ];
-
-  return firePatterns.some((pattern) => combined.includes(pattern));
+  return false;
 }
 
 function cleanStr(val: unknown): string {
@@ -420,14 +391,16 @@ export async function processSpreadsheetBuffer(
   const idxMunicipio = colIndex(["nomemunicipio", "municipio", "cidade"]);
   const idxBairro = colIndex(["bairro"]);
   const idxEndereco = colIndex(["logradouro", "endereco", "endereço", "rua"]);
-  const idxNatureza = colIndex([
-    "naturezainicialdescricao",
+  const idxNaturezaFinal = colIndex([
     "naturezafinalizacaoobjectnomenaturezafinal",
     "naturezasfinais",
+  ]);
+  const idxNaturezaInicial = colIndex([
+    "naturezainicialdescricao",
     "natureza",
     "evento",
     "ocorrência",
-    "ocorrencia"
+    "ocorrencia",
   ]);
   const idxTipo = colIndex(["naturezafinalizacaoobjectnomegruponatureza", "tipo"]);
   const idxFocos = colIndex([
@@ -467,7 +440,10 @@ export async function processSpreadsheetBuffer(
     const row = rawRows[i];
     if (!row || row.length === 0 || row.every((c) => !c)) continue;
 
-    const rawNatureza = cleanStr(idxNatureza >= 0 ? row[idxNatureza] : "");
+    const rawNatFinal = cleanStr(idxNaturezaFinal >= 0 ? row[idxNaturezaFinal] : "");
+    const rawNatInicial = cleanStr(idxNaturezaInicial >= 0 ? row[idxNaturezaInicial] : "");
+    // Regra institucional: Natureza final prevalece e a inicial é usada quando a final está vazia
+    const rawNatureza = rawNatFinal || rawNatInicial || "";
     const rawTipo = cleanStr(idxTipo >= 0 ? row[idxTipo] : "");
     const rawNarrativa = cleanStr(idxNarrativa >= 0 ? row[idxNarrativa] : "");
     const rawRelato = cleanStr(idxRelato >= 0 ? row[idxRelato] : "");
