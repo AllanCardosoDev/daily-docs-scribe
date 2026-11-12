@@ -58,6 +58,7 @@ function getDefaultShiftTimes(dateStr: string) {
 }
 
 export const Route = createFileRoute("/_authenticated/escala")({
+  ssr: false,
   head: () => ({
     meta: [{ title: "Escala da Sala de Situação · CBMAM" }, { name: "robots", content: "noindex" }],
   }),

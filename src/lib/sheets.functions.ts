@@ -269,20 +269,38 @@ export const saveSheetsData = createServerFn({ method: "POST" })
       .from("daily_reports")
       .select("id, report_date, shift, efetivo, recursos, incendios, outras, notes")
       .eq("report_date", iso)
-      .order("shift", { ascending: false })
-      .limit(1)
+      .eq("shift", "noturno")
       .maybeSingle();
 
-    if (readRes.error) {
+    if (!readRes.data && !readRes.error) {
+      readRes = await dbClient
+        .from("daily_reports")
+        .select("id, report_date, shift, efetivo, recursos, incendios, outras, notes")
+        .eq("report_date", iso)
+        .order("shift", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+    }
+
+    if (readRes.error || !readRes.data) {
       const adminClient = await getAdminFallback();
       if (adminClient) {
         readRes = await adminClient
           .from("daily_reports")
           .select("id, report_date, shift, efetivo, recursos, incendios, outras, notes")
           .eq("report_date", iso)
-          .order("shift", { ascending: false })
-          .limit(1)
+          .eq("shift", "noturno")
           .maybeSingle();
+
+        if (!readRes.data && !readRes.error) {
+          readRes = await adminClient
+            .from("daily_reports")
+            .select("id, report_date, shift, efetivo, recursos, incendios, outras, notes")
+            .eq("report_date", iso)
+            .order("shift", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+        }
       }
     }
     existing = readRes.data;

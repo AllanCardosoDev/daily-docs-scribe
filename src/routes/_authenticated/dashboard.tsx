@@ -38,6 +38,7 @@ const SettingsDialog = lazy(() =>
 );
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Dashboard Executivo & Analítico · CBMAM Amazonas + Verde" },

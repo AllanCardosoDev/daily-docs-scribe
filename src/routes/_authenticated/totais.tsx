@@ -63,6 +63,7 @@ import { fmtDateBR } from "@/lib/report-date";
 import { sanitizeSheetsData } from "@/lib/report-validation";
 
 export const Route = createFileRoute("/_authenticated/totais")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Totais acumulados · Sala de Situação · CBMAM" },

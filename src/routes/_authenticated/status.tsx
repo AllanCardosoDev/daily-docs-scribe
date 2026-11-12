@@ -76,6 +76,7 @@ export const getSyncLogs = createServerFn({ method: "GET" })
 // --- UI Component ---
 
 export const Route = createFileRoute("/_authenticated/status")({
+  ssr: false,
   head: () => ({
     meta: [{ title: "Status do Sistema · CBMAM" }],
   }),

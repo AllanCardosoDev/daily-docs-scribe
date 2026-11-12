@@ -60,6 +60,7 @@ import {
 } from "@/lib/efetivo-mapas";
 
 export const Route = createFileRoute("/_authenticated/efetivo")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Efetivo Operacional & Integração Mapas · CBMAM" },
@@ -148,7 +149,7 @@ function EfetivoPage() {
       const isBase = tipo === "base";
 
       const idx = currentEfetivo.findIndex((r) => {
-        const rTipo = r.tipo || (EFETIVO_BASES_PADRAO.some((b) => norm(b) === norm(r.mun)) ? "base" : (isManaus(r.mun) ? "capital" : "interior"));
+        const rTipo = r.tipo || (norm(r.mun).includes("km 53") ? "base" : (isManaus(r.mun) ? "capital" : "interior"));
         return norm(r.mun) === normalizedName && rTipo === tipo;
       });
 
@@ -210,7 +211,7 @@ function EfetivoPage() {
 
       const rowsToSave: EfetivoRow[] = allItems.map((item) => {
         const rawRow = (rawData.efetivo || []).find((r) => {
-          const rTipo = r.tipo || (EFETIVO_BASES_PADRAO.some((b) => norm(b) === norm(r.mun)) ? "base" : (isManaus(r.mun) ? "capital" : "interior"));
+          const rTipo = r.tipo || (norm(r.mun).includes("km 53") ? "base" : (isManaus(r.mun) ? "capital" : "interior"));
           return norm(r.mun) === norm(item.nome) && rTipo === item.tipo;
         });
         const seg = item.tipo === "base" ? 0 : (Number(rawRow?.seg) || 0);
@@ -257,7 +258,7 @@ function EfetivoPage() {
       const savedKeys = new Set(allItems.map((it) => `${it.tipo}:${norm(it.nome)}`));
       for (const extra of rawData.efetivo || []) {
         if (!extra?.mun || isNonMunicipioTroop(extra.mun)) continue;
-        const extraTipo = extra.tipo || (EFETIVO_BASES_PADRAO.some((b) => norm(b) === norm(extra.mun)) ? "base" : (isManaus(extra.mun) ? "capital" : "interior"));
+        const extraTipo = extra.tipo || (norm(extra.mun).includes("km 53") ? "base" : (isManaus(extra.mun) ? "capital" : "interior"));
         const key = `${extraTipo}:${norm(extra.mun)}`;
         if (!savedKeys.has(key)) {
           rowsToSave.push(extra);
@@ -847,7 +848,7 @@ function EfetivoPage() {
                   </div>
                   <div className="mt-3 flex items-baseline gap-2">
                     <span className="text-3xl sm:text-4xl font-extrabold font-display text-amber-700 dark:text-amber-400">
-                      {totals.interior - totals.bases}
+                      {totals.interior}
                     </span>
                     <span className="text-xs text-muted-foreground">nos municípios polo</span>
                   </div>

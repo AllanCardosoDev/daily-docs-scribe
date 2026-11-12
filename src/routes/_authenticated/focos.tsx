@@ -65,6 +65,7 @@ import { exportFocosXlsx } from "@/lib/export-focos";
 import { NF } from "@/lib/formatters";
 
 export const Route = createFileRoute("/_authenticated/focos")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Painel do Fogo (CENSIPAM) · Focos & Queimadas no Amazonas" },

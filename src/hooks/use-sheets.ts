@@ -106,12 +106,11 @@ export function useSheetsDashboard(reportDate?: Date | null, endDate?: Date | nu
     },
   });
 
-  const canEdit = !!configQuery.data?.isEditor;
+  // Permissão universal para todos os usuários autenticados editarem o efetivo e painel
+  const canEdit = true;
 
   const savers: SectionSavers = useMemo(() => {
-    const assertEditable = () => {
-      if (!canEdit) throw new Error("Sem permissão para editar.");
-    };
+    const assertEditable = () => {};
     const listSaver =
       (key: SavableListKey): SectionSaver =>
       async (rows) => {

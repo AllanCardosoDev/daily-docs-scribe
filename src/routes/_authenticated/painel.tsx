@@ -35,6 +35,7 @@ const SettingsDialog = lazy(() =>
 );
 
 export const Route = createFileRoute("/_authenticated/painel")({
+  ssr: false,
   head: () => ({
     meta: [{ title: "Inserção de Dados · CBMAM Amazonas + Verde" }, { name: "robots", content: "noindex" }],
   }),

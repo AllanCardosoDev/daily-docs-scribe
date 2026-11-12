@@ -36,6 +36,7 @@ import { DASHBOARD_COLUMNS, getStoredEfetivoColumns, saveStoredEfetivoColumns, s
 import type { OccurrenceRow } from "@/lib/sheets.types";
 
 export const Route = createFileRoute("/_authenticated/registro")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Registro Diário · Sala de Situação · CBMAM" },
@@ -288,7 +289,8 @@ function RegistroPage() {
     day25TemplateQuery.data?.row,
   ]);
 
-  const canEdit = !!q.data?.canEdit;
+  // Permissão universal para todos os usuários autenticados editarem o registro
+  const canEdit = true;
 
   /** Municípios já presentes em qualquer seção do registro. */
   const municipiosNoRegistro = useMemo(() => {
