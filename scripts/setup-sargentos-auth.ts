@@ -70,6 +70,13 @@ const TARGET_USERS = [
     fone: "(92) 99277-9045",
     senha: "Cbmam@AnaMaria2026!",
   },
+  {
+    email: "enf.naraadriana@gmail.com",
+    nome: "NARA ADRIANA ANDRADE FIGUEIREDO DA SILVA",
+    posto: "2º SGT QCPBM",
+    fone: "(92) 98137-7639",
+    senha: "Cbmam@Nara2026!",
+  },
 ];
 
 async function main() {
