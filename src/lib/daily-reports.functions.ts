@@ -309,12 +309,21 @@ export const getDailyReport = createServerFn({ method: "GET" })
     const { getOccurrencesForDate } = await import("./occurrences-store.server");
     let occurrences = getOccurrencesForDate(data.date);
 
-    // Se occurrences-store em memória não possuir registros para a data, busca de row.notes no Supabase:
-    if (occurrences.length === 0 && row && (row as any).notes) {
+    // Se o banco de dados Supabase contiver ocorrências gravadas em row.notes, mescla garantindo fidelidade total ao banco:
+    if (row && (row as any).notes) {
       try {
         const n = typeof (row as any).notes === "string" ? JSON.parse((row as any).notes) : (row as any).notes;
         if (Array.isArray(n.occurrences) && n.occurrences.length > 0) {
-          occurrences = n.occurrences;
+          const occMap = new Map<string, any>();
+          for (const o of occurrences) {
+            const k = (o.protocolo && o.protocolo !== "-" ? o.protocolo : o.id) || `${o.municipio}-${o.horario}`;
+            if (k) occMap.set(k, o);
+          }
+          for (const o of n.occurrences) {
+            const k = (o.protocolo && o.protocolo !== "-" ? o.protocolo : o.id) || `${o.municipio}-${o.horario}`;
+            if (k) occMap.set(k, o);
+          }
+          occurrences = Array.from(occMap.values());
         }
       } catch {}
     }
@@ -334,27 +343,22 @@ export const getDailyReport = createServerFn({ method: "GET" })
 
       if (row) {
         const incArray = (row as any).incendios || [];
-        const hasFiresInRow = incArray.some(
-          (r: any) => (Number(r.urb) || 0) > 0 || (Number(r.flor) || 0) > 0,
-        );
-        if (!hasFiresInRow) {
-          const incMap = new Map<string, any>();
-          for (const r of incArray) {
-            if (r?.mun) incMap.set(canonicalMunicipio(r.mun), { ...r });
-          }
-          for (const [mun, vals] of muniFires.entries()) {
-            const ex = incMap.get(mun);
-            if (ex) {
-              ex.urb = vals.urb;
-              ex.flor = vals.flor;
-              ex.focos = vals.focos;
-              ex.total_periodo = vals.urb + vals.flor;
-            } else {
-              incMap.set(mun, { mun, urb: vals.urb, flor: vals.flor, focos: vals.focos, total_periodo: vals.urb + vals.flor });
-            }
-          }
-          (row as any).incendios = Array.from(incMap.values()).sort((a, b) => compareMunicipios(a.mun, b.mun));
+        const incMap = new Map<string, any>();
+        for (const r of incArray) {
+          if (r?.mun) incMap.set(canonicalMunicipio(r.mun), { ...r });
         }
+        for (const [mun, vals] of muniFires.entries()) {
+          const ex = incMap.get(mun);
+          if (ex) {
+            ex.urb = Math.max(Number(ex.urb) || 0, vals.urb);
+            ex.flor = Math.max(Number(ex.flor) || 0, vals.flor);
+            ex.focos = Math.max(Number(ex.focos) || 0, vals.focos);
+            ex.total_periodo = ex.urb + ex.flor;
+          } else {
+            incMap.set(mun, { mun, urb: vals.urb, flor: vals.flor, focos: vals.focos, total_periodo: vals.urb + vals.flor });
+          }
+        }
+        (row as any).incendios = Array.from(incMap.values()).sort((a, b) => compareMunicipios(a.mun, b.mun));
       } else {
         const { fetchOperationalDonor } = await import("./sheets-fallback.server");
         const donor = await fetchOperationalDonor(context.supabase, data.date);

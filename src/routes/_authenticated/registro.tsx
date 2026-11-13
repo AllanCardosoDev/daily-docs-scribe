@@ -567,11 +567,15 @@ function RegistroPage() {
                   </Button>
                 }
                 onSuccess={(res) => {
+                  dirtyRef.current = false;
                   if (res.latestDate) {
-                    dirtyRef.current = false;
                     setDate(res.latestDate);
                     if (res.shift) setShift(res.shift as ReportShift);
                   }
+                  qc.invalidateQueries({ queryKey: ["daily-report"] });
+                  qc.invalidateQueries({ queryKey: ["daily-reports"] });
+                  qc.invalidateQueries({ queryKey: ["available-report-dates"] });
+                  qc.invalidateQueries({ queryKey: ["sheets-data"] });
                 }}
               />
 

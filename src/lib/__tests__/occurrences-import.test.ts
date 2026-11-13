@@ -118,4 +118,33 @@ describe("occurrences-import", () => {
     expect(res3.updatedCount).toBe(0);
     expect(res3.duplicatesSkipped).toBe(1);
   });
+
+  it("não deve classificar falsamente CSV do CAD como relatório diário oficial mesmo com menções de SALA DE SITUAÇÃO na narrativa", async () => {
+    const cadCsv = [
+      'dataHoraRegistroUTC,nrProtocolo,id,dataFato,dataHoraFato,nomeMunicipio,naturezaInicialDescricao,narrativa',
+      '"Nov 10, 2026 @ 10:00:00.000","PROTO-CAD-999","CAD-999","Nov 10, 2026 @ 00:00:00.000","Nov 10, 2026 @ 10:00:00.000",Manaus,"Incêndio em Vegetação","A guarnição foi acionada pela SALA DE SITUAÇÃO da OPERAÇÃO AMAZONAS + VERDE para combate a fogo em vegetação."',
+    ].join("\n");
+
+    const res = await processSpreadsheetBuffer(Buffer.from(cadCsv, "utf-8"), "cad-test.csv");
+    expect(res.success).toBe(true);
+    expect(res.isDailyReport).toBeFalsy();
+    expect(res.fireRows).toBe(1);
+    expect(res.datesAffected).toContain("2026-11-10");
+  });
+
+  it("deve extrair ocorrências de incêndio corretamente via client-csv-parser", async () => {
+    const { extractFireOccurrencesFromCsv } = await import("../client-csv-parser");
+    const testCsv = [
+      'dataHoraRegistroUTC,nrProtocolo,id,dataHoraFato,nomeMunicipio,naturezaInicialDescricao,focos',
+      '"Nov 10, 2026 @ 10:00:00.000","CAD-01","1","Nov 10, 2026 @ 10:00:00.000",Manaus,"Incêndio Florestal",3',
+      '"Nov 10, 2026 @ 11:00:00.000","CAD-02","2","Nov 10, 2026 @ 11:00:00.000",Parintins,"Resgate de Vítima",0',
+      '"Nov 10, 2026 @ 12:00:00.000","CAD-03","3","Nov 10, 2026 @ 12:00:00.000",Itacoatiara,"Ação Preventiva a Incêndio Florestal",0',
+    ].join("\n");
+
+    const fireOccs = extractFireOccurrencesFromCsv(testCsv);
+    expect(fireOccs.length).toBe(1);
+    expect(fireOccs[0].municipio).toBe("Manaus");
+    expect(fireOccs[0].focos).toBe(3);
+    expect(fireOccs[0].natureza).toBe("Incêndio Florestal");
+  });
 });

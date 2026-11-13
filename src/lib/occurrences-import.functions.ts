@@ -26,3 +26,25 @@ export const importSpreadsheetOccurrences = createServerFn({ method: "POST" })
     const buffer = Buffer.from(input.base64Data, "base64");
     return processSpreadsheetBuffer(buffer, input.fileName, dbClient);
   });
+
+export const importOccurrencesBatch = createServerFn({ method: "POST" })
+  .middleware([requireBackendAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        occurrences: z.array(z.any()).min(1),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data: input, context }): Promise<ImportSpreadsheetResult> => {
+    const { saveParsedOccurrencesToDb } = await import("./occurrences-import.server");
+    let dbClient = context.supabase;
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      if (supabaseAdmin) dbClient = supabaseAdmin;
+    } catch {
+      dbClient = context.supabase;
+    }
+
+    return saveParsedOccurrencesToDb(input.occurrences, dbClient);
+  });

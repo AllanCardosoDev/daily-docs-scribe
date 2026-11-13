@@ -2,15 +2,17 @@
  * Importador inteligente de planilhas de ocorrências CBMAM.
  * Server-only.
  *
- * Suporta arquivos CSV e XLSX/XLS (CAD-Ocorrências ou diários).
- * Regra obrigatória: SOMENTE INCÊNDIOS.
+ * Suporta arquivos CSV e XLSX/XLS (CAD-Ocorrências ou Relatórios Diários Oficiais).
+ * Regra obrigatória: SOMENTE INCÊNDIOS (classificação institucional CBMAM).
  * Deduplicação estrita: nunca duplica ocorrências existentes.
+ * Persistência garantida: grava e sincroniza diretamente no Banco de Dados Supabase (daily_reports.notes.occurrences e daily_reports.incendios).
  */
 import * as XLSX from "xlsx";
-import { canonicalMunicipio, isNonMunicipioTroop } from "./municipio-order";
+import { canonicalMunicipio, isNonMunicipioTroop, harmonizeMunicipalitySections, manausFirst } from "./municipio-order";
 import { isIncendio, isFlorestalAmbiental } from "./fire-classification";
 import {
   addOccurrences,
+  makeOccurrenceKey,
   type StoredOccurrence,
 } from "./occurrences-store.server";
 
@@ -45,7 +47,7 @@ export interface ImportSpreadsheetResult {
 }
 
 // State-machine CSV parser para arquivos grandes com quebras de linha entre aspas
-function parseCSV(text: string): string[][] {
+export function parseCSV(text: string): string[][] {
   const rows: string[][] = [];
   let currentRow: string[] = [];
   let currentField = "";
@@ -94,7 +96,7 @@ const MONTH_MAP: Record<string, string> = {
   oct: "10", dec: "12", feb: "02", apr: "04", may: "05", aug: "08", sep: "09",
 };
 
-function parseDateAny(rawStr: string): { iso: string; br: string; time: string } | null {
+export function parseDateAny(rawStr: string): { iso: string; br: string; time: string } | null {
   if (!rawStr || rawStr === "-" || rawStr === "null") return null;
   const s = rawStr.trim();
 
@@ -120,7 +122,7 @@ function parseDateAny(rawStr: string): { iso: string; br: string; time: string }
     };
   }
 
-  // Ex: "Oct 25, 2026 @ 19:56:00.000" ou "25 de Outubro de 2026"
+  // Ex: "Oct 25, 2026 @ 19:56:00.000" ou "Nov 12, 2026 @ 17:05:00.000" ou "25 de Outubro de 2026"
   const usMatch = s.match(/([a-zA-Z]{3,})\s+(\d{1,2}),?\s+(\d{4})(?:\s*@\s*(\d{2}):(\d{2}))?/i);
   if (usMatch) {
     const [, monStr, dayStr, yrStr, hh, mm] = usMatch;
@@ -138,7 +140,7 @@ function parseDateAny(rawStr: string): { iso: string; br: string; time: string }
   return null;
 }
 
-function isStrictFireNature(natureza: string, tipo: string, narrativa: string): boolean {
+export function isStrictFireNature(natureza: string, tipo: string, narrativa: string): boolean {
   if (isIncendio(natureza)) return true;
   if (isIncendio(tipo)) return true;
 
@@ -181,6 +183,184 @@ function cleanNum(val: unknown): number {
   return isNaN(n) ? 0 : Math.abs(n);
 }
 
+/**
+ * Salva e sincroniza ocorrências processadas no banco de dados Supabase e no repositório de memória.
+ */
+export async function saveParsedOccurrencesToDb(
+  fireOccurrences: StoredOccurrence[],
+  supabaseClient?: any,
+): Promise<ImportSpreadsheetResult> {
+  const allFileDates = Array.from(new Set(fireOccurrences.map((f) => f.data).filter(Boolean))).sort();
+  const latestDate = allFileDates.length > 0 ? allFileDates[allFileDates.length - 1] : undefined;
+
+  // Inserção no repositório em memória
+  const addResult = addOccurrences(fireOccurrences);
+
+  // Sincronização direta e persistente na tabela daily_reports no Supabase
+  if (supabaseClient && allFileDates.length > 0) {
+    try {
+      const { fetchOperationalDonor } = await import("./sheets-fallback.server");
+
+      for (const d of allFileDates) {
+        const dayFileOccs = fireOccurrences.filter((occ) => occ.data === d);
+        if (dayFileOccs.length === 0) continue;
+
+        // Busca o relatório existente no Supabase para a data
+        const { data: existingReport, error: fetchErr } = await supabaseClient
+          .from("daily_reports")
+          .select("id, shift, efetivo, recursos, incendios, outras, notes")
+          .eq("report_date", d)
+          .eq("shift", "noturno")
+          .maybeSingle();
+
+        if (fetchErr) {
+          console.warn(`[occurrences-import] Erro ao consultar daily_reports para ${d}:`, fetchErr.message);
+        }
+
+        // Recupera ocorrências que já constavam no notes
+        let existingOccs: StoredOccurrence[] = [];
+        let prevNotesObj: Record<string, any> = {};
+        if (existingReport?.notes) {
+          try {
+            prevNotesObj = typeof existingReport.notes === "string" ? JSON.parse(existingReport.notes) : existingReport.notes;
+            if (Array.isArray(prevNotesObj.occurrences)) {
+              existingOccs = prevNotesObj.occurrences;
+            }
+          } catch {}
+        }
+
+        // Combina as ocorrências sem duplicidade (priorizando dados mais recentes/completos)
+        const occMap = new Map<string, StoredOccurrence>();
+        for (const occ of existingOccs) {
+          occMap.set(makeOccurrenceKey(occ), occ);
+        }
+        for (const occ of dayFileOccs) {
+          occMap.set(makeOccurrenceKey(occ), occ);
+        }
+        const mergedDayOccs = Array.from(occMap.values());
+
+        // Agrupa por município e totaliza ocorrências urbanas, florestais e focos
+        const muniFires = new Map<string, { urb: number; flor: number; focos: number }>();
+        for (const occ of mergedDayOccs) {
+          const mun = canonicalMunicipio(occ.municipio);
+          const cur = muniFires.get(mun) || { urb: 0, flor: 0, focos: 0 };
+          if (isFlorestalAmbiental(occ.natureza)) {
+            cur.flor += 1;
+          } else {
+            cur.urb += 1;
+          }
+          cur.focos += Math.max(1, occ.focos || 1);
+          muniFires.set(mun, cur);
+        }
+
+        const targetIncendiosList = Array.from(muniFires.entries()).map(([mun, vals]) => ({
+          mun,
+          urb: vals.urb,
+          flor: vals.flor,
+          focos: vals.focos,
+          total_periodo: vals.urb + vals.flor,
+        }));
+
+        if (existingReport) {
+          const incMap = new Map<string, any>();
+          for (const r of existingReport.incendios || []) {
+            if (r?.mun && !isNonMunicipioTroop(r.mun)) incMap.set(canonicalMunicipio(r.mun), { ...r });
+          }
+          for (const item of targetIncendiosList) {
+            const ex = incMap.get(item.mun);
+            if (ex) {
+              ex.urb = item.urb;
+              ex.flor = item.flor;
+              ex.focos = item.focos;
+              ex.total_periodo = item.urb + item.flor;
+            } else {
+              incMap.set(item.mun, item);
+            }
+          }
+
+          const updatedInc = Array.from(incMap.values());
+          const cleanEf = (existingReport.efetivo || []).filter((r: any) => !isNonMunicipioTroop(r?.mun ?? r?.municipio));
+          const cleanRec = (existingReport.recursos || []).filter((r: any) => !isNonMunicipioTroop(r?.mun ?? r?.municipio));
+          const harmonized = harmonizeMunicipalitySections(
+            cleanEf,
+            cleanRec,
+            updatedInc,
+            (mun) => ({ mun, ord: 0, cbmam: 0, seg: 0, brig: 0 }),
+            (mun) => ({ mun, viaturas: 0, aeronaves: 0, embarcacoes: 0 }),
+            (mun) => ({ mun, urb: 0, flor: 0, focos: 0, total_periodo: 0 }),
+          );
+
+          const mergedNotes = {
+            ...prevNotesObj,
+            occurrences: mergedDayOccs,
+          };
+
+          const { error: updErr } = await supabaseClient
+            .from("daily_reports")
+            .update({
+              efetivo: harmonized.efetivo,
+              recursos: harmonized.recursos,
+              incendios: harmonized.incendios,
+              notes: JSON.stringify(mergedNotes),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", existingReport.id);
+
+          if (updErr) {
+            console.error(`[occurrences-import] Erro ao atualizar daily_reports de ${d}:`, updErr.message);
+          }
+        } else {
+          // Cria novo registro com template de efetivo/recursos
+          const donor = await fetchOperationalDonor(supabaseClient, d);
+          const harmonized = harmonizeMunicipalitySections(
+            (donor?.efetivo || []).filter((r: any) => !isNonMunicipioTroop(r?.mun ?? r?.municipio)),
+            (donor?.recursos || []).filter((r: any) => !isNonMunicipioTroop(r?.mun ?? r?.municipio)),
+            targetIncendiosList,
+            (mun) => ({ mun, ord: 0, cbmam: 0, seg: 0, brig: 0 }),
+            (mun) => ({ mun, viaturas: 0, aeronaves: 0, embarcacoes: 0 }),
+            (mun) => ({ mun, urb: 0, flor: 0, focos: 0, total_periodo: 0 }),
+          );
+
+          const { error: insErr } = await supabaseClient.from("daily_reports").insert({
+            report_date: d,
+            shift: "noturno",
+            efetivo: harmonized.efetivo,
+            recursos: harmonized.recursos,
+            incendios: harmonized.incendios,
+            outras: donor?.outras || [],
+            notes: JSON.stringify({ occurrences: mergedDayOccs }),
+            version: 1,
+          });
+
+          if (insErr) {
+            console.error(`[occurrences-import] Erro ao inserir daily_reports de ${d}:`, insErr.message);
+          }
+        }
+      }
+    } catch (syncErr) {
+      console.error("[occurrences-import] Falha na sincronização com Supabase daily_reports:", syncErr);
+    }
+  }
+
+  return {
+    success: true,
+    totalRows: fireOccurrences.length,
+    fireRows: fireOccurrences.length,
+    insertedCount: addResult.insertedCount,
+    updatedCount: addResult.updatedCount,
+    duplicatesSkipped: addResult.duplicatesSkipped,
+    datesAffected: allFileDates,
+    latestDate,
+    message: `Planilha de ocorrências processada com sucesso! ${fireOccurrences.length} ocorrência(s) de incêndio verificada(s), sendo ${addResult.insertedCount} nova(s) e ${addResult.updatedCount || 0} atualizada(s). Todas gravadas e sincronizadas no Banco de Dados.`,
+    sampleImported: fireOccurrences.slice(0, 5).map((occ) => ({
+      municipio: occ.municipio,
+      natureza: occ.natureza,
+      data: occ.dataBr,
+      endereco: occ.endereco,
+    })),
+  };
+}
+
 export async function processSpreadsheetBuffer(
   buffer: Buffer,
   fileName: string,
@@ -195,10 +375,25 @@ export async function processSpreadsheetBuffer(
   } else {
     // XLSX ou XLS
     const workbook = XLSX.read(buffer, { type: "buffer" });
-    const sheetName =
-      workbook.SheetNames.find((n) =>
-        /^relatorio/i.test(n.normalize("NFD").replace(/\p{Diacritic}/gu, "")),
-      ) ?? workbook.SheetNames[0];
+
+    // Prioridade 1: Aba com nome exato "RELATORIO" ou "RELATÓRIO"
+    let sheetName = workbook.SheetNames.find((n) =>
+      /^relat[oó]rio$/i.test(n.normalize("NFD").replace(/\p{Diacritic}/gu, "").trim()),
+    );
+    // Prioridade 2: Aba que contenha "relatorio" mas NÃO termine com dígito (evita RELATORIO1, RELATORIO2)
+    if (!sheetName) {
+      sheetName = workbook.SheetNames.find((n) =>
+        /^relat[oó]rio[^\d]*$/i.test(n.normalize("NFD").replace(/\p{Diacritic}/gu, "").trim()),
+      );
+    }
+    // Prioridade 3: Qualquer aba que contenha "relatorio"
+    if (!sheetName) {
+      sheetName = workbook.SheetNames.find((n) =>
+        /relat[oó]rio/i.test(n.normalize("NFD").replace(/\p{Diacritic}/gu, "")),
+      );
+    }
+    if (!sheetName) sheetName = workbook.SheetNames[0];
+
     if (!sheetName) {
       return {
         success: false,
@@ -226,23 +421,57 @@ export async function processSpreadsheetBuffer(
     };
   }
 
-  // Detectar se é uma planilha de Relatório Diário Oficial (com seções Efetivo, Incêndios, Recursos, etc.)
-  const isDailyReport = rawRows.some((r) =>
-    (r ?? []).some((c) => {
-      const str = String(c ?? "").normalize("NFD").replace(/\p{Diacritic}/gu, "").toUpperCase();
-      return (
-        str.includes("SALA DE SITUACAO") ||
-        (str.includes("EFETIVO") && r.some((x: any) => String(x ?? "").toUpperCase().includes("MUNICIPIO"))) ||
-        str.includes("AMAZONAS + VERDE") ||
-        (str.includes("RELATORIO DIARIO") && !str.includes("CAD"))
-      );
-    }),
+  // Identificação robusta de arquivo CAD vs Relatório Diário Oficial
+  // 1. Ocorrências CAD têm colunas características nas primeiras 5 linhas
+  const headerPreview = (rawRows.slice(0, 5) || [])
+    .flatMap((r) =>
+      (r || []).map((c) =>
+        String(c ?? "")
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^a-z0-9]/g, ""),
+      ),
+    );
+
+  const isCAD = headerPreview.some((h) =>
+    [
+      "nrprotocolo",
+      "protocolo",
+      "datahoraregistroutc",
+      "naturezainicialdescricao",
+      "naturezasfinais",
+      "relatosrelato",
+      "membrosequipes",
+      "uuidocorrenciaprincipal",
+      "coordenadas",
+    ].includes(h),
   );
+
+  // 2. Relatório Diário Oficial só é detectado nas primeiras 15 linhas e NÃO pode ser CAD
+  const topRows = rawRows.slice(0, 15);
+  const isDailyReport =
+    !isCAD &&
+    topRows.some((r) =>
+      (r ?? []).some((c) => {
+        const str = String(c ?? "").normalize("NFD").replace(/\p{Diacritic}/gu, "").toUpperCase();
+        return (
+          (str.includes("SALA DE SITUACAO") ||
+            str.includes("RELATORIO DIARIO") ||
+            str.includes("RELATORIO DE OCORRENCIAS")) &&
+          topRows.some((subRow) =>
+            subRow.some((subC: any) => {
+              const subStr = String(subC ?? "").normalize("NFD").replace(/\p{Diacritic}/gu, "").toUpperCase();
+              return subStr.includes("EFETIVO") || subStr.includes("INCENDIOS") || subStr.includes("RECURSOS");
+            }),
+          )
+        );
+      }),
+    );
 
   if (isDailyReport) {
     try {
       const { parseDailyReportSheet, parseFileName } = await import("./drive-import.server");
-      const { manausFirst, harmonizeMunicipalitySections } = await import("./municipio-order");
 
       let fileInfo = parseFileName(fileName);
       let reportDate = fileInfo.reportDate;
@@ -309,9 +538,17 @@ export async function processSpreadsheetBuffer(
               } catch {}
             }
             payload.notes = JSON.stringify(mergedNotes);
-            await db.from("daily_reports").update(payload).eq("id", existing.id);
+            const { error: updErr } = await db.from("daily_reports").update(payload).eq("id", existing.id);
+            if (updErr) {
+              console.error("[occurrences-import] Erro ao atualizar daily_reports oficial:", updErr);
+              throw updErr;
+            }
           } else {
-            await db.from("daily_reports").insert(payload);
+            const { error: insErr } = await db.from("daily_reports").insert(payload);
+            if (insErr) {
+              console.error("[occurrences-import] Erro ao inserir daily_reports oficial:", insErr);
+              throw insErr;
+            }
           }
         }
 
@@ -375,7 +612,6 @@ export async function processSpreadsheetBuffer(
     const exact = header.findIndex((h) => normalizedKeys.includes(h));
     if (exact >= 0) return exact;
     // 2. Busca por substring apenas se a chave procurada tiver 4+ caracteres
-    // NUNCA avaliar k.includes(h), pois headers curtos como "id" dariam match indevido em "cidade"!
     return header.findIndex((h) =>
       normalizedKeys.some((k) => k.length >= 4 && h.includes(k)),
     );
@@ -385,6 +621,7 @@ export async function processSpreadsheetBuffer(
   const idxProtocolo = colIndex(["nrprotocolo", "protocolo", "numero", "nº"]);
   const idxDataHoraFato = colIndex(["datahorafato", "data/hora fato", "data/hora do fato", "data hora fato", "datahoradofato"]);
   const idxDataFato = colIndex(["datafato", "data fato", "data do fato"]);
+  const idxDataFinalizacao = colIndex(["datahorafinalizacaobrt", "datahorafinalizacao", "data finalizacao"]);
   const idxDataReg = colIndex(["datahoraregistroutc", "data registro", "data do registro", "data/hora registro"]);
   const idxDataGeneric = colIndex(["data", "dia"]);
   const idxHora = colIndex(["hora", "horário", "horario"]);
@@ -457,6 +694,7 @@ export async function processSpreadsheetBuffer(
     const rawDateCandidates = [
       idxDataHoraFato >= 0 ? row[idxDataHoraFato] : "",
       idxDataFato >= 0 ? row[idxDataFato] : "",
+      idxDataFinalizacao >= 0 ? row[idxDataFinalizacao] : "",
       idxDataGeneric >= 0 ? row[idxDataGeneric] : "",
       idxDataReg >= 0 ? row[idxDataReg] : "",
     ];
@@ -603,204 +841,6 @@ export async function processSpreadsheetBuffer(
     });
   }
 
-  // Inserção no repositório com não-duplicação
-  const addResult = addOccurrences(fireOccurrences);
-
-  // Se houver cliente Supabase configurado, grava também na tabela de ocorrências
-  if (supabaseClient && addResult.insertedCount > 0) {
-    try {
-      // Purga registros corrompidos com UUIDs ou tropas externas antes da nova inserção
-      try {
-        await supabaseClient
-          .from("occurrences")
-          .delete()
-          .or("municipio.ilike.*-*-*-*,municipio.ilike.Militares São Paulo*");
-      } catch {
-        // silencioso
-      }
-
-      const recordsToInsert = fireOccurrences.map((occ) => ({
-        id: occ.id,
-        protocolo: occ.protocolo,
-        data_fato: occ.data,
-        horario: occ.horario,
-        municipio: occ.municipio,
-        bairro: occ.bairro,
-        endereco: occ.endereco,
-        natureza: occ.natureza,
-        focos: occ.focos,
-        area: occ.area,
-        agua: occ.agua,
-        coordenadas: occ.coordenadas,
-        equipes: occ.equipes,
-        narrativa: occ.narrativa,
-      }));
-
-      // Em lotes de 100 para segurança de payload
-      for (let i = 0; i < recordsToInsert.length; i += 100) {
-        const batch = recordsToInsert.slice(i, i + 100);
-        await supabaseClient
-          .from("occurrences")
-          .upsert(batch, { onConflict: "id", ignoreDuplicates: false });
-      }
-    } catch (err) {
-      console.warn("[occurrences-import] Aviso: inserção no Supabase retornou:", err);
-    }
-  }
-
-  // Sincronização automática e persistência com a tabela daily_reports para cada data afetada
-  if (addResult.datesAffected.length > 0) {
-    try {
-      const { getOccurrencesForDate } = await import("./occurrences-store.server");
-      const { isFlorestalAmbiental } = await import("./fire-classification");
-      const { canonicalMunicipio, harmonizeMunicipalitySections, isNonMunicipioTroop } = await import("./municipio-order");
-      const { fetchOperationalDonor } = await import("./sheets-fallback.server");
-
-      for (const d of addResult.datesAffected) {
-        const dayOccs = getOccurrencesForDate(d);
-        if (dayOccs.length === 0) continue;
-
-        // Agrupa por município
-        const muniFires = new Map<string, { urb: number; flor: number; focos: number }>();
-        for (const occ of dayOccs) {
-          const mun = canonicalMunicipio(occ.municipio);
-          const cur = muniFires.get(mun) || { urb: 0, flor: 0, focos: 0 };
-          if (isFlorestalAmbiental(occ.natureza)) {
-            cur.flor += 1;
-          } else {
-            cur.urb += 1;
-          }
-          cur.focos += Math.max(1, occ.focos || 1);
-          muniFires.set(mun, cur);
-        }
-
-        const targetIncendiosList = Array.from(muniFires.entries()).map(([mun, vals]) => ({
-          mun,
-          urb: vals.urb,
-          flor: vals.flor,
-          focos: vals.focos,
-          total_periodo: vals.urb + vals.flor,
-        }));
-
-        if (supabaseClient) {
-          const { data: existingReport } = await supabaseClient
-            .from("daily_reports")
-            .select("id, shift, efetivo, recursos, incendios, outras, notes")
-            .eq("report_date", d)
-            .eq("shift", "noturno")
-            .maybeSingle();
-
-          if (existingReport) {
-            const incMap = new Map<string, any>();
-            for (const r of existingReport.incendios || []) {
-              if (r?.mun && !isNonMunicipioTroop(r.mun)) incMap.set(canonicalMunicipio(r.mun), { ...r });
-            }
-            for (const item of targetIncendiosList) {
-              const ex = incMap.get(item.mun);
-              if (ex) {
-                ex.urb = item.urb;
-                ex.flor = item.flor;
-                ex.focos = item.focos;
-                ex.total_periodo = item.urb + item.flor;
-              } else {
-                incMap.set(item.mun, item);
-              }
-            }
-            const updatedInc = Array.from(incMap.values());
-            const cleanEf = (existingReport.efetivo || []).filter((r: any) => !isNonMunicipioTroop(r?.mun ?? r?.municipio));
-            const cleanRec = (existingReport.recursos || []).filter((r: any) => !isNonMunicipioTroop(r?.mun ?? r?.municipio));
-            const harmonized = harmonizeMunicipalitySections(
-              cleanEf,
-              cleanRec,
-              updatedInc,
-              (mun) => ({ mun, ord: 0, cbmam: 0, seg: 0, brig: 0 }),
-              (mun) => ({ mun, viaturas: 0, aeronaves: 0, embarcacoes: 0 }),
-              (mun) => ({ mun, urb: 0, flor: 0, focos: 0, total_periodo: 0 }),
-            );
-
-            let mergedNotes: Record<string, any> = { occurrences: dayOccs };
-            if (existingReport.notes) {
-              try {
-                const prev = typeof existingReport.notes === "string" ? JSON.parse(existingReport.notes) : existingReport.notes;
-                if (prev && typeof prev === "object") {
-                  mergedNotes = { ...prev, occurrences: dayOccs };
-                }
-              } catch {}
-            }
-
-            await supabaseClient
-              .from("daily_reports")
-              .update({
-                efetivo: harmonized.efetivo,
-                recursos: harmonized.recursos,
-                incendios: harmonized.incendios,
-                notes: JSON.stringify(mergedNotes),
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", existingReport.id);
-          } else {
-            const donor = await fetchOperationalDonor(supabaseClient, d);
-            const harmonized = harmonizeMunicipalitySections(
-              (donor?.efetivo || []).filter((r: any) => !isNonMunicipioTroop(r?.mun ?? r?.municipio)),
-              (donor?.recursos || []).filter((r: any) => !isNonMunicipioTroop(r?.mun ?? r?.municipio)),
-              targetIncendiosList,
-              (mun) => ({ mun, ord: 0, cbmam: 0, seg: 0, brig: 0 }),
-              (mun) => ({ mun, viaturas: 0, aeronaves: 0, embarcacoes: 0 }),
-              (mun) => ({ mun, urb: 0, flor: 0, focos: 0, total_periodo: 0 }),
-            );
-
-            await supabaseClient.from("daily_reports").insert({
-              report_date: d,
-              shift: "noturno",
-              efetivo: harmonized.efetivo,
-              recursos: harmonized.recursos,
-              incendios: harmonized.incendios,
-              outras: donor?.outras || [],
-              notes: JSON.stringify({ occurrences: dayOccs }),
-            });
-          }
-        }
-      }
-    } catch (syncErr) {
-      console.warn("[occurrences-import] Aviso: sincronização com daily_reports retornou:", syncErr);
-    }
-  }
-
-  const latestDate =
-    addResult.datesAffected.length > 0
-      ? addResult.datesAffected[addResult.datesAffected.length - 1]
-      : undefined;
-
-  const sampleImported = fireOccurrences.slice(0, 3).map((o) => ({
-    municipio: o.municipio,
-    natureza: o.natureza,
-    data: o.dataBr,
-    endereco: o.endereco,
-  }));
-
-  const summaryParts: string[] = [];
-  if (addResult.insertedCount > 0) {
-    summaryParts.push(`${addResult.insertedCount} nova(s)`);
-  }
-  if (addResult.updatedCount > 0) {
-    summaryParts.push(`${addResult.updatedCount} atualizada(s)`);
-  }
-
-  const message =
-    summaryParts.length > 0
-      ? `Importação concluída com sucesso! Foram salvas: ${summaryParts.join(" e ")} ocorrência(s) de incêndio (${addResult.duplicatesSkipped} inalteradas).`
-      : `Nenhuma alteração necessária: todas as ${fireOccurrences.length} ocorrências de incêndio da planilha já estão salvas e idênticas no banco.`;
-
-  return {
-    success: true,
-    totalRows,
-    fireRows: fireOccurrences.length,
-    insertedCount: addResult.insertedCount,
-    updatedCount: addResult.updatedCount,
-    duplicatesSkipped: addResult.duplicatesSkipped,
-    datesAffected: addResult.datesAffected,
-    latestDate,
-    sampleImported,
-    message,
-  };
+  // Persiste no banco de dados e no store
+  return saveParsedOccurrencesToDb(fireOccurrences, supabaseClient);
 }
