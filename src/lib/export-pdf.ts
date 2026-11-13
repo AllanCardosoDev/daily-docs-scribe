@@ -84,7 +84,7 @@ export function buildSheetsPdfDoc(
       // Fallback
     }
 
-    // Identificação Central Oficial CBMAM / Amazonas + Verde
+    // Identificação Central Oficial CBMAM / AMAZONAS + VERDE (Caixa Alta)
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
     doc.setTextColor(255, 255, 255);
@@ -93,25 +93,12 @@ export function buildSheetsPdfDoc(
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10.5);
     doc.setTextColor(110, 231, 183);
-    doc.text("Amazonas + Verde", pageW / 2, 28, { align: "center" });
+    doc.text("AMAZONAS + VERDE", pageW / 2, 28, { align: "center" });
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
     doc.setTextColor(255, 220, 140);
-    doc.text("Relatório Diário — Sala de Situação", pageW / 2, 42, { align: "center" });
-
-    // Oficiais Responsáveis (Esquerda — Somente os 3 Oficiais de Comando)
-    doc.setTextColor(230, 240, 235);
-    doc.setFontSize(7.2);
-    doc.setFont("helvetica", "bold");
-    doc.text("Comandante Geral:", 68, 16);
-    doc.text("Sub-Comandante Geral:", 68, 28);
-    doc.text("Coord. Sala Situação:", 68, 40);
-
-    doc.setFont("helvetica", "normal");
-    doc.text(header.comandanteGeral || "CEL QOBM MUNIZ", 175, 16);
-    doc.text(header.subcomandante || header.comandante || "CEL QOBM BORGES", 175, 28);
-    doc.text((header.coordSituacao || "CEL QOBM FERREIRA").replace(/^TC\s+/i, "CEL "), 175, 40);
+    doc.text("RELATÓRIO DIÁRIO — SALA DE SITUAÇÃO", pageW / 2, 42, { align: "center" });
 
     // Cronograma & Período (Direita)
     const rightMarginX = pageW - 16;
@@ -132,13 +119,13 @@ export function buildSheetsPdfDoc(
   };
 
   // ---------------------------------------------------------------------------
-  // DESENHO DE KPI CARDS EXECUTIVOS
+  // DESENHO DE KPI CARDS EXECUTIVOS (Nomes à esquerda, Números à direita, sem subtextos)
   // ---------------------------------------------------------------------------
   const drawKpiCards = (
     startY: number,
-    cards: Array<{ label: string; value: string | number; subtext: string; highlight?: boolean }>,
+    cards: Array<{ label: string; value: string | number; subtext?: string; highlight?: boolean }>,
   ) => {
-    const cardHeight = 28;
+    const cardHeight = 26;
     const totalW = pageW - 32;
     const gap = 8;
     const cardW = (totalW - gap * (cards.length - 1)) / cards.length;
@@ -161,17 +148,17 @@ export function buildSheetsPdfDoc(
         doc.roundedRect(x, startY, cardW, cardHeight, 3, 3, "S");
       }
 
-      // Rótulo
+      // Nome do indicador à esquerda
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(6.2);
+      doc.setFontSize(6.8);
       if (c.highlight) {
-        doc.setTextColor(220, 240, 230);
+        doc.setTextColor(230, 245, 235);
       } else {
         doc.setTextColor(HEADER_NAVY.r, HEADER_NAVY.g, HEADER_NAVY.b);
       }
-      doc.text(c.label.toUpperCase(), x + 8, startY + 9);
+      doc.text(c.label.toUpperCase(), x + 10, startY + cardHeight / 2 + 2.5);
 
-      // Valor
+      // Número à direita
       doc.setFont("helvetica", "bold");
       doc.setFontSize(11);
       if (c.highlight) {
@@ -179,17 +166,7 @@ export function buildSheetsPdfDoc(
       } else {
         doc.setTextColor(BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b);
       }
-      doc.text(String(c.value), x + 8, startY + 22);
-
-      // Subtexto à direita
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(6);
-      if (c.highlight) {
-        doc.setTextColor(200, 225, 215);
-      } else {
-        doc.setTextColor(110, 120, 115);
-      }
-      doc.text(c.subtext, x + cardW - 8, startY + 21, { align: "right" });
+      doc.text(String(c.value), x + cardW - 10, startY + cardHeight / 2 + 3.5, { align: "right" });
     });
   };
 
@@ -282,25 +259,21 @@ export function buildSheetsPdfDoc(
   // Cards de Efetivo (Y: 62)
   drawKpiCards(62, [
     {
-      label: "Efetivo Diário Total",
+      label: "EFETIVO TOTAL MOBILIZADO",
       value: NF.format(grandTotalEfetivo),
-      subtext: "Prontidão Operacional do Dia",
       highlight: true,
     },
     {
-      label: "Militares CBMAM",
+      label: "MILITARES CBMAM",
       value: NF.format(totalCbmam),
-      subtext: "SV ORD, OPAM & Turmas",
     },
     {
-      label: "Forças Federais & Parceiros",
+      label: "FORÇAS FEDERAIS & PARCEIROS",
       value: NF.format(totalFederais),
-      subtext: "FN, Prevfogo, Marinha",
     },
     {
-      label: "Brigadistas Florestais",
+      label: "BRIGADISTAS FLORESTAIS",
       value: NF.format(totalBrigadistas),
-      subtext: "Defesas Civis & SEMA",
     },
   ]);
 
@@ -641,25 +614,21 @@ export function buildSheetsPdfDoc(
   // Cards de Recursos (Y: 62)
   drawKpiCards(62, [
     {
-      label: "Total de Meios Materiais",
+      label: "TOTAL DE MEIOS OPERACIONAIS",
       value: NF.format(recGrandTotal || (totCombate + totApoioResgate + totEspeciais)),
-      subtext: "Recursos Ativos em Campo",
       highlight: true,
     },
     {
-      label: "Viaturas de Combate",
+      label: "VIATURAS DE COMBATE",
       value: NF.format(totCombate),
-      subtext: "ABT, AT, ATP, ABF, Pipa",
     },
     {
-      label: "Aeronaves Empregadas",
-      value: NF.format(totAereos),
-      subtext: "Air Tractors & Harpias",
+      label: "VIATURAS DE APOIO & LOGÍSTICA",
+      value: NF.format(totApoioResgate),
     },
     {
-      label: "Meios Fluviais & Apoio",
-      value: NF.format(totFluviais + totApoioResgate),
-      subtext: "Lanchas, Resgate & 4x4",
+      label: "MEIOS FLUVIAIS & ESPECIAIS",
+      value: NF.format(totEspeciais),
     },
   ]);
 
@@ -938,25 +907,21 @@ export function buildSheetsPdfDoc(
   // Cards de Ocorrências (Y: 62)
   drawKpiCards(62, [
     {
-      label: isPeriodRange ? "Incêndios no Período" : "Incêndios no Dia",
-      value: NF.format(totDiarioOcorrencias),
-      subtext: `${totDiarioUrb} Urb. / ${totDiarioFlor} Flor.`,
+      label: "TOTAL DE INCÊNDIOS",
+      value: NF.format(totAcumOcorrencias || totDiarioOcorrencias),
       highlight: true,
     },
     {
-      label: isPeriodRange ? "Focos no Período" : "Focos Extintos no Dia",
-      value: NF.format(totDiarioFocos),
-      subtext: "Combates in loco",
+      label: "FOCOS DE CALOR",
+      value: NF.format(totAcumFocos || totDiarioFocos),
     },
     {
-      label: "Acumulado desde 01/06",
-      value: NF.format(totAcumOcorrencias),
-      subtext: `${totAcumFocos} focos combatidos`,
+      label: "INCÊNDIOS FLORESTAIS",
+      value: NF.format(totAcumFlor || totDiarioFlor),
     },
     {
-      label: "Área Queimada Total",
-      value: `${NF.format(totAcumArea)} m²`,
-      subtext: `${totAcumSat} focos satélite`,
+      label: "INCÊNDIOS URBANOS",
+      value: NF.format(totAcumUrb || totDiarioUrb),
     },
   ]);
 
@@ -1237,15 +1202,12 @@ export function buildSheetsPdfDoc(
   // Assinatura na última página operacional do documento com o nome do militar/usuário logado
   const totalDocPages = (doc as any).internal.getNumberOfPages();
   doc.setPage(totalDocPages);
-  const sigY = pageH - 42;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.setTextColor(BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b);
+  const sigY = pageH - 46;
 
   // Linha da assinatura centralizada
   doc.setDrawColor(BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b);
   doc.setLineWidth(0.6);
-  doc.line(pageW / 2 - 180, sigY - 14, pageW / 2 + 180, sigY - 14);
+  doc.line(pageW / 2 - 180, sigY - 10, pageW / 2 + 180, sigY - 10);
 
   // Nome oficial de quem está logado (removido nome fixo dos Coronéis)
   let operadorLogado = (
@@ -1281,14 +1243,24 @@ export function buildSheetsPdfDoc(
   }
 
   if (!operadorLogado) {
-    operadorLogado = "OPERADOR DA SALA DE SITUAÇÃO";
+    operadorLogado = "2º SGT QCPBM NARA";
   }
 
-  doc.text(operadorLogado.toUpperCase(), pageW / 2, sigY, { align: "center" });
+  // Nome de Guerra do Operador da Sala
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b);
+  doc.text(operadorLogado.toUpperCase(), pageW / 2, sigY - 1, { align: "center" });
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  doc.setTextColor(BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b);
+  doc.text("SALA DE SITUAÇÃO — CBMAM", pageW / 2, sigY + 9, { align: "center" });
+
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(7.2);
+  doc.setFontSize(6.8);
   doc.setTextColor(80, 90, 85);
-  doc.text("Responsável pelo Preenchimento · Sala de Situação — CBMAM", pageW / 2, sigY + 9, { align: "center" });
+  doc.text("Responsável pelo Preenchimento · Comando Operacional Integrado", pageW / 2, sigY + 18, { align: "center" });
 
   // ---------------------------------------------------------------------------
   // NUMERAÇÃO INSTITUCIONAL DE TODAS AS PÁGINAS (Página X de Y)

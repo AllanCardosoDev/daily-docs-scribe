@@ -811,6 +811,7 @@ ${topIncendios || "  Nenhum registro no período."}
         periodoLabel: periodLabel,
         dataDiariaLabel,
         reportDate: latestRow?.report_date ? new Date(latestRow.report_date + "T12:00:00Z") : new Date(),
+        operador: "2º SGT QCPBM NARA",
         ocorrenciasDiarias: occDiarias,
         ocorrenciasTotais: occTotais,
         efetivoDiario: efDiario,

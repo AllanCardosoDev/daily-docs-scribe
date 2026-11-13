@@ -25,6 +25,8 @@ export interface RelatorioCompletoAmvOptions {
   chefeCapital?: string;
   chefeInterior?: string;
   coordSituacao?: string;
+  operador?: string;
+  responsavel?: string;
 
   // 1ª Seção: Ocorrências
   ocorrenciasDiarias: Array<Record<string, any>>;
@@ -51,12 +53,10 @@ export function exportRelatorioCompletoAmvPdf(options: RelatorioCompletoAmvOptio
 
 export function buildRelatorioCompletoAmvDoc(options: RelatorioCompletoAmvOptions): jsPDF {
   const sanitizeCel = (v?: string, fallback = "") => (v || fallback).replace(/^TC\s+/i, "CEL ");
+  const operador = (options.operador || options.responsavel || "2º SGT QCPBM NARA").toUpperCase();
   const {
     periodoLabel,
     dataDiariaLabel,
-    comandanteGeral = sanitizeCel(options.comandanteGeral, "CEL QOBM MUNIZ"),
-    subcomandante = sanitizeCel(options.subcomandante || options.comandante, "CEL QOBM BORGES"),
-    coordSituacao = sanitizeCel(options.coordSituacao, "CEL QOBM FERREIRA"),
     ocorrenciasDiarias: rawOcorrenciasDiarias,
     ocorrenciasTotais: rawOcorrenciasTotais,
     efetivoDiario: rawEfetivoDiario,
@@ -98,26 +98,7 @@ export function buildRelatorioCompletoAmvDoc(options: RelatorioCompletoAmvOption
       // Fallback
     }
 
-    // Oficiais Responsáveis (Esquerda - sem sobreposição com o centro)
-    doc.setTextColor(230, 240, 235);
-    doc.setFontSize(6.5);
-
-    doc.setFont("helvetica", "bold");
-    doc.text("Comandante Geral:", 60, 16);
-    doc.setFont("helvetica", "normal");
-    doc.text(comandanteGeral, 165, 16);
-
-    doc.setFont("helvetica", "bold");
-    doc.text("Sub-Comandante Geral:", 60, 28);
-    doc.setFont("helvetica", "normal");
-    doc.text(subcomandante, 165, 28);
-
-    doc.setFont("helvetica", "bold");
-    doc.text("Coord. Sala Situação:", 60, 40);
-    doc.setFont("helvetica", "normal");
-    doc.text(coordSituacao, 165, 40);
-
-    // Identificação Central Oficial CBMAM / Amazonas + Verde
+    // Identificação Central Oficial CBMAM / AMAZONAS + VERDE (Caixa Alta)
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
     doc.setTextColor(255, 255, 255);
@@ -126,14 +107,14 @@ export function buildRelatorioCompletoAmvDoc(options: RelatorioCompletoAmvOption
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10.5);
     doc.setTextColor(110, 231, 183);
-    doc.text("Amazonas + Verde", pageW / 2, 28, { align: "center" });
+    doc.text("AMAZONAS + VERDE", pageW / 2, 28, { align: "center" });
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
     doc.setTextColor(255, 220, 140);
-    doc.text("Relatório Diário — Sala de Situação", pageW / 2, 42, { align: "center" });
+    doc.text("RELATÓRIO DIÁRIO — SALA DE SITUAÇÃO", pageW / 2, 42, { align: "center" });
 
-    // Metadados do Período (Direita - sem sobreposição com o centro)
+    // Metadados do Período (Direita)
     const rightMarginX = pageW - 16;
     const labelStartX = pageW - 200;
 
@@ -152,12 +133,12 @@ export function buildRelatorioCompletoAmvDoc(options: RelatorioCompletoAmvOption
     doc.text(emissaoStr, rightMarginX, 35, { align: "right" });
   };
 
-  // KPI Cards executivos
+  // KPI Cards executivos (Nomes à esquerda, Números em destaque à direita, sem subtextos)
   const drawKpiCards = (
     startY: number,
-    cards: Array<{ label: string; value: string | number; subtext: string; highlight?: boolean }>,
+    cards: Array<{ label: string; value: string | number; subtext?: string; highlight?: boolean }>,
   ) => {
-    const cardH = 28;
+    const cardH = 26;
     const totalW = pageW - 32;
     const gap = 8;
     const cardW = (totalW - gap * (cards.length - 1)) / cards.length;
@@ -178,20 +159,17 @@ export function buildRelatorioCompletoAmvDoc(options: RelatorioCompletoAmvOption
         doc.roundedRect(x, startY, cardW, cardH, 3, 3, "S");
       }
 
+      // Nome do indicador à esquerda
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(6.2);
-      doc.setTextColor(c.highlight ? 220 : BRAND_DARK.r, c.highlight ? 240 : BRAND_DARK.g, c.highlight ? 230 : BRAND_DARK.b);
-      doc.text(c.label.toUpperCase(), x + 8, startY + 9);
+      doc.setFontSize(6.8);
+      doc.setTextColor(c.highlight ? 230 : BRAND_DARK.r, c.highlight ? 245 : BRAND_DARK.g, c.highlight ? 235 : BRAND_DARK.b);
+      doc.text(c.label.toUpperCase(), x + 10, startY + cardH / 2 + 2.5);
 
+      // Número à direita
       doc.setFont("helvetica", "bold");
       doc.setFontSize(11);
       doc.setTextColor(c.highlight ? 255 : BRAND_DARK.r, c.highlight ? 220 : BRAND_DARK.g, c.highlight ? 140 : BRAND_DARK.b);
-      doc.text(String(c.value), x + 8, startY + 22);
-
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(6);
-      doc.setTextColor(c.highlight ? 200 : 110, c.highlight ? 225 : 120, c.highlight ? 215 : 115);
-      doc.text(c.subtext, x + cardW - 8, startY + 21, { align: "right" });
+      doc.text(String(c.value), x + cardW - 10, startY + cardH / 2 + 3.5, { align: "right" });
     });
   };
 
@@ -268,25 +246,21 @@ export function buildRelatorioCompletoAmvDoc(options: RelatorioCompletoAmvOption
 
   drawKpiCards(62, [
     {
-      label: "Total de Incêndios",
+      label: "TOTAL DE INCÊNDIOS",
       value: NF.format(sumAcumTot),
-      subtext: `Dia: ${NF.format(sumDiaTot)} | Acum: ${NF.format(sumAcumTot)}`,
       highlight: true,
     },
     {
-      label: "Focos de Calor",
+      label: "FOCOS DE CALOR",
       value: NF.format(sumAcumFocos),
-      subtext: `Dia: ${NF.format(sumDiaFocos)} | Acum: ${NF.format(sumAcumFocos)}`,
     },
     {
-      label: "Incêndios Florestais",
+      label: "INCÊNDIOS FLORESTAIS",
       value: NF.format(sumAcumFlor),
-      subtext: `Dia: ${NF.format(sumDiaFlor)} | Acum: ${NF.format(sumAcumFlor)}`,
     },
     {
-      label: "Incêndios Urbanos",
+      label: "INCÊNDIOS URBANOS",
       value: NF.format(sumAcumUrb),
-      subtext: `Dia: ${NF.format(sumDiaUrb)} | Acum: ${NF.format(sumAcumUrb)}`,
     },
   ]);
 
@@ -428,25 +402,21 @@ export function buildRelatorioCompletoAmvDoc(options: RelatorioCompletoAmvOption
 
   drawKpiCards(62, [
     {
-      label: "Efetivo Total Mobilizado",
+      label: "EFETIVO TOTAL MOBILIZADO",
       value: NF.format(forcasGeral.total),
-      subtext: `Dia: ${NF.format(forcasDia.total)} | Geral: ${NF.format(forcasGeral.total)}`,
       highlight: true,
     },
     {
-      label: "Militares CBMAM",
+      label: "MILITARES CBMAM",
       value: NF.format(forcasGeral.cbmam),
-      subtext: `Dia: ${NF.format(forcasDia.cbmam)} | Geral: ${NF.format(forcasGeral.cbmam)}`,
     },
     {
-      label: "Forças Federais & Parceiros",
+      label: "FORÇAS FEDERAIS & PARCEIROS",
       value: NF.format(forcasGeral.fn + forcasGeral.prevfogo + forcasGeral.marinha + forcasGeral.cbmsp),
-      subtext: `Dia: ${NF.format(forcasDia.fn + forcasDia.prevfogo + forcasDia.marinha + forcasDia.cbmsp)}`,
     },
     {
-      label: "Brigadistas Florestais",
+      label: "BRIGADISTAS FLORESTAIS",
       value: NF.format(forcasGeral.brig),
-      subtext: `Dia: ${NF.format(forcasDia.brig)} | Geral: ${NF.format(forcasGeral.brig)}`,
     },
   ]);
 
@@ -730,25 +700,21 @@ export function buildRelatorioCompletoAmvDoc(options: RelatorioCompletoAmvOption
 
   drawKpiCards(62, [
     {
-      label: "Total de Meios Operacionais",
+      label: "TOTAL DE MEIOS OPERACIONAIS",
       value: NF.format(totMeios),
-      subtext: `Viaturas, Embarcações e Aeronaves`,
       highlight: true,
     },
     {
-      label: "Viaturas de Combate",
+      label: "VIATURAS DE COMBATE",
       value: NF.format(totCombate),
-      subtext: `ABT, AT, AEM, ABF, ATF, ABS`,
     },
     {
-      label: "Viaturas de Apoio & Logística",
+      label: "VIATURAS DE APOIO & LOGÍSTICA",
       value: NF.format(totApoio),
-      subtext: `ATP, ATA, Pipa, AR, UR, GSE, Pickups`,
     },
     {
-      label: "Meios Fluviais & Especiais",
+      label: "MEIOS FLUVIAIS & ESPECIAIS",
       value: NF.format(totFluvial),
-      subtext: `Embarcações, Botes, Jet Skis & Aéreos`,
     },
   ]);
 
@@ -928,20 +894,27 @@ export function buildRelatorioCompletoAmvDoc(options: RelatorioCompletoAmvOption
   // Assinatura na última página
   const lastPageNum = (doc as any).internal.getNumberOfPages();
   doc.setPage(lastPageNum);
-  const sigY = pageH - 42;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.setTextColor(BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b);
+  const sigY = pageH - 46;
 
   doc.setDrawColor(BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b);
   doc.setLineWidth(0.6);
-  doc.line(pageW / 2 - 180, sigY - 14, pageW / 2 + 180, sigY - 14);
+  doc.line(pageW / 2 - 180, sigY - 10, pageW / 2 + 180, sigY - 10);
 
-  doc.text("SALA DE SITUAÇÃO — CBMAM", pageW / 2, sigY - 2, { align: "center" });
+  // Nome de Guerra do Operador da Sala
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b);
+  doc.text(operador, pageW / 2, sigY - 1, { align: "center" });
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  doc.setTextColor(BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b);
+  doc.text("SALA DE SITUAÇÃO — CBMAM", pageW / 2, sigY + 9, { align: "center" });
+
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
+  doc.setFontSize(6.8);
   doc.setTextColor(80, 90, 85);
-  doc.text("Responsável pelo Preenchimento · Comando Operacional Integrado", pageW / 2, sigY + 8, { align: "center" });
+  doc.text("Responsável pelo Preenchimento · Comando Operacional Integrado", pageW / 2, sigY + 18, { align: "center" });
 
   // Rodapé em todas as páginas
   const totalPages = (doc as any).internal.getNumberOfPages();

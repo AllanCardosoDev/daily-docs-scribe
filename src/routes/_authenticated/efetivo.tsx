@@ -341,6 +341,7 @@ function EfetivoPage() {
         periodoLabel,
         dataDiariaLabel: dateLabel,
         reportDate,
+        operador: rawData.header?.operador || rawData.header?.responsavel || "2º SGT QCPBM NARA",
         comandanteGeral: rawData.header?.comandanteGeral || "CEL QOBM MUNIZ",
         subcomandante: rawData.header?.subcomandante || rawData.header?.comandante || "CEL QOBM BORGES",
         coordSituacao: rawData.header?.coordSituacao || rawData.header?.coordenador || "CEL QOBM FERREIRA",

@@ -316,3 +316,4 @@ export function extractFireOccurrencesFromCsv(csvText: string): StoredOccurrence
 
   return fireOccurrences;
 }
+

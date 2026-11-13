@@ -152,7 +152,7 @@ export function buildEfetivoPdfDoc(options: ExportEfetivoPdfOptions): jsPDF {
     // Fallback se logo falhar
   }
 
-  // Identificação Central Oficial CBMAM / Amazonas + Verde
+  // Identificação Central Oficial CBMAM / AMAZONAS + VERDE (Caixa Alta)
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
   doc.setTextColor(255, 255, 255);
@@ -161,25 +161,12 @@ export function buildEfetivoPdfDoc(options: ExportEfetivoPdfOptions): jsPDF {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10.5);
   doc.setTextColor(110, 231, 183);
-  doc.text("Amazonas + Verde", pageW / 2, 28, { align: "center" });
+  doc.text("AMAZONAS + VERDE", pageW / 2, 28, { align: "center" });
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.setTextColor(255, 220, 140);
-  doc.text("Relatório Diário — Sala de Situação", pageW / 2, 42, { align: "center" });
-
-  // Metadados Oficiais (Esquerda — Somente os 3 Oficiais)
-  doc.setTextColor(230, 240, 235);
-  doc.setFontSize(7.2);
-  doc.setFont("helvetica", "bold");
-  doc.text("Comandante Geral:", 68, 16);
-  doc.text("Sub-Comandante Geral:", 68, 28);
-  doc.text("Coord. Sala Situação:", 68, 40);
-
-  doc.setFont("helvetica", "normal");
-  doc.text(comandanteGeral, 175, 16);
-  doc.text(subcomandante, 175, 28);
-  doc.text(coordSituacao, 175, 40);
+  doc.text("RELATÓRIO DIÁRIO — SALA DE SITUAÇÃO", pageW / 2, 42, { align: "center" });
 
   // Metadados (Direita)
   const rightMarginX = pageW - 16;
@@ -196,13 +183,13 @@ export function buildEfetivoPdfDoc(options: ExportEfetivoPdfOptions): jsPDF {
   doc.text("Mobilização Ativa (100%)", rightMarginX, 40, { align: "right" });
 
   // ---------------------------------------------------------------------------
-  // KPI CARDS EXECUTIVOS
+  // KPI CARDS EXECUTIVOS (Nomes à esquerda, Números à direita, sem subtextos)
   // ---------------------------------------------------------------------------
   const drawCards = (
     startY: number,
-    cards: Array<{ label: string; value: string | number; subtext: string; highlight?: boolean }>,
+    cards: Array<{ label: string; value: string | number; subtext?: string; highlight?: boolean }>,
   ) => {
-    const cardH = 28;
+    const cardH = 26;
     const totalW = pageW - 32;
     const gap = 8;
     const cardW = (totalW - gap * (cards.length - 1)) / cards.length;
@@ -223,44 +210,37 @@ export function buildEfetivoPdfDoc(options: ExportEfetivoPdfOptions): jsPDF {
         doc.roundedRect(x, startY, cardW, cardH, 3, 3, "S");
       }
 
+      // Nome do indicador à esquerda
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(6.2);
-      doc.setTextColor(c.highlight ? 220 : BRAND_DARK.r, c.highlight ? 240 : BRAND_DARK.g, c.highlight ? 230 : BRAND_DARK.b);
-      doc.text(c.label.toUpperCase(), x + 8, startY + 9);
+      doc.setFontSize(6.8);
+      doc.setTextColor(c.highlight ? 230 : BRAND_DARK.r, c.highlight ? 245 : BRAND_DARK.g, c.highlight ? 235 : BRAND_DARK.b);
+      doc.text(c.label.toUpperCase(), x + 10, startY + cardH / 2 + 2.5);
 
+      // Número à direita
       doc.setFont("helvetica", "bold");
       doc.setFontSize(11);
       doc.setTextColor(c.highlight ? 255 : BRAND_DARK.r, c.highlight ? 220 : BRAND_DARK.g, c.highlight ? 140 : BRAND_DARK.b);
-      doc.text(String(c.value), x + 8, startY + 22);
-
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(6);
-      doc.setTextColor(c.highlight ? 200 : 110, c.highlight ? 225 : 120, c.highlight ? 215 : 115);
-      doc.text(c.subtext, x + cardW - 8, startY + 21, { align: "right" });
+      doc.text(String(c.value), x + cardW - 10, startY + cardH / 2 + 3.5, { align: "right" });
     });
   };
 
   drawCards(62, [
     {
-      label: "Efetivo Geral Total",
+      label: "EFETIVO TOTAL MOBILIZADO",
       value: NF.format(grandTotalEfetivo),
-      subtext: "Força Operacional Ativa",
       highlight: true,
     },
     {
-      label: "Militares CBMAM",
+      label: "MILITARES CBMAM",
       value: NF.format(totalCbmam),
-      subtext: "SV ORD, Reforço & Turmas",
     },
     {
-      label: "Forças Federais & Parceiros",
+      label: "FORÇAS FEDERAIS & PARCEIROS",
       value: NF.format(totalFederais),
-      subtext: "Força Nacional, Marinha, Prevfogo",
     },
     {
-      label: "Brigadistas Florestais",
+      label: "BRIGADISTAS FLORESTAIS",
       value: NF.format(totalBrigadistas),
-      subtext: "Brigadas Municipais & SEMA",
     },
   ]);
 

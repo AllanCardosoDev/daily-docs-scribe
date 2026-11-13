@@ -153,11 +153,41 @@ export function useExporters(
     if (!data) return;
     try {
       const cleanData = getCleanDataWithPeriod()!;
+      let operadorName = cleanData.header?.operador || cleanData.header?.responsavel;
+      if (!operadorName) {
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          const user = sessionData.session?.user;
+          if (user) {
+            const { data: prof } = await supabase
+              .from("profiles")
+              .select("display_name, sinesp_rank, sinesp_full_name, email")
+              .eq("id", user.id)
+              .maybeSingle();
+            operadorName =
+              prof?.display_name ||
+              (prof?.sinesp_rank && prof?.sinesp_full_name
+                ? `${prof.sinesp_rank} ${prof.sinesp_full_name}`
+                : "") ||
+              user.user_metadata?.display_name ||
+              user.user_metadata?.full_name ||
+              user.email ||
+              "";
+          }
+        } catch {
+          // ignore
+        }
+      }
+      if (!operadorName) {
+        operadorName = "2º SGT QCPBM NARA";
+      }
+
       const { exportRelatorioCompletoAmvPdf: runExport } = await import("@/lib/export-completo-amv-pdf");
       runExport({
         periodoLabel,
         dataDiariaLabel: reportDate ? fmtDateBR(reportDate) : "Fechamento Diário",
         reportDate,
+        operador: operadorName,
         comandanteGeral: cleanData.header?.comandanteGeral || "CEL QOBM MUNIZ",
         comandante: cleanData.header?.comandante || "CEL QOBM BORGES",
         coordenador: cleanData.header?.coordenador || "CEL QOBM CRISTIANO BRAZ FERREIRA",
