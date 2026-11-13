@@ -414,7 +414,7 @@ export async function fetchOperationalDonor(
   supabase: SupabaseClient<any>,
   dateIso: string,
 ): Promise<{ efetivo: any[]; recursos: any[]; outras: any[]; header?: Record<string, any>; occurrences?: any[] } | null> {
-  // 1. Tentar encontrar o dia anterior mais recente que possua dados operacionais
+  // 1. Tentar encontrar o dia anterior mais recente que possua dados operacionais (regra de carry-over contínuo)
   const { data: prevRows } = await supabase
     .from("daily_reports")
     .select("report_date, shift, efetivo, recursos, outras, notes")
@@ -422,21 +422,22 @@ export async function fetchOperationalDonor(
     .not("efetivo", "is", null)
     .order("report_date", { ascending: false })
     .order("shift", { ascending: false })
-    .limit(5);
+    .limit(30);
 
-  const validPrev = prevRows?.find(
-    (r: any) =>
-      Array.isArray(r.efetivo) &&
-      r.efetivo.length > 5 &&
-      Array.isArray(r.recursos) &&
-      r.recursos.length > 5,
+  const prevEfetivoRow = prevRows?.find(
+    (r: any) => Array.isArray(r.efetivo) && r.efetivo.length > 5,
   );
-  if (validPrev) {
-    const notesEnv = parseNotesEnvelope(validPrev.notes);
+  const prevRecursosRow = prevRows?.find(
+    (r: any) => Array.isArray(r.recursos) && r.recursos.length > 5,
+  );
+
+  if (prevEfetivoRow || prevRecursosRow) {
+    const mainRow = prevEfetivoRow || prevRecursosRow;
+    const notesEnv = parseNotesEnvelope(mainRow.notes);
     return {
-      efetivo: validPrev.efetivo,
-      recursos: validPrev.recursos,
-      outras: validPrev.outras,
+      efetivo: prevEfetivoRow?.efetivo || [],
+      recursos: prevRecursosRow?.recursos || prevEfetivoRow?.recursos || [],
+      outras: mainRow.outras || [],
       header: notesEnv.header,
       occurrences: Array.isArray(notesEnv.occurrences) ? notesEnv.occurrences : undefined,
     };
