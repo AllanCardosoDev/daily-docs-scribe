@@ -51,5 +51,36 @@ describe("exportEfetivoPdf", () => {
     const pageCount = (doc as any).internal.getNumberOfPages();
     expect(pageCount).toBeGreaterThanOrEqual(1);
   });
+
+  it("deve construir relatório no modo diario, total e completo", () => {
+    const mockEfetivo = [
+      { mun: "Manaus", ord: 50, seg: 10, brig: 0, fn: 5, prevfogo: 0, marinha: 2, opamv: 15, total: 82 },
+      { mun: "Humaitá", ord: 20, seg: 5, brig: 12, fn: 10, prevfogo: 4, marinha: 0, opamv: 8, total: 59 },
+    ];
+
+    const docDiario = buildEfetivoPdfDoc({
+      mode: "diario",
+      efetivo: mockEfetivo,
+      periodoLabel: "29/10/2026",
+    });
+    expect(docDiario).toBeDefined();
+
+    const docTotal = buildEfetivoPdfDoc({
+      mode: "total",
+      efetivo: mockEfetivo,
+      periodoLabel: "Consolidado Geral",
+    });
+    expect(docTotal).toBeDefined();
+
+    const docCompleto = buildEfetivoPdfDoc({
+      mode: "completo",
+      efetivo: mockEfetivo,
+      efetivoDiario: mockEfetivo,
+      efetivoGeral: mockEfetivo,
+      periodoLabel: "Consolidado Geral",
+      dataDiariaLabel: "29/10/2026",
+    });
+    expect(docCompleto).toBeDefined();
+  });
 });
 

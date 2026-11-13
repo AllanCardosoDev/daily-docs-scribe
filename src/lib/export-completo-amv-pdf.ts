@@ -305,13 +305,13 @@ export function buildRelatorioCompletoAmvDoc(options: RelatorioCompletoAmvOption
     const part = sumAcumTot > 0 ? ((r.acumTot / sumAcumTot) * 100).toFixed(1) + "%" : "0%";
     return [
       r.mun,
-      r.diaUrb || "—",
-      r.diaFlor || "—",
-      r.diaFocos || "—",
+      r.diaUrb || "0",
+      r.diaFlor || "0",
+      r.diaFocos || "0",
       r.diaTot || "0",
-      r.acumUrb || "—",
-      r.acumFlor || "—",
-      r.acumFocos || "—",
+      r.acumUrb || "0",
+      r.acumFlor || "0",
+      r.acumFocos || "0",
       r.acumTot || "0",
       part,
     ];
@@ -587,13 +587,13 @@ export function buildRelatorioCompletoAmvDoc(options: RelatorioCompletoAmvOption
 
     return [
       mun,
-      gCbmam || "—",
-      gFed || "—",
-      gBrig || "—",
+      gCbmam || "0",
+      gFed || "0",
+      gBrig || "0",
       gTot || "0",
-      dCbmam || "—",
-      dFed || "—",
-      dBrig || "—",
+      dCbmam || "0",
+      dFed || "0",
+      dBrig || "0",
       dTot || "0",
     ];
   });
@@ -691,9 +691,9 @@ export function buildRelatorioCompletoAmvDoc(options: RelatorioCompletoAmvOption
 
     return [
       mun,
-      combate || "—",
-      apoio || "—",
-      fluvial || "—",
+      combate || "0",
+      apoio || "0",
+      fluvial || "0",
       total || "0",
     ];
   });

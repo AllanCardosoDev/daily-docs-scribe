@@ -286,58 +286,140 @@ function EfetivoPage() {
     toast.info("Edições descartadas.");
   }, []);
 
-  const handleExportPdf = useCallback(async () => {
+  const handleExportEfetivoDiario = useCallback(async () => {
     try {
       const { exportEfetivoPdf } = await import("@/lib/export-efetivo-pdf");
       const dateLabel = reportDate ? fmtDateBR(reportDate) : "Data de Hoje";
+      const calcDiario = buildEfetivoMapasData(effectiveSheetsData, "diario");
+      const diarioRows = [...calcDiario.municipios, ...calcDiario.bases].map((it) => ({
+        mun: it.nome,
+        tipo: it.tipo,
+        serv_ord: it.serv_ord,
+        cbmam: it.serv_ord,
+        ord: it.serv_ord,
+        servico: it.serv_ord,
+        opamv: it.opamv,
+        opam_ref: it.opam_ref,
+        inc1: it.inc1,
+        inc2: it.inc2,
+        inc3: it.inc3,
+        cbmsp: it.cbmsp,
+        prevfogo: it.prevfogo,
+        fn: it.fn,
+        marinha: it.marinha,
+        brig_mun: it.brig_mun,
+        brig_semas: it.brig_semas,
+        total: it.total,
+        _custom: true,
+      }));
+
       exportEfetivoPdf({
-        efetivo: effectiveSheetsData.efetivo || [],
+        mode: "diario",
+        efetivo: diarioRows,
         periodoLabel: dateLabel,
         reportDate,
+        operador: rawData.header?.operador || rawData.header?.responsavel || "2º SGT QCPBM NARA",
         comandanteGeral: rawData.header?.comandanteGeral || "CEL QOBM MUNIZ",
         subcomandante: rawData.header?.subcomandante || rawData.header?.comandante || "CEL QOBM BORGES",
         coordSituacao: rawData.header?.coordSituacao || rawData.header?.coordenador || "CEL QOBM FERREIRA",
         coordenador: rawData.header?.coordenador || "CEL QOBM FERREIRA",
       });
-      toast.success("Relatório Oficial do Efetivo (PDF) gerado com sucesso!", {
-        description: `Período: ${dateLabel}`,
+      toast.success("Relatório de Efetivo Diário (PDF) gerado com sucesso!", {
+        description: `Data: ${dateLabel}`,
       });
     } catch (e) {
-      toast.error("Falha ao gerar Relatório do Efetivo", {
+      toast.error("Falha ao gerar Relatório de Efetivo Diário", {
         description: (e as Error)?.message,
       });
     }
   }, [effectiveSheetsData, reportDate, rawData.header]);
 
-  const handleExportEfetivoGeral = useCallback(async () => {
+  const handleExportEfetivoTotal = useCallback(async () => {
     try {
       const { exportEfetivoPdf } = await import("@/lib/export-efetivo-pdf");
       const periodoLabel = "Consolidado Geral — Operação Amazonas + Verde";
+      const calcTotal = buildEfetivoMapasData(effectiveSheetsData, "consolidado");
+      const totalRows = [...calcTotal.municipios, ...calcTotal.bases].map((it) => ({
+        mun: it.nome,
+        tipo: it.tipo,
+        serv_ord: it.serv_ord,
+        cbmam: it.serv_ord,
+        ord: it.serv_ord,
+        servico: it.serv_ord,
+        opamv: it.opamv,
+        opam_ref: it.opam_ref,
+        inc1: it.inc1,
+        inc2: it.inc2,
+        inc3: it.inc3,
+        cbmsp: it.cbmsp,
+        prevfogo: it.prevfogo,
+        fn: it.fn,
+        marinha: it.marinha,
+        brig_mun: it.brig_mun,
+        brig_semas: it.brig_semas,
+        total: it.total,
+        _custom: true,
+      }));
+
       exportEfetivoPdf({
-        efetivo: effectiveSheetsData.efetivo || [],
+        mode: "total",
+        efetivo: totalRows,
         periodoLabel,
         reportDate,
+        operador: rawData.header?.operador || rawData.header?.responsavel || "2º SGT QCPBM NARA",
         comandanteGeral: rawData.header?.comandanteGeral || "CEL QOBM MUNIZ",
         subcomandante: rawData.header?.subcomandante || rawData.header?.comandante || "CEL QOBM BORGES",
         coordSituacao: rawData.header?.coordSituacao || rawData.header?.coordenador || "CEL QOBM FERREIRA",
         coordenador: rawData.header?.coordenador || "CEL QOBM FERREIRA",
       });
-      toast.success("Relatório Geral do Efetivo (PDF) gerado com sucesso!", {
+      toast.success("Relatório de Efetivo Total (PDF) gerado com sucesso!", {
         description: `Período: ${periodoLabel}`,
       });
     } catch (e) {
-      toast.error("Falha ao gerar Relatório Geral do Efetivo", {
+      toast.error("Falha ao gerar Relatório de Efetivo Total", {
         description: (e as Error)?.message,
       });
     }
   }, [effectiveSheetsData, reportDate, rawData.header]);
 
-  const handleExportCompletoAmv = useCallback(async () => {
+  const handleExportEfetivoCompleto = useCallback(async () => {
     try {
-      const { exportRelatorioCompletoAmvPdf } = await import("@/lib/export-completo-amv-pdf");
+      const { exportEfetivoPdf } = await import("@/lib/export-efetivo-pdf");
       const dateLabel = reportDate ? fmtDateBR(reportDate) : "Fechamento Diário";
-      const periodoLabel = "Operação Amazonas + Verde 2026";
-      exportRelatorioCompletoAmvPdf({
+      const periodoLabel = "Consolidado Geral — Operação Amazonas + Verde";
+      const calcDiario = buildEfetivoMapasData(effectiveSheetsData, "diario");
+      const calcTotal = buildEfetivoMapasData(effectiveSheetsData, "consolidado");
+
+      const mapItems = (items: any[]) => items.map((it) => ({
+        mun: it.nome,
+        tipo: it.tipo,
+        serv_ord: it.serv_ord,
+        cbmam: it.serv_ord,
+        ord: it.serv_ord,
+        servico: it.serv_ord,
+        opamv: it.opamv,
+        opam_ref: it.opam_ref,
+        inc1: it.inc1,
+        inc2: it.inc2,
+        inc3: it.inc3,
+        cbmsp: it.cbmsp,
+        prevfogo: it.prevfogo,
+        fn: it.fn,
+        marinha: it.marinha,
+        brig_mun: it.brig_mun,
+        brig_semas: it.brig_semas,
+        total: it.total,
+        _custom: true,
+      }));
+
+      const diarioRows = mapItems([...calcDiario.municipios, ...calcDiario.bases]);
+      const totalRows = mapItems([...calcTotal.municipios, ...calcTotal.bases]);
+
+      exportEfetivoPdf({
+        mode: "completo",
+        efetivo: diarioRows,
+        efetivoDiario: diarioRows,
+        efetivoGeral: totalRows,
         periodoLabel,
         dataDiariaLabel: dateLabel,
         reportDate,
@@ -346,37 +428,16 @@ function EfetivoPage() {
         subcomandante: rawData.header?.subcomandante || rawData.header?.comandante || "CEL QOBM BORGES",
         coordSituacao: rawData.header?.coordSituacao || rawData.header?.coordenador || "CEL QOBM FERREIRA",
         coordenador: rawData.header?.coordenador || "CEL QOBM FERREIRA",
-        chefeCapital: rawData.header?.chefeCapital || "CEL QOBM MENEZES",
-        chefeInterior: rawData.header?.chefeInterior || "CEL QOBM MONTEIRO",
-        ocorrenciasDiarias: rawData.incendios_diario || [],
-        ocorrenciasTotais: rawData.incendios_acumulado || rawData.incendios_diario || [],
-        efetivoDiario: effectiveSheetsData.efetivo || [],
-        efetivoGeral: effectiveSheetsData.efetivo || [],
-        viaturasDiarias: rawData.recursos || [],
-        viaturasTotais: rawData.recursos || [],
-        occurrences: effectiveSheetsData.occurrences || rawData.occurrences || [],
       });
-      toast.success("Relatório Completo AM+V gerado com sucesso!", {
-        description: `Diário: ${dateLabel} · Período: ${periodoLabel}`,
+      toast.success("Relatório de Efetivo Completo (PDF) gerado com sucesso!", {
+        description: `Diário: ${dateLabel} · Total: ${periodoLabel}`,
       });
     } catch (e) {
-      toast.error("Falha ao gerar Relatório Completo AM+V", {
+      toast.error("Falha ao gerar Relatório de Efetivo Completo", {
         description: (e as Error)?.message,
       });
     }
-  }, [rawData, effectiveSheetsData, reportDate]);
-
-  const handleExportDiarioOficial = useCallback(async () => {
-    try {
-      const { exportSheetsToPdf } = await import("@/lib/export-pdf");
-      exportSheetsToPdf(effectiveSheetsData, reportDate);
-      toast.success("Relatório Diário Oficial (PDF) gerado com sucesso!");
-    } catch (e) {
-      toast.error("Falha ao gerar Relatório Diário Oficial", {
-        description: (e as Error)?.message,
-      });
-    }
-  }, [effectiveSheetsData, reportDate]);
+  }, [effectiveSheetsData, reportDate, rawData.header]);
 
   const handleExportXlsx = useCallback(() => {
     try {
@@ -513,51 +574,33 @@ function EfetivoPage() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-84 p-2 shadow-2xl border-border">
                       <DropdownMenuLabel className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold px-2 py-1.5">
-                        Relatórios Oficiais em PDF
+                        Relatórios Oficiais de Efetivo (PDF)
                       </DropdownMenuLabel>
 
-                      {/* 1. Relatório Completo AM+V */}
+                      {/* 1. Efetivo Diário */}
                       <DropdownMenuItem
-                        onClick={handleExportCompletoAmv}
-                        className="flex items-start gap-3 p-2.5 cursor-pointer rounded-lg hover:bg-muted focus:bg-muted transition-colors"
-                      >
-                        <div className="p-2 rounded-md bg-emerald-700 text-white dark:bg-emerald-800 mt-0.5 shadow-xs">
-                          <FileText className="w-4 h-4 shrink-0" />
-                        </div>
-                        <div>
-                          <div className="font-bold text-sm text-foreground flex items-center gap-1.5">
-                            Relatório Completo AM+V
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-extrabold uppercase">
-                              Completo
-                            </span>
-                          </div>
-                          <div className="text-xs text-muted-foreground leading-snug">
-                            Todas as informações: Ocorrências CAD, Efetivo, Viaturas e Meios Materiais (Diário × Totais).
-                          </div>
-                        </div>
-                      </DropdownMenuItem>
-
-                      {/* 2. Efetivo do Dia */}
-                      <DropdownMenuItem
-                        onClick={handleExportPdf}
+                        onClick={handleExportEfetivoDiario}
                         className="flex items-start gap-3 p-2.5 cursor-pointer rounded-lg hover:bg-muted focus:bg-muted transition-colors"
                       >
                         <div className="p-2 rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 mt-0.5">
                           <Users className="w-4 h-4 shrink-0" />
                         </div>
                         <div>
-                          <div className="font-bold text-sm text-foreground">
-                            Efetivo do Dia ({reportDate ? fmtDateBR(reportDate) : "Hoje"})
+                          <div className="font-bold text-sm text-foreground flex items-center gap-1.5">
+                            Efetivo Diário ({reportDate ? fmtDateBR(reportDate) : "Hoje"})
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-extrabold uppercase">
+                              Diário
+                            </span>
                           </div>
                           <div className="text-xs text-muted-foreground leading-snug">
-                            Distribuição detalhada de militares e brigadistas empenhados na data selecionada.
+                            Relatório oficial do efetivo empregado no dia selecionado.
                           </div>
                         </div>
                       </DropdownMenuItem>
 
-                      {/* 3. Efetivo Total / Geral */}
+                      {/* 2. Efetivo Total */}
                       <DropdownMenuItem
-                        onClick={handleExportEfetivoGeral}
+                        onClick={handleExportEfetivoTotal}
                         className="flex items-start gap-3 p-2.5 cursor-pointer rounded-lg hover:bg-muted focus:bg-muted transition-colors"
                       >
                         <div className="p-2 rounded-md bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300 mt-0.5">
@@ -565,9 +608,9 @@ function EfetivoPage() {
                         </div>
                         <div>
                           <div className="font-bold text-sm text-foreground flex items-center gap-1.5">
-                            Efetivo Total / Geral (PDF)
+                            Efetivo Total / Geral
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-800 dark:text-amber-300 font-bold uppercase">
-                              Totais
+                              Total
                             </span>
                           </div>
                           <div className="text-xs text-muted-foreground leading-snug">
@@ -576,18 +619,23 @@ function EfetivoPage() {
                         </div>
                       </DropdownMenuItem>
 
-                      {/* 4. Relatório Diário Geral */}
+                      {/* 3. Efetivo Completo (Diário + Total) */}
                       <DropdownMenuItem
-                        onClick={handleExportDiarioOficial}
+                        onClick={handleExportEfetivoCompleto}
                         className="flex items-start gap-3 p-2.5 cursor-pointer rounded-lg hover:bg-muted focus:bg-muted transition-colors"
                       >
-                        <div className="p-2 rounded-md bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 mt-0.5">
+                        <div className="p-2 rounded-md bg-emerald-700 text-white dark:bg-emerald-800 mt-0.5 shadow-xs">
                           <FileText className="w-4 h-4 shrink-0" />
                         </div>
                         <div>
-                          <div className="font-bold text-sm text-foreground">Relatório Diário Oficial da Sala</div>
+                          <div className="font-bold text-sm text-foreground flex items-center gap-1.5">
+                            Efetivo Completo (Diário + Total)
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-extrabold uppercase">
+                              Completo
+                            </span>
+                          </div>
                           <div className="text-xs text-muted-foreground leading-snug">
-                            Documento oficial padrão da Sala de Situação com efetivo, recursos e incêndios.
+                            Quadro completo contendo o Efetivo Diário e o Total integrados lado a lado.
                           </div>
                         </div>
                       </DropdownMenuItem>
