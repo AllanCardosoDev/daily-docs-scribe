@@ -366,6 +366,43 @@ export function buildSheetsPdfDoc(
   const finalTotEspeciais = totEspeciais > 0 ? totEspeciais : 28;
   const finalRecGrandTotal = recGrandTotal > 0 ? recGrandTotal : (finalTotCombate + finalTotApoio + finalTotEspeciais);
 
+  // --- VIATURAS PÁGINA 1: FILTRADAS SEM OS ITENS RISCADOS EM VERMELHO ---
+  // Tabela 1: Combate a Incêndio -> ABT, ABF, ATF
+  const vCombateP1ABT = recMap["abt"] || (totCombate === 0 ? 18 : 0);
+  const vCombateP1ABF = recMap["abf"] || (totCombate === 0 ? 2 : 0);
+  const vCombateP1ATF = recMap["atf"] || (totCombate === 0 ? 17 : 0);
+  const subtotalCombateP1 = vCombateP1ABT + vCombateP1ABF + vCombateP1ATF;
+
+  const resumoViaturasCombateP1 = [
+    ["ABT - Auto Bomba Tanque", vCombateP1ABT],
+    ["ABF - Auto Bomba Florestal", vCombateP1ABF],
+    ["ATF - Auto Tanque Florestal", vCombateP1ATF],
+    ["SUBTOTAL COMBATE A INCÊNDIO", subtotalCombateP1],
+  ];
+
+  // Tabela 2: Apoio e Táticas -> AR / UR / GSE (inclui 4x4)
+  const vApoioP1AR = (recMap["ar"] || 0) + (recMap["ur"] || 0) + (recMap["gse"] || 0) || (totApoioResgate === 0 ? 22 : 0);
+  const subtotalApoioP1 = vApoioP1AR;
+
+  const resumoViaturasApoioP1 = [
+    ["AR / UR / GSE - Resgate e Emergência (inclui 4x4)", vApoioP1AR],
+    ["SUBTOTAL VIATURAS DE APOIO E TÁTICAS", subtotalApoioP1],
+  ];
+
+  // Tabela 3: Meios Aéreos -> Aviões Air Tractor, Helicópteros Harpia
+  const vAereosP1Aviao = recMap["aviao"] || (totEspeciais === 0 ? 8 : 0);
+  const vAereosP1Harpia = recMap["helicoptero"] || (totEspeciais === 0 ? 3 : 0);
+  const subtotalAereosP1 = vAereosP1Aviao + vAereosP1Harpia;
+  const totalMateriaisP1 = subtotalCombateP1 + subtotalApoioP1 + subtotalAereosP1;
+
+  const resumoAereosP1 = [
+    ["Aviões Air Tractor (Flores / Bases)", vAereosP1Aviao],
+    ["Helicópteros Harpia (CIOPAER / CBMAM)", vAereosP1Harpia],
+    ["SUBTOTAL MEIOS AÉREOS", subtotalAereosP1],
+    ["TOTAL DE RECURSOS MATERIAIS GERAL", totalMateriaisP1],
+  ];
+
+  // Tabelas completas (para a Página 3 Analítica)
   const resumoViaturasCombate = [
     ["ABT - Auto Bomba Tanque", recMap["abt"] || (totCombate === 0 ? 12 : 0)],
     ["AT - Auto Tanque", recMap["at"] || (totCombate === 0 ? 8 : 0)],
@@ -460,9 +497,9 @@ export function buildSheetsPdfDoc(
   const rawTotAcumOcorrencias = rawTotAcumUrb + rawTotAcumFlor;
 
   // Se o acumulado não foi carregado diretamente na linha, utiliza o baseline oficial consolidado CBMAM
-  const totAcumUrb = rawTotAcumUrb > 0 ? rawTotAcumUrb : (totDiarioUrb > 0 ? totDiarioUrb + 1284 : 1284);
-  const totAcumFlor = rawTotAcumFlor > 0 ? rawTotAcumFlor : (totDiarioFlor > 0 ? totDiarioFlor + 4523 : 4523);
-  const totAcumFocos = rawTotAcumFocos > 0 ? rawTotAcumFocos : (totDiarioFocos > 0 ? totDiarioFocos + 48503 : 48503);
+  const totAcumUrb = rawTotAcumUrb > 0 ? rawTotAcumUrb : (totDiarioUrb > 0 ? totDiarioUrb + 1265 : 1265);
+  const totAcumFlor = rawTotAcumFlor > 0 ? rawTotAcumFlor : (totDiarioFlor > 0 ? totDiarioFlor + 4460 : 4460);
+  const totAcumFocos = rawTotAcumFocos > 0 ? rawTotAcumFocos : (totDiarioFocos > 0 ? totDiarioFocos + 48332 : 48332);
   const totAcumSat = rawTotAcumSat > 0 ? rawTotAcumSat : 210;
   const totAcumArea = rawTotAcumArea > 0 ? rawTotAcumArea : 345000;
   const totAcumOcorrencias = rawTotAcumOcorrencias > 0 ? rawTotAcumOcorrencias : (totAcumUrb + totAcumFlor);
@@ -475,7 +512,7 @@ export function buildSheetsPdfDoc(
   // ===========================================================================
   drawPageHeader(1, "RELATÓRIO DIÁRIO — SALA DE SITUAÇÃO", "SUMÁRIO EXECUTIVO");
 
-  // --- SEÇÃO 1: INCÊNDIO ---
+  // --- SEÇÃO 1: INCÊNDIO (SEM FOCOS DE CALOR, SOMENTE INDICATIVOS E NÚMEROS) ---
   const incSecY = 60;
   doc.setFillColor(BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b);
   doc.roundedRect(16, incSecY, 810, 13, 2, 2, "F");
@@ -484,106 +521,88 @@ export function buildSheetsPdfDoc(
   doc.setTextColor(255, 220, 140);
   doc.text("INCÊNDIO", 24, incSecY + 9.5);
 
-  const incCards = [
+  const incTotaisCards = [
     {
-      label: "TOTAL DE INCÊNDIOS",
-      acum: totAcumOcorrencias,
-      dia: totDiarioOcorrencias,
+      label: "TOTAL DE INCÊNDIOS (ACUMULADO)",
+      value: NF.format(totAcumOcorrencias),
       highlight: true,
     },
     {
-      label: "FOCOS DE CALOR",
-      acum: totAcumFocos,
-      dia: totDiarioFocos,
+      label: "INCÊNDIOS FLORESTAIS (ACUMULADO)",
+      value: NF.format(totAcumFlor),
       highlight: false,
     },
     {
-      label: "INCÊNDIOS FLORESTAIS",
-      acum: totAcumFlor,
-      dia: totDiarioFlor,
-      highlight: false,
-    },
-    {
-      label: "INCÊNDIOS URBANOS",
-      acum: totAcumUrb,
-      dia: totDiarioUrb,
+      label: "INCÊNDIOS URBANOS (ACUMULADO)",
+      value: NF.format(totAcumUrb),
       highlight: false,
     },
   ];
 
-  const incCardW = (810 - 24) / 4;
-  incCards.forEach((c, idx) => {
-    const cx = 16 + idx * (incCardW + 8);
-    const cy = incSecY + 16;
-    const ch = 38;
+  const incDiarioCards = [
+    {
+      label: `TOTAL DO DIA (${opDateStr})`,
+      value: NF.format(totDiarioOcorrencias),
+      highlight: true,
+    },
+    {
+      label: "INCÊNDIOS FLORESTAIS (DIA)",
+      value: NF.format(totDiarioFlor),
+      highlight: false,
+    },
+    {
+      label: "INCÊNDIOS URBANOS (DIA)",
+      value: NF.format(totDiarioUrb),
+      highlight: false,
+    },
+  ];
 
-    if (c.highlight) {
-      doc.setFillColor(BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b);
-      doc.roundedRect(cx, cy, incCardW, ch, 3, 3, "F");
-      doc.setDrawColor(ACCENT_GOLD.r, ACCENT_GOLD.g, ACCENT_GOLD.b);
-      doc.setLineWidth(0.8);
-      doc.roundedRect(cx, cy, incCardW, ch, 3, 3, "S");
+  const incCardW = (810 - 2 * 8) / 3;
+  const drawIncCardRow = (startY: number, cards: Array<{ label: string; value: string; highlight: boolean }>) => {
+    const cardH = 24;
+    cards.forEach((c, idx) => {
+      const cx = 16 + idx * (incCardW + 8);
+      if (c.highlight) {
+        doc.setFillColor(BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b);
+        doc.roundedRect(cx, startY, incCardW, cardH, 3, 3, "F");
+        doc.setDrawColor(ACCENT_GOLD.r, ACCENT_GOLD.g, ACCENT_GOLD.b);
+        doc.setLineWidth(0.8);
+        doc.roundedRect(cx, startY, incCardW, cardH, 3, 3, "S");
 
-      // Topo: Nome à esquerda, Número à direita
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(7.0);
-      doc.setTextColor(230, 245, 235);
-      doc.text(c.label, cx + 8, cy + 13);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7.0);
+        doc.setTextColor(230, 245, 235);
+        doc.text(c.label, cx + 10, startY + cardH / 2 + 2.5);
 
-      doc.setFontSize(12.5);
-      doc.setTextColor(255, 220, 140);
-      doc.text(NF.format(c.acum), cx + incCardW - 8, cy + 14, { align: "right" });
+        doc.setFontSize(12);
+        doc.setTextColor(255, 220, 140);
+        doc.text(c.value, cx + incCardW - 10, startY + cardH / 2 + 3.5, { align: "right" });
+      } else {
+        doc.setFillColor(245, 248, 246);
+        doc.roundedRect(cx, startY, incCardW, cardH, 3, 3, "F");
+        doc.setDrawColor(BORDER_COLOR[0], BORDER_COLOR[1], BORDER_COLOR[2]);
+        doc.setLineWidth(0.5);
+        doc.roundedRect(cx, startY, incCardW, cardH, 3, 3, "S");
 
-      // Linha sutil
-      doc.setDrawColor(30, 80, 55);
-      doc.setLineWidth(0.4);
-      doc.line(cx + 8, cy + 20, cx + incCardW - 8, cy + 20);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7.0);
+        doc.setTextColor(HEADER_NAVY.r, HEADER_NAVY.g, HEADER_NAVY.b);
+        doc.text(c.label, cx + 10, startY + cardH / 2 + 2.5);
 
-      // Rodapé do card: Dia e Acumulado
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(6.5);
-      doc.setTextColor(110, 231, 183);
-      doc.text(`DIÁRIO: ${NF.format(c.dia)}`, cx + 8, cy + 31);
+        doc.setFontSize(12);
+        doc.setTextColor(BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b);
+        doc.text(c.value, cx + incCardW - 10, startY + cardH / 2 + 3.5, { align: "right" });
+      }
+    });
+  };
 
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(200, 230, 215);
-      doc.text(`ACUMULADO: ${NF.format(c.acum)}`, cx + incCardW - 8, cy + 31, { align: "right" });
-    } else {
-      doc.setFillColor(245, 248, 246);
-      doc.roundedRect(cx, cy, incCardW, ch, 3, 3, "F");
-      doc.setDrawColor(BORDER_COLOR[0], BORDER_COLOR[1], BORDER_COLOR[2]);
-      doc.setLineWidth(0.5);
-      doc.roundedRect(cx, cy, incCardW, ch, 3, 3, "S");
-
-      // Topo: Nome à esquerda, Número à direita
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(7.0);
-      doc.setTextColor(HEADER_NAVY.r, HEADER_NAVY.g, HEADER_NAVY.b);
-      doc.text(c.label, cx + 8, cy + 13);
-
-      doc.setFontSize(12.5);
-      doc.setTextColor(BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b);
-      doc.text(NF.format(c.acum), cx + incCardW - 8, cy + 14, { align: "right" });
-
-      // Linha sutil
-      doc.setDrawColor(215, 225, 220);
-      doc.setLineWidth(0.4);
-      doc.line(cx + 8, cy + 20, cx + incCardW - 8, cy + 20);
-
-      // Rodapé do card: Dia e Acumulado
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(6.5);
-      doc.setTextColor(16, 78, 46);
-      doc.text(`DIÁRIO: ${NF.format(c.dia)}`, cx + 8, cy + 31);
-
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(100, 115, 110);
-      doc.text(`ACUMULADO: ${NF.format(c.acum)}`, cx + incCardW - 8, cy + 31, { align: "right" });
-    }
-  });
+  // Linha 1: Totais Acumulados
+  drawIncCardRow(incSecY + 16, incTotaisCards);
+  // Linha 2: Dados do Dia Selecionado
+  drawIncCardRow(incSecY + 44, incDiarioCards);
 
   // --- SEÇÃO 2: EFETIVO ---
-  const efSecY = 118;
+  const efSecY = 136;
   doc.setFillColor(BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b);
   doc.roundedRect(16, efSecY, 810, 13, 2, 2, "F");
   doc.setFont("helvetica", "bold");
@@ -609,6 +628,7 @@ export function buildSheetsPdfDoc(
   const pDiaInt = diaTotGeral > 0 ? `${((diaTotInt / diaTotGeral) * 100).toFixed(1).replace(".", ",")}%` : "51,6%";
   const pDiaBas = diaTotGeral > 0 ? `${((diaTotBas / diaTotGeral) * 100).toFixed(1).replace(".", ",")}%` : "17,7%";
 
+  const efCardW = (810 - 3 * 8) / 4;
   const drawEfRowCards = (
     rowStartY: number,
     cards: Array<{
@@ -620,13 +640,13 @@ export function buildSheetsPdfDoc(
   ) => {
     const cardH = 34;
     cards.forEach((c, idx) => {
-      const cx = 16 + idx * (incCardW + 8);
+      const cx = 16 + idx * (efCardW + 8);
       if (c.highlight) {
         doc.setFillColor(BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b);
-        doc.roundedRect(cx, rowStartY, incCardW, cardH, 3, 3, "F");
+        doc.roundedRect(cx, rowStartY, efCardW, cardH, 3, 3, "F");
         doc.setDrawColor(ACCENT_GOLD.r, ACCENT_GOLD.g, ACCENT_GOLD.b);
         doc.setLineWidth(0.8);
-        doc.roundedRect(cx, rowStartY, incCardW, cardH, 3, 3, "S");
+        doc.roundedRect(cx, rowStartY, efCardW, cardH, 3, 3, "S");
 
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.8);
@@ -635,7 +655,7 @@ export function buildSheetsPdfDoc(
 
         doc.setFontSize(12.5);
         doc.setTextColor(255, 220, 140);
-        doc.text(String(c.value), cx + incCardW - 8, rowStartY + 13, { align: "right" });
+        doc.text(String(c.value), cx + efCardW - 8, rowStartY + 13, { align: "right" });
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(5.8);
@@ -643,10 +663,10 @@ export function buildSheetsPdfDoc(
         doc.text(c.subtext, cx + 8, rowStartY + 26);
       } else {
         doc.setFillColor(245, 248, 246);
-        doc.roundedRect(cx, rowStartY, incCardW, cardH, 3, 3, "F");
+        doc.roundedRect(cx, rowStartY, efCardW, cardH, 3, 3, "F");
         doc.setDrawColor(BORDER_COLOR[0], BORDER_COLOR[1], BORDER_COLOR[2]);
         doc.setLineWidth(0.5);
-        doc.roundedRect(cx, rowStartY, incCardW, cardH, 3, 3, "S");
+        doc.roundedRect(cx, rowStartY, efCardW, cardH, 3, 3, "S");
 
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.8);
@@ -655,7 +675,7 @@ export function buildSheetsPdfDoc(
 
         doc.setFontSize(12.5);
         doc.setTextColor(BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b);
-        doc.text(String(c.value), cx + incCardW - 8, rowStartY + 13, { align: "right" });
+        doc.text(String(c.value), cx + efCardW - 8, rowStartY + 13, { align: "right" });
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(5.8);
@@ -665,8 +685,8 @@ export function buildSheetsPdfDoc(
     });
   };
 
-  // Linha 1 (Consolidado Geral): Y = 134
-  drawEfRowCards(134, [
+  // Linha 1 (Consolidado Geral): Y = 152
+  drawEfRowCards(152, [
     {
       label: "EFETIVO TOTAL INTEGRADO",
       value: NF.format(consTotGeral),
@@ -690,8 +710,8 @@ export function buildSheetsPdfDoc(
     },
   ]);
 
-  // Linha 2 (Diário 24 Horas): Y = 171
-  drawEfRowCards(171, [
+  // Linha 2 (Diário 24 Horas): Y = 190
+  drawEfRowCards(190, [
     {
       label: "EFETIVO TOTAL INTEGRADO",
       value: NF.format(diaTotGeral),
@@ -715,8 +735,8 @@ export function buildSheetsPdfDoc(
     },
   ]);
 
-  // --- SEÇÃO 3: VIATURAS ---
-  const viatSecY = 210;
+  // --- SEÇÃO 3: VIATURAS (FILTRADA - REMOVIDOS OS ITENS RISCADOS EM VERMELHO) ---
+  const viatSecY = 230;
   doc.setFillColor(BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b);
   doc.roundedRect(16, viatSecY, 810, 13, 2, 2, "F");
   doc.setFont("helvetica", "bold");
@@ -724,9 +744,10 @@ export function buildSheetsPdfDoc(
   doc.setTextColor(255, 220, 140);
   doc.text("VIATURAS", 24, viatSecY + 9.5);
 
-  // Tabela Esquerda: Combate a Incêndio (X: 16, Largura: 395, StartY: 226)
+  // Tabela Esquerda: Combate a Incêndio (X: 16, Largura: 395, StartY: 246)
+  // Contém exclusivamente as viaturas mantidas: ABT, ABF, ATF e Subtotal
   autoTable(doc, {
-    startY: 226,
+    startY: 246,
     margin: { left: 16 },
     tableWidth: 395,
     pageBreak: "avoid",
@@ -746,14 +767,14 @@ export function buildSheetsPdfDoc(
       ],
       ["TIPO / CLASSIFICAÇÃO", "QTD"],
     ],
-    body: resumoViaturasCombate,
-    styles: { fontSize: 6.2, cellPadding: 1.5, lineColor: BORDER_COLOR, lineWidth: 0.25 },
+    body: resumoViaturasCombateP1,
+    styles: { fontSize: 6.4, cellPadding: 2.2, lineColor: BORDER_COLOR, lineWidth: 0.25 },
     alternateRowStyles: { fillColor: BG_LIGHT_ROW },
     headStyles: {
       fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b],
       textColor: 255,
       fontStyle: "bold",
-      fontSize: 6.2,
+      fontSize: 6.4,
       halign: "center",
     },
     columnStyles: {
@@ -763,7 +784,7 @@ export function buildSheetsPdfDoc(
   });
 
   // Caixa de Diretrizes Táticas de Emprego na Coluna da Esquerda
-  const leftTableFinalY = (doc as any).lastAutoTable?.finalY ?? 395;
+  const leftTableFinalY = (doc as any).lastAutoTable?.finalY ?? 330;
   autoTable(doc, {
     startY: leftTableFinalY + 8,
     margin: { left: 16 },
@@ -793,9 +814,10 @@ export function buildSheetsPdfDoc(
     styles: { fontSize: 5.8, cellPadding: 3.5, lineColor: BORDER_COLOR, lineWidth: 0.25 },
   });
 
-  // Tabela Direita Superior: Apoio, Salvamento & 4x4 (X: 421, Largura: 405, StartY: 226)
+  // Tabela Direita Superior: Apoio, Salvamento & 4x4 (X: 421, Largura: 405, StartY: 246)
+  // Contém exclusivamente AR / UR / GSE e Subtotal
   autoTable(doc, {
-    startY: 226,
+    startY: 246,
     margin: { left: 421 },
     tableWidth: 405,
     pageBreak: "avoid",
@@ -815,14 +837,14 @@ export function buildSheetsPdfDoc(
       ],
       ["CLASSIFICAÇÃO / EMPREGO", "QTD"],
     ],
-    body: resumoViaturasApoio,
-    styles: { fontSize: 6.2, cellPadding: 1.5, lineColor: BORDER_COLOR, lineWidth: 0.25 },
+    body: resumoViaturasApoioP1,
+    styles: { fontSize: 6.4, cellPadding: 2.2, lineColor: BORDER_COLOR, lineWidth: 0.25 },
     alternateRowStyles: { fillColor: BG_LIGHT_ROW },
     headStyles: {
       fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b],
       textColor: 255,
       fontStyle: "bold",
-      fontSize: 6.2,
+      fontSize: 6.4,
       halign: "center",
     },
     columnStyles: {
@@ -831,9 +853,10 @@ export function buildSheetsPdfDoc(
     },
   });
 
-  const apoioTableFinalY = (doc as any).lastAutoTable?.finalY ?? 335;
+  const apoioTableFinalY = (doc as any).lastAutoTable?.finalY ?? 295;
 
-  // Tabela Direita Inferior: Meios Aéreos, Fluviais e Especiais (X: 421, Largura: 405)
+  // Tabela Direita Inferior: Meios Aéreos e Especiais (X: 421, Largura: 405)
+  // Contém exclusivamente Aviões Air Tractor, Harpia CIOPAER, Subtotal Meios Aéreos e Total Geral
   autoTable(doc, {
     startY: apoioTableFinalY + 8,
     margin: { left: 421 },
@@ -842,7 +865,7 @@ export function buildSheetsPdfDoc(
     head: [
       [
         {
-          content: "MEIOS AÉREOS, FLUVIAIS E ESPECIAIS",
+          content: "MEIOS AÉREOS E ESPECIAIS",
           colSpan: 2,
           styles: {
             fillColor: [BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b],
@@ -855,14 +878,14 @@ export function buildSheetsPdfDoc(
       ],
       ["RECURSO ESPECIAL", "QTD"],
     ],
-    body: resumoAereosFluviais,
-    styles: { fontSize: 6.2, cellPadding: 1.6, lineColor: BORDER_COLOR, lineWidth: 0.25 },
+    body: resumoAereosP1,
+    styles: { fontSize: 6.4, cellPadding: 2.2, lineColor: BORDER_COLOR, lineWidth: 0.25 },
     alternateRowStyles: { fillColor: BG_LIGHT_ROW },
     headStyles: {
       fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b],
       textColor: 255,
       fontStyle: "bold",
-      fontSize: 6.2,
+      fontSize: 6.4,
       halign: "center",
     },
     columnStyles: {
