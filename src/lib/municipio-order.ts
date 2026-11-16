@@ -159,6 +159,17 @@ const norm = (v: unknown) =>
 
 export const isManaus = (mun: unknown) => norm(mun) === "manaus";
 
+export function isKm53(mun: unknown): boolean {
+  if (!mun) return false;
+  const s = norm(mun);
+  return (
+    s === "autazes posto km 53" ||
+    s === "posto km 53" ||
+    s.includes("km 53") ||
+    s.includes("km53")
+  );
+}
+
 /** Identifica tropas, forças externas ou strings inválidas/UUIDs que não são municípios do Amazonas. */
 export function isNonMunicipioTroop(mun: unknown): boolean {
   if (!mun) return false;
@@ -181,14 +192,24 @@ export function isNonMunicipioTroop(mun: unknown): boolean {
   );
 }
 
-/** Comparador: Manaus primeiro, demais em ordem alfabética (pt-BR). */
+/** Comparador: Manaus primeiro, Autazes Posto Km 53 logo abaixo de Autazes, demais em ordem alfabética (pt-BR). */
 export function compareMunicipios(a: unknown, b: unknown) {
   const ca = canonicalMunicipio(a);
   const cb = canonicalMunicipio(b);
   const am = isManaus(ca);
   const bm = isManaus(cb);
   if (am !== bm) return am ? -1 : 1;
-  return ca.localeCompare(cb, "pt-BR");
+
+  const a53 = isKm53(ca);
+  const b53 = isKm53(cb);
+
+  if (a53 && b53) return 0;
+  if (norm(ca) === "autazes" && b53) return -1;
+  if (a53 && norm(cb) === "autazes") return 1;
+
+  const keyA = a53 ? "autazes-1" : norm(ca);
+  const keyB = b53 ? "autazes-1" : norm(cb);
+  return keyA.localeCompare(keyB, "pt-BR");
 }
 
 /** Ordena alfabeticamente com Manaus no topo. */
@@ -232,9 +253,9 @@ export function deduplicateAndOrderMunicipios<T extends Record<string, any>>(row
   const result = Array.from(map.values());
   const manaus = result.filter((r) => isManaus(r?.mun) && (r as any)?.tipo !== "base");
   const interior = result
-    .filter((r) => !isManaus(r?.mun) && (r as any)?.tipo !== "base")
+    .filter((r) => !isManaus(r?.mun) && ((r as any)?.tipo !== "base" || isKm53(r?.mun)))
     .sort((a, b) => compareMunicipios(a.mun, b.mun));
-  const bases = result.filter((r) => (r as any)?.tipo === "base");
+  const bases = result.filter((r) => (r as any)?.tipo === "base" && !isKm53(r?.mun));
 
   return [...manaus, ...interior, ...bases];
 }
@@ -326,11 +347,8 @@ export function harmonizeMunicipalitySections<
 
   for (const r of efetivo ?? []) {
     if (!r?.mun || isNonMunicipioTroop(r.mun)) continue;
-    const isBase =
-      (r as any).tipo === "base" ||
-      normLocal(r.mun) === "autazes posto km 53" ||
-      normLocal(r.mun) === "posto km 53";
-    if (isBase) {
+    const isBase = (r as any).tipo === "base" || isKm53(r.mun);
+    if (isBase && !isKm53(r.mun)) {
       baseEfetivoRows.push({ ...r, tipo: "base" } as E);
       continue;
     }
@@ -349,11 +367,8 @@ export function harmonizeMunicipalitySections<
   const efMap = new Map<string, E>();
   for (const r of efetivo ?? []) {
     if (!r?.mun || isNonMunicipioTroop(r.mun)) continue;
-    const isBase =
-      (r as any).tipo === "base" ||
-      normLocal(r.mun) === "autazes posto km 53" ||
-      normLocal(r.mun) === "posto km 53";
-    if (isBase) continue;
+    const isBase = (r as any).tipo === "base" || isKm53(r.mun);
+    if (isBase && !isKm53(r.mun)) continue;
     efMap.set(canonicalMunicipio(r.mun).toLowerCase(), r);
   }
 

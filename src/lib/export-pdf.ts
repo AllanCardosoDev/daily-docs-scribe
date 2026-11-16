@@ -1,4 +1,4 @@
-import { manausFirstSheets, canonicalMunicipio } from "./municipio-order";
+import { manausFirstSheets, canonicalMunicipio, deduplicateAndOrderMunicipios } from "./municipio-order";
 import { resolveEfetivoColumns, resolveRecursosColumns, calculateRowTotal } from "./dashboard-columns";
 import { sanitizeSheetsData } from "./report-validation";
 import jsPDF from "jspdf";
@@ -213,6 +213,9 @@ export function buildSheetsPdfDoc(
       efetivoList = [...efetivoList, ...baseRows];
     }
   }
+
+  // Ordenação institucional: Manaus no topo e Autazes Posto Km 53 logo abaixo de Autazes
+  efetivoList = deduplicateAndOrderMunicipios(efetivoList);
 
   const fullEfetivoCols = resolveEfetivoColumns(efetivoList, data.custom_columns?.efetivo);
   const activeDataCols = fullEfetivoCols.filter(
@@ -485,13 +488,13 @@ export function buildSheetsPdfDoc(
   // Totais Diários
   const totDiarioUrb = incDiarios.reduce((s, r) => s + num(r.urb), 0);
   const totDiarioFlor = incDiarios.reduce((s, r) => s + num(r.flor), 0);
-  const totDiarioFocos = incDiarios.reduce((s, r) => s + num(r.focos), 0);
+  const totDiarioFocos = Math.round(incDiarios.reduce((s, r) => s + num(r.focos), 0));
   const totDiarioOcorrencias = totDiarioUrb + totDiarioFlor;
 
   // Totais Acumulados
   const rawTotAcumUrb = incAcumulados.reduce((s, r) => s + num(r.urb), 0);
   const rawTotAcumFlor = incAcumulados.reduce((s, r) => s + num(r.flor), 0);
-  const rawTotAcumFocos = incAcumulados.reduce((s, r) => s + num(r.focos), 0);
+  const rawTotAcumFocos = Math.round(incAcumulados.reduce((s, r) => s + num(r.focos), 0));
   const rawTotAcumSat = incAcumulados.reduce((s, r) => s + num(r.sat), 0);
   const rawTotAcumArea = incAcumulados.reduce((s, r) => s + getMuniAcumArea(r.mun, num(r.area)), 0);
   const rawTotAcumOcorrencias = rawTotAcumUrb + rawTotAcumFlor;
@@ -499,7 +502,7 @@ export function buildSheetsPdfDoc(
   // Se o acumulado não foi carregado diretamente na linha, utiliza o baseline oficial consolidado CBMAM
   const totAcumUrb = rawTotAcumUrb > 0 ? rawTotAcumUrb : (totDiarioUrb > 0 ? totDiarioUrb + 1265 : 1265);
   const totAcumFlor = rawTotAcumFlor > 0 ? rawTotAcumFlor : (totDiarioFlor > 0 ? totDiarioFlor + 4460 : 4460);
-  const totAcumFocos = rawTotAcumFocos > 0 ? rawTotAcumFocos : (totDiarioFocos > 0 ? totDiarioFocos + 48332 : 48332);
+  const totAcumFocos = Math.round(rawTotAcumFocos > 0 ? rawTotAcumFocos : (totDiarioFocos > 0 ? totDiarioFocos + 48332 : 48332));
   const totAcumSat = rawTotAcumSat > 0 ? rawTotAcumSat : 210;
   const totAcumArea = rawTotAcumArea > 0 ? rawTotAcumArea : 345000;
   const totAcumOcorrencias = rawTotAcumOcorrencias > 0 ? rawTotAcumOcorrencias : (totAcumUrb + totAcumFlor);
@@ -513,13 +516,13 @@ export function buildSheetsPdfDoc(
   drawPageHeader(1, "RELATÓRIO DIÁRIO — SALA DE SITUAÇÃO", "SUMÁRIO EXECUTIVO");
 
   // --- SEÇÃO 1: INCÊNDIO (SEM FOCOS DE CALOR, SOMENTE INDICATIVOS E NÚMEROS) ---
-  const incSecY = 60;
+  const incSecY = 59;
   doc.setFillColor(BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b);
-  doc.roundedRect(16, incSecY, 810, 13, 2, 2, "F");
+  doc.roundedRect(16, incSecY, 810, 14, 2, 2, "F");
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
+  doc.setFontSize(8);
   doc.setTextColor(255, 220, 140);
-  doc.text("INCÊNDIO", 24, incSecY + 9.5);
+  doc.text("INCÊNDIO", 24, incSecY + 10);
 
   const incTotaisCards = [
     {
@@ -559,7 +562,7 @@ export function buildSheetsPdfDoc(
 
   const incCardW = (810 - 2 * 8) / 3;
   const drawIncCardRow = (startY: number, cards: Array<{ label: string; value: string; highlight: boolean }>) => {
-    const cardH = 24;
+    const cardH = 26;
     cards.forEach((c, idx) => {
       const cx = 16 + idx * (incCardW + 8);
       if (c.highlight) {
@@ -570,11 +573,11 @@ export function buildSheetsPdfDoc(
         doc.roundedRect(cx, startY, incCardW, cardH, 3, 3, "S");
 
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(7.0);
+        doc.setFontSize(7.2);
         doc.setTextColor(230, 245, 235);
         doc.text(c.label, cx + 10, startY + cardH / 2 + 2.5);
 
-        doc.setFontSize(12);
+        doc.setFontSize(13);
         doc.setTextColor(255, 220, 140);
         doc.text(c.value, cx + incCardW - 10, startY + cardH / 2 + 3.5, { align: "right" });
       } else {
@@ -585,11 +588,11 @@ export function buildSheetsPdfDoc(
         doc.roundedRect(cx, startY, incCardW, cardH, 3, 3, "S");
 
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(7.0);
+        doc.setFontSize(7.2);
         doc.setTextColor(HEADER_NAVY.r, HEADER_NAVY.g, HEADER_NAVY.b);
         doc.text(c.label, cx + 10, startY + cardH / 2 + 2.5);
 
-        doc.setFontSize(12);
+        doc.setFontSize(13);
         doc.setTextColor(BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b);
         doc.text(c.value, cx + incCardW - 10, startY + cardH / 2 + 3.5, { align: "right" });
       }
@@ -597,18 +600,18 @@ export function buildSheetsPdfDoc(
   };
 
   // Linha 1: Totais Acumulados
-  drawIncCardRow(incSecY + 16, incTotaisCards);
+  drawIncCardRow(incSecY + 17, incTotaisCards);
   // Linha 2: Dados do Dia Selecionado
-  drawIncCardRow(incSecY + 44, incDiarioCards);
+  drawIncCardRow(incSecY + 47, incDiarioCards);
 
   // --- SEÇÃO 2: EFETIVO ---
-  const efSecY = 136;
+  const efSecY = 138;
   doc.setFillColor(BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b);
-  doc.roundedRect(16, efSecY, 810, 13, 2, 2, "F");
+  doc.roundedRect(16, efSecY, 810, 14, 2, 2, "F");
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
+  doc.setFontSize(8);
   doc.setTextColor(255, 220, 140);
-  doc.text("EFETIVO", 24, efSecY + 9.5);
+  doc.text("EFETIVO", 24, efSecY + 10);
 
   const consTotGeral = efConsolidadoCalc.totals.totalGeral > 0 ? efConsolidadoCalc.totals.totalGeral : 1470;
   const consTotCap = efConsolidadoCalc.totals.capital > 0 ? efConsolidadoCalc.totals.capital : 510;
@@ -620,25 +623,16 @@ export function buildSheetsPdfDoc(
   const diaTotInt = intTot > 0 ? intTot : (efDiarioCalc.totals.interior > 0 ? efDiarioCalc.totals.interior : 382);
   const diaTotBas = basTot > 0 ? basTot : (efDiarioCalc.totals.bases > 0 ? efDiarioCalc.totals.bases : 131);
 
-  const pConsCap = consTotGeral > 0 ? `${((consTotCap / consTotGeral) * 100).toFixed(1).replace(".", ",")}%` : "34,7%";
-  const pConsInt = consTotGeral > 0 ? `${((consTotInt / consTotGeral) * 100).toFixed(1).replace(".", ",")}%` : "55,6%";
-  const pConsBas = consTotGeral > 0 ? `${((consTotBas / consTotGeral) * 100).toFixed(1).replace(".", ",")}%` : "9,7%";
-
-  const pDiaCap = diaTotGeral > 0 ? `${((diaTotCap / diaTotGeral) * 100).toFixed(1).replace(".", ",")}%` : "30,8%";
-  const pDiaInt = diaTotGeral > 0 ? `${((diaTotInt / diaTotGeral) * 100).toFixed(1).replace(".", ",")}%` : "51,6%";
-  const pDiaBas = diaTotGeral > 0 ? `${((diaTotBas / diaTotGeral) * 100).toFixed(1).replace(".", ",")}%` : "17,7%";
-
   const efCardW = (810 - 3 * 8) / 4;
   const drawEfRowCards = (
     rowStartY: number,
     cards: Array<{
       label: string;
       value: number | string;
-      subtext: string;
       highlight?: boolean;
     }>,
   ) => {
-    const cardH = 34;
+    const cardH = 26;
     cards.forEach((c, idx) => {
       const cx = 16 + idx * (efCardW + 8);
       if (c.highlight) {
@@ -651,16 +645,11 @@ export function buildSheetsPdfDoc(
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.8);
         doc.setTextColor(230, 245, 235);
-        doc.text(c.label, cx + 8, rowStartY + 12);
+        doc.text(c.label, cx + 8, rowStartY + cardH / 2 + 2.5);
 
-        doc.setFontSize(12.5);
+        doc.setFontSize(13);
         doc.setTextColor(255, 220, 140);
-        doc.text(String(c.value), cx + efCardW - 8, rowStartY + 13, { align: "right" });
-
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(5.8);
-        doc.setTextColor(110, 231, 183);
-        doc.text(c.subtext, cx + 8, rowStartY + 26);
+        doc.text(String(c.value), cx + efCardW - 8, rowStartY + cardH / 2 + 3.5, { align: "right" });
       } else {
         doc.setFillColor(245, 248, 246);
         doc.roundedRect(cx, rowStartY, efCardW, cardH, 3, 3, "F");
@@ -671,83 +660,69 @@ export function buildSheetsPdfDoc(
         doc.setFont("helvetica", "bold");
         doc.setFontSize(6.8);
         doc.setTextColor(HEADER_NAVY.r, HEADER_NAVY.g, HEADER_NAVY.b);
-        doc.text(c.label, cx + 8, rowStartY + 12);
+        doc.text(c.label, cx + 8, rowStartY + cardH / 2 + 2.5);
 
-        doc.setFontSize(12.5);
+        doc.setFontSize(13);
         doc.setTextColor(BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b);
-        doc.text(String(c.value), cx + efCardW - 8, rowStartY + 13, { align: "right" });
-
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(5.8);
-        doc.setTextColor(90, 105, 100);
-        doc.text(c.subtext, cx + 8, rowStartY + 26);
+        doc.text(String(c.value), cx + efCardW - 8, rowStartY + cardH / 2 + 3.5, { align: "right" });
       }
     });
   };
 
-  // Linha 1 (Consolidado Geral): Y = 152
-  drawEfRowCards(152, [
+  // Linha 1: Consolidado Geral do Efetivo
+  drawEfRowCards(efSecY + 17, [
     {
       label: "EFETIVO TOTAL INTEGRADO",
       value: NF.format(consTotGeral),
-      subtext: "100% Cobertura · Capital + Interior + Bases",
       highlight: true,
     },
     {
       label: "CAPITAL (MANAUS)",
       value: NF.format(consTotCap),
-      subtext: `${pConsCap} · Sede do Comando Geral & Região Metropolitana`,
     },
     {
       label: "COMANDO INTERIOR",
       value: NF.format(consTotInt),
-      subtext: `${pConsInt} · Pelotões e postos nos municípios do interior`,
     },
     {
       label: "BASES TEMPORÁRIAS",
       value: NF.format(consTotBas),
-      subtext: `${pConsBas} · Postos estratégicos de combate florestal`,
     },
   ]);
 
-  // Linha 2 (Diário 24 Horas): Y = 190
-  drawEfRowCards(190, [
+  // Linha 2: Efetivo do Dia Selecionado (24 Horas)
+  drawEfRowCards(efSecY + 47, [
     {
-      label: "EFETIVO TOTAL INTEGRADO",
+      label: "EFETIVO TOTAL (DIA)",
       value: NF.format(diaTotGeral),
-      subtext: "100% Cobertura · Capital + Interior + Bases",
       highlight: true,
     },
     {
       label: "CAPITAL (MANAUS)",
       value: NF.format(diaTotCap),
-      subtext: `${pDiaCap} · Sede do Comando Geral & Região Metropolitana`,
     },
     {
       label: "COMANDO INTERIOR",
       value: NF.format(diaTotInt),
-      subtext: `${pDiaInt} · Pelotões e postos nos municípios do interior`,
     },
     {
       label: "BASES TEMPORÁRIAS",
       value: NF.format(diaTotBas),
-      subtext: `${pDiaBas} · Postos estratégicos de combate florestal`,
     },
   ]);
 
   // --- SEÇÃO 3: VIATURAS (FILTRADA - REMOVIDOS OS ITENS RISCADOS EM VERMELHO) ---
-  const viatSecY = 230;
+  const viatSecY = 219;
   doc.setFillColor(BRAND_DARK.r, BRAND_DARK.g, BRAND_DARK.b);
-  doc.roundedRect(16, viatSecY, 810, 13, 2, 2, "F");
+  doc.roundedRect(16, viatSecY, 810, 14, 2, 2, "F");
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
+  doc.setFontSize(8);
   doc.setTextColor(255, 220, 140);
-  doc.text("VIATURAS", 24, viatSecY + 9.5);
+  doc.text("VIATURAS & MEIOS OPERACIONAIS", 24, viatSecY + 10);
 
-  // Tabela Esquerda: Combate a Incêndio (X: 16, Largura: 395, StartY: 246)
-  // Contém exclusivamente as viaturas mantidas: ABT, ABF, ATF e Subtotal
+  // Tabela Esquerda: Combate a Incêndio (X: 16, Largura: 395, StartY: 237)
   autoTable(doc, {
-    startY: 246,
+    startY: 237,
     margin: { left: 16 },
     tableWidth: 395,
     pageBreak: "avoid",
@@ -761,32 +736,34 @@ export function buildSheetsPdfDoc(
             textColor: 255,
             fontStyle: "bold",
             halign: "center",
-            fontSize: 6.8,
+            fontSize: 7.2,
+            cellPadding: 4.2,
           },
         },
       ],
       ["TIPO / CLASSIFICAÇÃO", "QTD"],
     ],
     body: resumoViaturasCombateP1,
-    styles: { fontSize: 6.4, cellPadding: 2.2, lineColor: BORDER_COLOR, lineWidth: 0.25 },
+    styles: { fontSize: 7.0, cellPadding: 3.5, lineColor: BORDER_COLOR, lineWidth: 0.25 },
     alternateRowStyles: { fillColor: BG_LIGHT_ROW },
     headStyles: {
       fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b],
       textColor: 255,
       fontStyle: "bold",
-      fontSize: 6.4,
+      fontSize: 7.0,
       halign: "center",
+      cellPadding: 4.0,
     },
     columnStyles: {
       0: { fontStyle: "bold" },
-      1: { halign: "center", fontStyle: "bold", cellWidth: 45 },
+      1: { halign: "center", fontStyle: "bold", cellWidth: 50 },
     },
   });
 
   // Caixa de Diretrizes Táticas de Emprego na Coluna da Esquerda
-  const leftTableFinalY = (doc as any).lastAutoTable?.finalY ?? 330;
+  const leftTableFinalY = (doc as any).lastAutoTable?.finalY ?? 345;
   autoTable(doc, {
-    startY: leftTableFinalY + 8,
+    startY: leftTableFinalY + 10,
     margin: { left: 16 },
     tableWidth: 395,
     pageBreak: "avoid",
@@ -799,25 +776,26 @@ export function buildSheetsPdfDoc(
             textColor: 255,
             fontStyle: "bold",
             halign: "center",
-            fontSize: 6.8,
+            fontSize: 7.2,
+            cellPadding: 4.5,
           },
         },
       ],
     ],
     body: [
       [
-        "• PRONTIDÃO OPERACIONAL: Viaturas de combate e apoio alocadas em batalhões e pelotões.\n" +
-          "• FORÇAS INTEGRADAS: Atuação conjunta CBMAM, Força Nacional, Prevfogo e Brigadistas.\n" +
-          "• MONITORAMENTO AMBIENTAL: Emprego estratégico nas calhas e municípios prioritários.",
+        "• PRONTIDÃO OPERACIONAL: Viaturas de combate e apoio alocadas em batalhões, companhias e postos estratégicos da capital e interior.\n\n" +
+          "• FORÇAS INTEGRADAS: Atuação conjunta e sinérgica do CBMAM, Força Nacional de Segurança Pública, Prevfogo/IBAMA e Brigadistas.\n\n" +
+          "• MONITORAMENTO AMBIENTAL: Emprego tático prioritário nos municípios com maior incidência de queimadas e focos de calor.\n\n" +
+          "• LOGÍSTICA & APOIO CONTÍNUO: Manutenção operacional contínua, abastecimento preventivo e pronta resposta em todo o território estadual.",
       ],
     ],
-    styles: { fontSize: 5.8, cellPadding: 3.5, lineColor: BORDER_COLOR, lineWidth: 0.25 },
+    styles: { fontSize: 7.0, cellPadding: 6.5, lineColor: BORDER_COLOR, lineWidth: 0.25 },
   });
 
-  // Tabela Direita Superior: Apoio, Salvamento & 4x4 (X: 421, Largura: 405, StartY: 246)
-  // Contém exclusivamente AR / UR / GSE e Subtotal
+  // Tabela Direita Superior: Apoio, Salvamento & 4x4 (X: 421, Largura: 405, StartY: 237)
   autoTable(doc, {
-    startY: 246,
+    startY: 237,
     margin: { left: 421 },
     tableWidth: 405,
     pageBreak: "avoid",
@@ -831,34 +809,35 @@ export function buildSheetsPdfDoc(
             textColor: 255,
             fontStyle: "bold",
             halign: "center",
-            fontSize: 6.8,
+            fontSize: 7.2,
+            cellPadding: 4.2,
           },
         },
       ],
       ["CLASSIFICAÇÃO / EMPREGO", "QTD"],
     ],
     body: resumoViaturasApoioP1,
-    styles: { fontSize: 6.4, cellPadding: 2.2, lineColor: BORDER_COLOR, lineWidth: 0.25 },
+    styles: { fontSize: 7.0, cellPadding: 3.5, lineColor: BORDER_COLOR, lineWidth: 0.25 },
     alternateRowStyles: { fillColor: BG_LIGHT_ROW },
     headStyles: {
       fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b],
       textColor: 255,
       fontStyle: "bold",
-      fontSize: 6.4,
+      fontSize: 7.0,
       halign: "center",
+      cellPadding: 4.0,
     },
     columnStyles: {
       0: { fontStyle: "bold" },
-      1: { halign: "center", fontStyle: "bold", cellWidth: 45 },
+      1: { halign: "center", fontStyle: "bold", cellWidth: 50 },
     },
   });
 
-  const apoioTableFinalY = (doc as any).lastAutoTable?.finalY ?? 295;
+  const apoioTableFinalY = (doc as any).lastAutoTable?.finalY ?? 305;
 
   // Tabela Direita Inferior: Meios Aéreos e Especiais (X: 421, Largura: 405)
-  // Contém exclusivamente Aviões Air Tractor, Harpia CIOPAER, Subtotal Meios Aéreos e Total Geral
   autoTable(doc, {
-    startY: apoioTableFinalY + 8,
+    startY: apoioTableFinalY + 10,
     margin: { left: 421 },
     tableWidth: 405,
     pageBreak: "avoid",
@@ -872,26 +851,60 @@ export function buildSheetsPdfDoc(
             textColor: 255,
             fontStyle: "bold",
             halign: "center",
-            fontSize: 6.8,
+            fontSize: 7.2,
+            cellPadding: 4.2,
           },
         },
       ],
       ["RECURSO ESPECIAL", "QTD"],
     ],
     body: resumoAereosP1,
-    styles: { fontSize: 6.4, cellPadding: 2.2, lineColor: BORDER_COLOR, lineWidth: 0.25 },
+    styles: { fontSize: 7.0, cellPadding: 3.5, lineColor: BORDER_COLOR, lineWidth: 0.25 },
     alternateRowStyles: { fillColor: BG_LIGHT_ROW },
     headStyles: {
       fillColor: [HEADER_BLUE.r, HEADER_BLUE.g, HEADER_BLUE.b],
       textColor: 255,
       fontStyle: "bold",
-      fontSize: 6.4,
+      fontSize: 7.0,
       halign: "center",
+      cellPadding: 4.0,
     },
     columnStyles: {
       0: { fontStyle: "bold" },
-      1: { halign: "center", fontStyle: "bold", cellWidth: 45, textColor: [16, 78, 46] },
+      1: { halign: "center", fontStyle: "bold", cellWidth: 50, textColor: [16, 78, 46] },
     },
+  });
+
+  // Caixa de Logística e Capacidade Aérea & Fluvial na Coluna da Direita (X: 421, Largura: 405)
+  const aereosTableFinalY = (doc as any).lastAutoTable?.finalY ?? 415;
+  autoTable(doc, {
+    startY: aereosTableFinalY + 10,
+    margin: { left: 421 },
+    tableWidth: 405,
+    pageBreak: "avoid",
+    head: [
+      [
+        {
+          content: "CAPACIDADE E LOGÍSTICA DE COMBATE AÉREO E FLUVIAL",
+          styles: {
+            fillColor: [HEADER_NAVY.r, HEADER_NAVY.g, HEADER_NAVY.b],
+            textColor: 255,
+            fontStyle: "bold",
+            halign: "center",
+            fontSize: 7.2,
+            cellPadding: 4.5,
+          },
+        },
+      ],
+    ],
+    body: [
+      [
+        "• COMBATE AÉREO ESPECIALIZADO: Aeronaves Air Tractor AT-802 com capacidade de lançamento de até 3.100 litros de água por surtida.\n\n" +
+          "• TRANSPORTE E RESGATE AÉREO: Helicópteros Harpia (CIOPAER/CBMAM) para monitoramento rápido, comando e infiltração de tropas.\n\n" +
+          "• MEIOS FLUVIAIS TÁTICOS: Lanchas e embarcações para suporte logístico ribeirinho e combate rápido nas calhas prioritárias.",
+      ],
+    ],
+    styles: { fontSize: 7.0, cellPadding: 6.0, lineColor: BORDER_COLOR, lineWidth: 0.25 },
   });
 
   // ===========================================================================
@@ -1378,13 +1391,13 @@ export function buildSheetsPdfDoc(
   const incDiariosBody = incDiarios.map((r) => {
     const u = num(r.urb);
     const f = num(r.flor);
-    const foc = num(r.focos);
+    const foc = Math.round(num(r.focos));
     const tot = u + f;
     return [
       r.mun,
       u > 0 ? u : 0,
       f > 0 ? f : 0,
-      foc > 0 ? foc : 0,
+      foc > 0 ? NF.format(foc) : 0,
       tot > 0 ? tot : 0,
     ];
   });
@@ -1412,7 +1425,7 @@ export function buildSheetsPdfDoc(
     ],
     body: [
       ...incDiariosBody,
-      ["TOTAL DO DIA", totDiarioUrb, totDiarioFlor, totDiarioFocos, totDiarioOcorrencias],
+      ["TOTAL DO DIA", totDiarioUrb, totDiarioFlor, NF.format(totDiarioFocos), totDiarioOcorrencias],
     ],
     styles: {
       fontSize: 5.0,
@@ -1449,7 +1462,7 @@ export function buildSheetsPdfDoc(
   const incAcumBody = incAcumulados.map((r, idx) => {
     const u = num(r.urb);
     const f = num(r.flor);
-    const foc = num(r.focos);
+    const foc = Math.round(num(r.focos));
     const sat = num(r.sat);
     const area = getMuniAcumArea(r.mun, num(r.area));
     const tot = u + f;
@@ -1458,7 +1471,7 @@ export function buildSheetsPdfDoc(
       r.mun,
       u > 0 ? u : 0,
       f > 0 ? f : 0,
-      foc > 0 ? foc : 0,
+      foc > 0 ? NF.format(foc) : 0,
       sat > 0 ? sat : 0,
       area > 0 ? formatArea(area) : 0,
       tot > 0 ? tot : 0,
@@ -1496,7 +1509,7 @@ export function buildSheetsPdfDoc(
         },
         totAcumUrb,
         totAcumFlor,
-        totAcumFocos,
+        NF.format(totAcumFocos),
         totAcumSat,
         formatArea(totAcumArea),
         totAcumOcorrencias,

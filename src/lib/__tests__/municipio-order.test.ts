@@ -131,6 +131,12 @@ describe("municipio-order", () => {
       expect(harmonized.incendios.find((r) => r.mun === "Manaus")?.urb).toBe(0);
     });
 
+    it("deve posicionar Autazes Posto Km 53 logo abaixo de Autazes", () => {
+      const list = ["Barcelos", "Autazes Posto Km 53", "Manaus", "Autazes", "Apuí"];
+      const sorted = [...list].sort(compareMunicipios);
+      expect(sorted).toEqual(["Manaus", "Apuí", "Autazes", "Autazes Posto Km 53", "Barcelos"]);
+    });
+
     it("nunca deve incluir tropas externas como Militares São Paulo-SP em recursos ou incêndios", () => {
       const efetivo = [{ mun: "Manaus", ord: 10 }, { mun: "Militares São Paulo-SP", ord: 25 }];
       const recursos = [{ mun: "Manaus", viaturas: 2 }];

@@ -195,7 +195,7 @@ export function buildRelatorioCompletoAmvDoc(options: RelatorioCompletoAmvOption
     const cur = occTotMap.get(k) || { urb: 0, flor: 0, focos: 0, tot: 0 };
     cur.urb += num(r.urb);
     cur.flor += num(r.flor);
-    cur.focos += num(r.focos);
+    cur.focos += Math.round(num(r.focos));
     cur.tot += num(r.urb) + num(r.flor);
     occTotMap.set(k, cur);
   });
@@ -207,7 +207,7 @@ export function buildRelatorioCompletoAmvDoc(options: RelatorioCompletoAmvOption
     const cur = occDiaMap.get(k) || { urb: 0, flor: 0, focos: 0, tot: 0 };
     cur.urb += num(r.urb);
     cur.flor += num(r.flor);
-    cur.focos += num(r.focos);
+    cur.focos += Math.round(num(r.focos));
     cur.tot += num(r.urb) + num(r.flor);
     occDiaMap.set(k, cur);
   });
