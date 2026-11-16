@@ -156,7 +156,6 @@ function extractEfetivoValues(
   mode: "diario" | "consolidado" = "diario",
 ): EfetivoMapasItem {
   const isExplicitCustom = !!r?._custom;
-  const hasData = r && Object.keys(r).some((k) => k !== "mun" && k !== "municipio" && Number(r[k]) > 0);
   const fb = fallbackBenchmark || {};
 
   // Se foi explicitamente salvo/editado pelo usuário com _custom: true, respeita fielmente os valores gravados
@@ -255,18 +254,21 @@ function extractEfetivoValues(
     };
   }
 
-  const serv_ord = hasData ? getRowValue(r, "cbmam", "servico", "ord", "serv_ord") : (fb.serv_ord ?? 0);
-  const opamv = hasData ? getRowValue(r, "opamv") : (fb.opamv ?? 0);
-  const opam_ref = hasData ? getRowValue(r, "opam_ref") : (fb.opam_ref ?? 0);
-  const inc1 = hasData ? getRowValue(r, "inc1", "inc_1") : (fb.inc1 ?? 0);
-  const inc2 = hasData ? getRowValue(r, "inc2", "inc_2") : (fb.inc2 ?? 0);
-  const inc3 = hasData ? getRowValue(r, "inc3", "inc_3") : (fb.inc3 ?? 0);
-  const cbmsp = hasData ? getRowValue(r, "cbmsp") : (fb.cbmsp ?? 0);
-  const prevfogo = hasData ? getRowValue(r, "prevfogo") : (fb.prevfogo ?? 0);
-  const fn = hasData ? getRowValue(r, "fn") : (fb.fn ?? 0);
-  const marinha = hasData ? getRowValue(r, "marinha", "icmbio") : (fb.marinha ?? 0);
-  const brig_mun = hasData ? getRowValue(r, "brig_mun") : (fb.brig_mun ?? 0);
-  const brig_semas = hasData ? getRowValue(r, "brig_semas", "brig_sema") : (fb.brig_semas ?? 0);
+  // MODO DIÁRIO: Consome estritamente os dados do banco / Inserção
+  // Se a linha 'r' existir (mesmo com zeros), usa os valores de 'r'.
+  // Se 'r' não existir, retorna 0 para todas as colunas (nunca benchmark antigo).
+  const serv_ord = getRowValue(r, "serv_ord", "cbmam", "servico", "ord");
+  const opamv = getRowValue(r, "opamv");
+  const opam_ref = getRowValue(r, "opam_ref");
+  const inc1 = getRowValue(r, "inc1", "inc_1");
+  const inc2 = getRowValue(r, "inc2", "inc_2");
+  const inc3 = getRowValue(r, "inc3", "inc_3");
+  const cbmsp = getRowValue(r, "cbmsp");
+  const prevfogo = getRowValue(r, "prevfogo");
+  const fn = getRowValue(r, "fn");
+  const marinha = getRowValue(r, "marinha", "icmbio");
+  const brig_mun = getRowValue(r, "brig_mun");
+  const brig_semas = getRowValue(r, "brig_semas", "brig_sema");
 
   const total =
     serv_ord +
@@ -323,8 +325,9 @@ export function buildEfetivoMapasData(
     if (!r?.mun || isNonMunicipioTroop(r.mun)) continue;
     const isBase =
       r.tipo === "base" ||
-      norm(r.mun) === "autazes posto km 53" ||
-      norm(r.mun) === "posto km 53";
+      norm(r.mun).includes("km 53") ||
+      norm(r.mun) === "posto km 53" ||
+      baseNormalizedSet.has(norm(r.mun));
     const can = isBase && norm(r.mun).includes("km 53") ? "Autazes Posto Km 53" : canonicalMunicipio(r.mun);
     if (isNonMunicipioTroop(can)) continue;
 
@@ -343,7 +346,8 @@ export function buildEfetivoMapasData(
   const bases: EfetivoMapasItem[] = EFETIVO_BASES_PADRAO.map((baseName) => {
     const raw =
       rowMap.get(`base:${norm(baseName)}`) ||
-      (rowMap.get(norm(baseName))?.tipo === "base" ? rowMap.get(norm(baseName)) : undefined);
+      (rowMap.get(norm(baseName))?.tipo === "base" ? rowMap.get(norm(baseName)) : undefined) ||
+      (baseNormalizedSet.has(norm(baseName)) ? rowMap.get(norm(baseName)) : undefined);
     const fb = BENCHMARK_BASES_1533[baseName] || {};
     return extractEfetivoValues(raw, baseName, "base", fb, mode);
   });
@@ -354,8 +358,9 @@ export function buildEfetivoMapasData(
     if (!r?.mun || isNonMunicipioTroop(r.mun)) continue;
     const isBase =
       r.tipo === "base" ||
-      norm(r.mun) === "autazes posto km 53" ||
-      norm(r.mun) === "posto km 53";
+      norm(r.mun).includes("km 53") ||
+      norm(r.mun) === "posto km 53" ||
+      baseNormalizedSet.has(norm(r.mun));
     if (isBase) continue;
     const can = canonicalMunicipio(r.mun);
     if (isNonMunicipioTroop(can)) continue;
@@ -368,7 +373,9 @@ export function buildEfetivoMapasData(
   const municipios: EfetivoMapasItem[] = muniNames.map((muniName) => {
     const raw =
       rowMap.get(`muni:${norm(muniName)}`) ||
-      (rowMap.get(norm(muniName))?.tipo !== "base" ? rowMap.get(norm(muniName)) : undefined);
+      (rowMap.get(norm(muniName))?.tipo !== "base" && !baseNormalizedSet.has(norm(muniName))
+        ? rowMap.get(norm(muniName))
+        : undefined);
     const tipo = isManaus(muniName) ? "capital" : "interior";
     const fb = BENCHMARK_MUNICIPIOS_1533[muniName] || {};
     return extractEfetivoValues(raw, muniName, tipo, fb, mode);
@@ -457,9 +464,11 @@ export function buildEfetivoMapasData(
 export function buildEfetivoMapasWorkbook(
   data: SheetsData,
   reportDate: Date | null = null,
+  mode: "diario" | "consolidado" = "diario",
 ): XLSX.WorkBook {
   const calcConsolidado = buildEfetivoMapasData(data, "consolidado");
   const calcDiario = buildEfetivoMapasData(data, "diario");
+  const calcActive = mode === "consolidado" ? calcConsolidado : calcDiario;
   const wb = XLSX.utils.book_new();
 
   // ---------------------------------------------------------------------------
@@ -526,9 +535,9 @@ export function buildEfetivoMapasWorkbook(
 
   // Preenche as linhas de dados (Linha 3 em diante)
   const maxRows = Math.max(
-    calcConsolidado.municipios.length + 1,
-    calcConsolidado.bases.length + 1,
-    calcConsolidado.resumo.length + 1
+    calcActive.municipios.length + 1,
+    calcActive.bases.length + 1,
+    calcActive.resumo.length + 1
   );
 
   for (let i = 0; i < maxRows; i++) {
@@ -536,72 +545,72 @@ export function buildEfetivoMapasWorkbook(
     const rIdx = i + 3;
 
     // 1. Dados do Bloco da Esquerda (Municípios)
-    if (i < calcConsolidado.municipios.length) {
-      const m = calcConsolidado.municipios[i];
+    if (i < calcActive.municipios.length) {
+      const m = calcActive.municipios[i];
       row[0] = m.nome;
-      row[1] = m.serv_ord || "";
-      row[2] = m.opamv || "";
-      row[3] = m.opam_ref || "";
-      row[4] = m.inc1 || "";
-      row[5] = m.inc2 || "";
-      row[6] = m.inc3 || "";
-      row[7] = m.cbmsp || "";
-      row[8] = m.prevfogo || "";
-      row[9] = m.fn || "";
-      row[10] = m.brig_mun || "";
-      row[11] = m.brig_semas || "";
-    } else if (i === calcConsolidado.municipios.length) {
+      row[1] = m.serv_ord ?? 0;
+      row[2] = m.opamv ?? 0;
+      row[3] = m.opam_ref ?? 0;
+      row[4] = m.inc1 ?? 0;
+      row[5] = m.inc2 ?? 0;
+      row[6] = m.inc3 ?? 0;
+      row[7] = m.cbmsp ?? 0;
+      row[8] = m.prevfogo ?? 0;
+      row[9] = m.fn ?? 0;
+      row[10] = m.brig_mun ?? 0;
+      row[11] = m.brig_semas ?? 0;
+    } else if (i === calcActive.municipios.length) {
       // Linha TOTAL de Municípios
       row[0] = "TOTAL";
-      row[1] = calcConsolidado.municipios.reduce((s, m) => s + m.serv_ord, 0);
-      row[2] = calcConsolidado.municipios.reduce((s, m) => s + m.opamv, 0);
-      row[3] = calcConsolidado.municipios.reduce((s, m) => s + m.opam_ref, 0);
-      row[4] = calcConsolidado.municipios.reduce((s, m) => s + m.inc1, 0);
-      row[5] = calcConsolidado.municipios.reduce((s, m) => s + m.inc2, 0);
-      row[6] = calcConsolidado.municipios.reduce((s, m) => s + m.inc3, 0);
-      row[7] = calcConsolidado.municipios.reduce((s, m) => s + m.cbmsp, 0);
-      row[8] = calcConsolidado.municipios.reduce((s, m) => s + m.prevfogo, 0);
-      row[9] = calcConsolidado.municipios.reduce((s, m) => s + m.fn, 0);
-      row[10] = calcConsolidado.municipios.reduce((s, m) => s + m.brig_mun, 0);
-      row[11] = calcConsolidado.municipios.reduce((s, m) => s + m.brig_semas, 0);
+      row[1] = calcActive.municipios.reduce((s, m) => s + m.serv_ord, 0);
+      row[2] = calcActive.municipios.reduce((s, m) => s + m.opamv, 0);
+      row[3] = calcActive.municipios.reduce((s, m) => s + m.opam_ref, 0);
+      row[4] = calcActive.municipios.reduce((s, m) => s + m.inc1, 0);
+      row[5] = calcActive.municipios.reduce((s, m) => s + m.inc2, 0);
+      row[6] = calcActive.municipios.reduce((s, m) => s + m.inc3, 0);
+      row[7] = calcActive.municipios.reduce((s, m) => s + m.cbmsp, 0);
+      row[8] = calcActive.municipios.reduce((s, m) => s + m.prevfogo, 0);
+      row[9] = calcActive.municipios.reduce((s, m) => s + m.fn, 0);
+      row[10] = calcActive.municipios.reduce((s, m) => s + m.brig_mun, 0);
+      row[11] = calcActive.municipios.reduce((s, m) => s + m.brig_semas, 0);
     }
 
     // 2. Dados do Bloco do Meio (Bases Temporárias)
-    if (i < calcConsolidado.bases.length) {
-      const b = calcConsolidado.bases[i];
+    if (i < calcActive.bases.length) {
+      const b = calcActive.bases[i];
       row[13] = b.nome;
-      row[17] = b.opamv || "";
-      row[18] = b.opam_ref || "";
-      row[19] = b.inc1 || "";
-      row[20] = b.inc2 || "";
-      row[21] = b.inc3 || "";
-      row[22] = b.cbmsp || "";
-      row[23] = b.prevfogo || "";
-      row[24] = b.marinha || "";
-      row[25] = b.fn || "";
-      row[26] = b.brig_mun || "";
-      row[27] = b.brig_semas || "";
+      row[17] = b.opamv ?? 0;
+      row[18] = b.opam_ref ?? 0;
+      row[19] = b.inc1 ?? 0;
+      row[20] = b.inc2 ?? 0;
+      row[21] = b.inc3 ?? 0;
+      row[22] = b.cbmsp ?? 0;
+      row[23] = b.prevfogo ?? 0;
+      row[24] = b.marinha ?? 0;
+      row[25] = b.fn ?? 0;
+      row[26] = b.brig_mun ?? 0;
+      row[27] = b.brig_semas ?? 0;
       merges.push({ s: { r: rIdx, c: 13 }, e: { r: rIdx, c: 16 } });
-    } else if (i === calcConsolidado.bases.length) {
+    } else if (i === calcActive.bases.length) {
       // Linha TOTAL de Bases
       row[13] = "TOTAL";
-      row[17] = calcConsolidado.bases.reduce((s, b) => s + b.opamv, 0);
-      row[18] = calcConsolidado.bases.reduce((s, b) => s + b.opam_ref, 0);
-      row[19] = calcConsolidado.bases.reduce((s, b) => s + b.inc1, 0);
-      row[20] = calcConsolidado.bases.reduce((s, b) => s + b.inc2, 0);
-      row[21] = calcConsolidado.bases.reduce((s, b) => s + b.inc3, 0);
-      row[22] = calcConsolidado.bases.reduce((s, b) => s + b.cbmsp, 0);
-      row[23] = calcConsolidado.bases.reduce((s, b) => s + b.prevfogo, 0);
-      row[24] = calcConsolidado.bases.reduce((s, b) => s + b.marinha, 0);
-      row[25] = calcConsolidado.bases.reduce((s, b) => s + b.fn, 0);
-      row[26] = calcConsolidado.bases.reduce((s, b) => s + b.brig_mun, 0);
-      row[27] = calcConsolidado.bases.reduce((s, b) => s + b.brig_semas, 0);
+      row[17] = calcActive.bases.reduce((s, b) => s + b.opamv, 0);
+      row[18] = calcActive.bases.reduce((s, b) => s + b.opam_ref, 0);
+      row[19] = calcActive.bases.reduce((s, b) => s + b.inc1, 0);
+      row[20] = calcActive.bases.reduce((s, b) => s + b.inc2, 0);
+      row[21] = calcActive.bases.reduce((s, b) => s + b.inc3, 0);
+      row[22] = calcActive.bases.reduce((s, b) => s + b.cbmsp, 0);
+      row[23] = calcActive.bases.reduce((s, b) => s + b.prevfogo, 0);
+      row[24] = calcActive.bases.reduce((s, b) => s + b.marinha, 0);
+      row[25] = calcActive.bases.reduce((s, b) => s + b.fn, 0);
+      row[26] = calcActive.bases.reduce((s, b) => s + b.brig_mun, 0);
+      row[27] = calcActive.bases.reduce((s, b) => s + b.brig_semas, 0);
       merges.push({ s: { r: rIdx, c: 13 }, e: { r: rIdx, c: 16 } });
     }
 
     // 3. Dados do Bloco da Direita (Resumo Efetivo)
-    if (i < calcConsolidado.resumo.length) {
-      const res = calcConsolidado.resumo[i];
+    if (i < calcActive.resumo.length) {
+      const res = calcActive.resumo[i];
       row[29] = res.missao;
       row[32] = res.capital;
       row[33] = res.interior;
@@ -609,12 +618,12 @@ export function buildEfetivoMapasWorkbook(
       merges.push({ s: { r: rIdx, c: 29 }, e: { r: rIdx, c: 31 } });
       merges.push({ s: { r: rIdx, c: 33 }, e: { r: rIdx, c: 34 } });
       merges.push({ s: { r: rIdx, c: 35 }, e: { r: rIdx, c: 36 } });
-    } else if (i === calcConsolidado.resumo.length) {
+    } else if (i === calcActive.resumo.length) {
       // Linha TOTAL Geral do Resumo
       row[29] = "TOTAL";
-      row[32] = calcConsolidado.totals.capital;
-      row[33] = calcConsolidado.totals.interior;
-      row[35] = calcConsolidado.totals.totalGeral;
+      row[32] = calcActive.totals.capital;
+      row[33] = calcActive.totals.interior;
+      row[35] = calcActive.totals.totalGeral;
       merges.push({ s: { r: rIdx, c: 29 }, e: { r: rIdx, c: 31 } });
       merges.push({ s: { r: rIdx, c: 33 }, e: { r: rIdx, c: 34 } });
       merges.push({ s: { r: rIdx, c: 35 }, e: { r: rIdx, c: 36 } });
@@ -747,8 +756,9 @@ export function exportEfetivoMapasXlsx(
   data: SheetsData,
   reportDate: Date | null = null,
   filename?: string,
+  mode: "diario" | "consolidado" = "diario",
 ) {
-  const wb = buildEfetivoMapasWorkbook(data, reportDate);
+  const wb = buildEfetivoMapasWorkbook(data, reportDate, mode);
   const finalName =
     filename ||
     `EFETIVO-CBMAM-MAPAS-${reportDate ? fmtDateStamp(reportDate) : fmtDateStamp(new Date())}.xlsx`;

@@ -117,7 +117,7 @@ function normaliseRecursos(
 
 import { compareMunicipios, canonicalMunicipio, harmonizeMunicipalitySections, isNonMunicipioTroop, isManaus } from "./municipio-order";
 import { isFlorestalAmbiental, isIncendio } from "./fire-classification";
-import { BENCHMARK_BASES_1533, norm } from "./efetivo-mapas";
+import { BENCHMARK_BASES_1533, EFETIVO_BASES_PADRAO, norm } from "./efetivo-mapas";
 
 export const OFFICIAL_CUMULATIVE_04_08_2026 = [
   { mun: "Manaus", urb: 267, flor: 178, focos: 338, sat: 5, area: 37546 },
@@ -200,10 +200,16 @@ export function ensureAllMunicipios<T extends { mun: string }>(
   defaultFactory: (mun: string) => T,
 ): T[] {
   const baseRows = existingRows.filter(
-    (r) => (r as any)?.tipo === "base" || (r as any)?.mun === "Autazes Posto Km 53"
+    (r) =>
+      (r as any)?.tipo === "base" ||
+      (r as any)?.mun === "Autazes Posto Km 53" ||
+      norm((r as any)?.mun).includes("km 53")
   );
   const muniRows = existingRows.filter(
-    (r) => (r as any)?.tipo !== "base" && (r as any)?.mun !== "Autazes Posto Km 53"
+    (r) =>
+      (r as any)?.tipo !== "base" &&
+      (r as any)?.mun !== "Autazes Posto Km 53" &&
+      !norm((r as any)?.mun).includes("km 53")
   );
 
   const map = new Map<string, T>();
@@ -559,10 +565,13 @@ export async function loadReportByDate(
       const rawMun = r.mun ?? r.municipio;
       const isBase =
         r.tipo === "base" ||
-        norm(rawMun) === "autazes posto km 53" ||
-        norm(rawMun) === "posto km 53";
+        (r.tipo !== "capital" && r.tipo !== "interior" && (
+          norm(rawMun) === "autazes posto km 53" ||
+          norm(rawMun) === "posto km 53" ||
+          norm(rawMun).includes("km 53") ||
+          EFETIVO_BASES_PADRAO.some((b) => norm(b) === norm(rawMun))
+        ));
       const mun = isBase && norm(rawMun).includes("km 53") ? "Autazes Posto Km 53" : canonicalMunicipio(rawMun);
-      const isItapiranga = !isBase && mun.toLowerCase().includes("itapiranga");
       const valCbmam = num(r.cbmam ?? r.ord ?? r.servico);
       const copy: { mun: string } & Record<string, any> = {
         ...r,
@@ -584,42 +593,38 @@ export async function loadReportByDate(
         }
       }
       if (!isBase) {
-        copy.cbmam = isItapiranga ? valCbmam || 6 : valCbmam;
-        copy.ord = isItapiranga ? num(r.ord) || valCbmam || 6 : valCbmam;
-        copy.servico = isItapiranga ? num(r.servico) || valCbmam || 6 : valCbmam;
+        copy.cbmam = valCbmam;
+        copy.ord = num(r.ord) || valCbmam;
+        copy.servico = num(r.servico) || valCbmam;
         copy.seg = num(r.seg);
-        copy.brig = isItapiranga ? num(r.brig) || 12 : num(r.brig);
+        copy.brig = num(r.brig);
       }
       return copy;
     });
 
-  if (!rawEfetivo.some((r) => r.mun.toLowerCase().includes("itapiranga") && r.tipo !== "base")) {
-    rawEfetivo.push({ mun: "Itapiranga", tipo: "interior", cbmam: 6, ord: 6, seg: 0, brig: 12, servico: 6, opamv: 0, opam_ref: 0, inc1: 0, inc2: 0, inc3: 0, cbmsp: 0, prevfogo: 0, fn: 0, brig_mun: 12, brig_semas: 0 });
-  }
-
-  // Se não houver bases cadastradas no efetivo, carrega as 9 bases operacionais oficiais padrão
+  // Se não houver bases cadastradas no efetivo, carrega as 9 bases operacionais oficiais com zeros
   if (!rawEfetivo.some((r) => r.tipo === "base")) {
-    for (const [baseName, vals] of Object.entries(BENCHMARK_BASES_1533)) {
+    for (const baseName of EFETIVO_BASES_PADRAO) {
       rawEfetivo.push({
         mun: baseName,
         tipo: "base",
-        serv_ord: vals.serv_ord ?? 0,
-        cbmam: vals.serv_ord ?? 0,
-        ord: vals.serv_ord ?? 0,
-        servico: vals.serv_ord ?? 0,
-        opamv: vals.opamv ?? 0,
-        opam_ref: vals.opam_ref ?? 0,
-        inc1: vals.inc1 ?? 0,
-        inc2: vals.inc2 ?? 0,
-        inc3: vals.inc3 ?? 0,
-        cbmsp: vals.cbmsp ?? 0,
-        prevfogo: vals.prevfogo ?? 0,
-        fn: vals.fn ?? 0,
-        marinha: vals.marinha ?? 0,
+        serv_ord: 0,
+        cbmam: 0,
+        ord: 0,
+        servico: 0,
+        opamv: 0,
+        opam_ref: 0,
+        inc1: 0,
+        inc2: 0,
+        inc3: 0,
+        cbmsp: 0,
+        prevfogo: 0,
+        fn: 0,
+        marinha: 0,
         seg: 0,
-        brig_mun: vals.brig_mun ?? 0,
-        brig_semas: vals.brig_semas ?? 0,
-        total: Object.values(vals).reduce((s: number, v: any) => s + (Number(v) || 0), 0),
+        brig_mun: 0,
+        brig_semas: 0,
+        total: 0,
       });
     }
   }
@@ -648,11 +653,11 @@ export async function loadReportByDate(
     consolidateAndCanonicalizeRows(rawEfetivo, ["cbmam", "ord", "seg", "brig", "servico", "opamv", "opam_ref", "inc1", "inc2", "inc3", "cbmsp", "prevfogo", "fn", "marinha", "sec", "brig_mun", "brig_semas"]),
     (mun) => ({
       mun,
-      cbmam: mun.toLowerCase().includes("itapiranga") ? 6 : 0,
-      ord: mun.toLowerCase().includes("itapiranga") ? 6 : 0,
+      cbmam: 0,
+      ord: 0,
       seg: 0,
-      brig: mun.toLowerCase().includes("itapiranga") ? 12 : 0,
-      servico: mun.toLowerCase().includes("itapiranga") ? 6 : 0,
+      brig: 0,
+      servico: 0,
       opamv: 0,
       opam_ref: 0,
       inc1: 0,
@@ -663,7 +668,7 @@ export async function loadReportByDate(
       fn: 0,
       marinha: 0,
       sec: 0,
-      brig_mun: mun.toLowerCase().includes("itapiranga") ? 12 : 0,
+      brig_mun: 0,
       brig_semas: 0,
     }),
   );

@@ -9,7 +9,8 @@
  */
 import * as XLSX from "xlsx";
 import type { ReportShift } from "./report-shift";
-import { canonicalMunicipio } from "./municipio-order";
+import { canonicalMunicipio, isManaus } from "./municipio-order";
+import { EFETIVO_BASES_PADRAO } from "./efetivo-mapas";
 import type { SheetsHeader } from "./sheets.types";
 
 export type DriveFile = {
@@ -23,7 +24,10 @@ export type ParsedDailyReport = {
   header: SheetsHeader;
   efetivo: Array<{
     mun: string;
+    tipo?: "capital" | "interior" | "base";
     ord: number;
+    serv_ord?: number;
+    cbmam?: number;
     seg: number;
     brig: number;
     servico: number;
@@ -35,8 +39,11 @@ export type ParsedDailyReport = {
     cbmsp: number;
     prevfogo: number;
     fn: number;
+    marinha?: number;
     brig_mun: number;
     brig_semas: number;
+    total?: number;
+    _custom?: boolean;
   }>;
   recursos: Array<Record<string, any>>;
   incendios: Array<{ mun: string; urb: number; flor: number; focos: number; sat?: number; area?: number }>;
@@ -349,12 +356,15 @@ function parseEfetivo(rows: any[][]): ParsedDailyReport["efetivo"] {
   const munCols: number[] = [];
   header.forEach((c, idx) => {
     const n = norm(c);
-    if (n === "MUNICIPIO" || n === "BASES TEMPORARIAS") munCols.push(idx);
+    if (n === "MUNICIPIO" || n === "BASES TEMPORARIAS" || n.includes("MUNICIPIO") || n.includes("BASE")) {
+      munCols.push(idx);
+    }
   });
 
   // Build label map per munCol block
   type BlockMap = {
     munCol: number;
+    isBaseBlock: boolean;
     servico?: number;
     opamv?: number;
     opam_ref?: number;
@@ -364,6 +374,7 @@ function parseEfetivo(rows: any[][]): ParsedDailyReport["efetivo"] {
     cbmsp?: number;
     prevfogo?: number;
     fn?: number;
+    marinha?: number;
     brig_mun?: number;
     brig_semas?: number;
     seg?: number;
@@ -371,7 +382,8 @@ function parseEfetivo(rows: any[][]): ParsedDailyReport["efetivo"] {
   };
   const blocks: BlockMap[] = munCols.map((munCol, k) => {
     const end = k + 1 < munCols.length ? munCols[k + 1] : header.length;
-    const b: BlockMap = { munCol };
+    const isBaseBlock = norm(header[munCol]).includes("BASE");
+    const b: BlockMap = { munCol, isBaseBlock };
     for (let c = munCol + 1; c < end && c < header.length; c++) {
       const h = norm(header[c]);
       if (!h || h === "TOTAL" || h.startsWith("TOTAL GERAL")) continue;
@@ -386,6 +398,7 @@ function parseEfetivo(rows: any[][]): ParsedDailyReport["efetivo"] {
       else if (h.includes("CBMSP") || h.includes("CBMS P")) b.cbmsp = c;
       else if (h.includes("PREVFOGO")) b.prevfogo = c;
       else if (h === "FN") b.fn = c;
+      else if (h.includes("MARINHA") || h.includes("ICMBIO")) b.marinha = c;
       else if (h.includes("BRIGADISTA MUN") || h.includes("BRIGADISTA MUNC")) b.brig_mun = c;
       else if (h.includes("BRIGADISTA SEMAS") || h.includes("BRIGADISTA SEMA")) b.brig_semas = c;
       else if (h === "SEG") b.seg = c;
@@ -420,17 +433,37 @@ function parseEfetivo(rows: any[][]): ParsedDailyReport["efetivo"] {
       const cbmsp = b.cbmsp !== undefined ? num(row[b.cbmsp]) : 0;
       const prevfogo = b.prevfogo !== undefined ? num(row[b.prevfogo]) : 0;
       const fn = b.fn !== undefined ? num(row[b.fn]) : 0;
+      const marinha = b.marinha !== undefined ? num(row[b.marinha]) : 0;
       const brig_mun = b.brig_mun !== undefined ? num(row[b.brig_mun]) : 0;
       const brig_semas = b.brig_semas !== undefined ? num(row[b.brig_semas]) : 0;
       const seg = b.seg !== undefined ? num(row[b.seg]) : 0;
 
-      // Keep original name for bases temporárias - don't canonicalize aggressively for distinction
-      // but still canonicalize for consistency
-      const mun = canonicalMunicipio(rawMun);
+      const isBaseRow =
+        b.isBaseBlock ||
+        norm(rawMun).includes("km 53") ||
+        EFETIVO_BASES_PADRAO.some((bn) => norm(bn) === norm(rawMun));
+      const mun = isBaseRow && norm(rawMun).includes("km 53") ? "Autazes Posto Km 53" : canonicalMunicipio(rawMun);
+      const rowTotal =
+        servico +
+        opamv +
+        opam_ref +
+        inc1 +
+        inc2 +
+        inc3 +
+        cbmsp +
+        prevfogo +
+        fn +
+        marinha +
+        brig_mun +
+        brig_semas +
+        seg;
 
       out.push({
         mun,
+        tipo: isBaseRow ? "base" : (isManaus(mun) ? "capital" : "interior"),
         ord: servico,
+        serv_ord: servico,
+        cbmam: servico,
         seg,
         brig: brig_mun + brig_semas,
         servico,
@@ -442,8 +475,11 @@ function parseEfetivo(rows: any[][]): ParsedDailyReport["efetivo"] {
         cbmsp,
         prevfogo,
         fn,
+        marinha,
         brig_mun,
         brig_semas,
+        total: rowTotal,
+        _custom: true,
       });
     }
   }
@@ -606,13 +642,18 @@ export function parseDailyReportSheet(rows: any[][]): ParsedDailyReport {
     for (const row of list) {
       const rawMun = row.mun ?? row.municipio;
       if (!rawMun) continue;
-      const mun = canonicalMunicipio(rawMun);
-      const existing = map.get(mun);
+      const isBase =
+        row.tipo === "base" ||
+        norm(rawMun).includes("km 53") ||
+        EFETIVO_BASES_PADRAO.some((b) => norm(b) === norm(rawMun));
+      const mun = isBase && norm(rawMun).includes("km 53") ? "Autazes Posto Km 53" : canonicalMunicipio(rawMun);
+      const mapKey = isBase ? `base:${norm(mun)}` : `muni:${norm(mun)}`;
+      const existing = map.get(mapKey);
       if (!existing) {
-        map.set(mun, { ...row, mun });
+        map.set(mapKey, { ...row, mun, tipo: isBase ? "base" : (isManaus(mun) ? "capital" : "interior") });
       } else {
         for (const [k, v] of Object.entries(row)) {
-          if (k === "mun" || k === "municipio") continue;
+          if (k === "mun" || k === "municipio" || k === "tipo" || k === "_custom") continue;
           (existing as any)[k] = num((existing as any)[k]) + num(v);
         }
       }

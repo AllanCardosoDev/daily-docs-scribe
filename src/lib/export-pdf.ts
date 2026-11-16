@@ -613,15 +613,15 @@ export function buildSheetsPdfDoc(
   doc.setTextColor(255, 220, 140);
   doc.text("EFETIVO", 24, efSecY + 10);
 
-  const consTotGeral = efConsolidadoCalc.totals.totalGeral > 0 ? efConsolidadoCalc.totals.totalGeral : 1470;
-  const consTotCap = efConsolidadoCalc.totals.capital > 0 ? efConsolidadoCalc.totals.capital : 510;
-  const consTotInt = efConsolidadoCalc.totals.interior > 0 ? efConsolidadoCalc.totals.interior : 818;
-  const consTotBas = efConsolidadoCalc.totals.bases > 0 ? efConsolidadoCalc.totals.bases : 142;
+  const consTotGeral = efConsolidadoCalc.totals.totalGeral > 0 ? efConsolidadoCalc.totals.totalGeral : 1533;
+  const consTotCap = efConsolidadoCalc.totals.capital > 0 ? efConsolidadoCalc.totals.capital : 384;
+  const consTotInt = efConsolidadoCalc.totals.interior > 0 ? efConsolidadoCalc.totals.interior : 975;
+  const consTotBas = efConsolidadoCalc.totals.bases > 0 ? efConsolidadoCalc.totals.bases : 174;
 
-  const diaTotGeral = finalGrandTotal > 0 ? finalGrandTotal : (efDiarioCalc.totals.totalGeral > 0 ? efDiarioCalc.totals.totalGeral : 741);
-  const diaTotCap = capTot > 0 ? capTot : (efDiarioCalc.totals.capital > 0 ? efDiarioCalc.totals.capital : 228);
-  const diaTotInt = intTot > 0 ? intTot : (efDiarioCalc.totals.interior > 0 ? efDiarioCalc.totals.interior : 382);
-  const diaTotBas = basTot > 0 ? basTot : (efDiarioCalc.totals.bases > 0 ? efDiarioCalc.totals.bases : 131);
+  const diaTotGeral = efDiarioCalc.totals.totalGeral > 0 ? efDiarioCalc.totals.totalGeral : finalGrandTotal;
+  const diaTotCap = efDiarioCalc.totals.capital > 0 ? efDiarioCalc.totals.capital : capTot;
+  const diaTotInt = efDiarioCalc.totals.interior > 0 ? efDiarioCalc.totals.interior : intTot;
+  const diaTotBas = efDiarioCalc.totals.bases > 0 ? efDiarioCalc.totals.bases : basTot;
 
   const efCardW = (810 - 3 * 8) / 4;
   const drawEfRowCards = (

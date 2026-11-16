@@ -20,6 +20,8 @@ async function handler({ request }: { request: Request }) {
   const url = new URL(request.url);
   const format = url.searchParams.get("format")?.toLowerCase() || "json";
   const dateParam = url.searchParams.get("date") || undefined;
+  const modeParam = url.searchParams.get("mode")?.toLowerCase() || "diario";
+  const mode: "diario" | "consolidado" = modeParam === "consolidado" ? "consolidado" : "diario";
 
   let reportDate: Date = new Date();
   let dateIso = new Date().toISOString().split("T")[0];
@@ -65,7 +67,7 @@ async function handler({ request }: { request: Request }) {
   }
 
   if (format === "xlsx") {
-    const wb = buildEfetivoMapasWorkbook(sheetsData, reportDate);
+    const wb = buildEfetivoMapasWorkbook(sheetsData, reportDate, mode);
     const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
 
     return new Response(buf, {
@@ -80,7 +82,7 @@ async function handler({ request }: { request: Request }) {
   }
 
   // Formato padrão: JSON pronto para o Mapas (efetivoDB)
-  const payload = getEfetivoMapasPayload(sheetsData, reportDate);
+  const payload = getEfetivoMapasPayload(sheetsData, reportDate, mode);
 
   return Response.json(payload, {
     status: 200,
