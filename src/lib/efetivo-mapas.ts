@@ -342,12 +342,31 @@ export function buildEfetivoMapasData(
     if (!rowMap.has(norm(r.mun))) rowMap.set(norm(r.mun), r);
   }
 
-  // 1. Monta as 9 Bases Temporárias (isoladas com tipo="base")
-  const bases: EfetivoMapasItem[] = EFETIVO_BASES_PADRAO.map((baseName) => {
+  // 1. Monta as Bases Temporárias (isoladas com tipo="base", incluindo padrão e dinâmicas)
+  const baseNames = [...EFETIVO_BASES_PADRAO];
+  for (const r of existingRows) {
+    if (!r?.mun || isNonMunicipioTroop(r.mun)) continue;
+    const isBase =
+      r.tipo === "base" ||
+      norm(r.mun).includes("km 53") ||
+      norm(r.mun) === "posto km 53" ||
+      baseNormalizedSet.has(norm(r.mun));
+    if (isBase) {
+      const can = norm(r.mun).includes("km 53") ? "Autazes Posto Km 53" : canonicalMunicipio(r.mun);
+      if (!baseNames.some((b) => norm(b) === norm(can))) {
+        baseNames.push(can);
+      }
+    }
+  }
+
+  const allBasesNorm = new Set(baseNames.map((b) => norm(b)));
+
+  const bases: EfetivoMapasItem[] = baseNames.map((baseName) => {
     const raw =
       rowMap.get(`base:${norm(baseName)}`) ||
       (rowMap.get(norm(baseName))?.tipo === "base" ? rowMap.get(norm(baseName)) : undefined) ||
-      (baseNormalizedSet.has(norm(baseName)) ? rowMap.get(norm(baseName)) : undefined);
+      (baseNormalizedSet.has(norm(baseName)) ? rowMap.get(norm(baseName)) : undefined) ||
+      rowMap.get(norm(baseName));
     const fb = BENCHMARK_BASES_1533[baseName] || {};
     return extractEfetivoValues(raw, baseName, "base", fb, mode);
   });
@@ -360,12 +379,12 @@ export function buildEfetivoMapasData(
       r.tipo === "base" ||
       norm(r.mun).includes("km 53") ||
       norm(r.mun) === "posto km 53" ||
-      baseNormalizedSet.has(norm(r.mun));
+      allBasesNorm.has(norm(r.mun));
     if (isBase) continue;
     const can = canonicalMunicipio(r.mun);
     if (isNonMunicipioTroop(can)) continue;
     const n = norm(can);
-    if (!baseNormalizedSet.has(n) && !muniNames.some((m) => norm(m) === n)) {
+    if (!allBasesNorm.has(n) && !muniNames.some((m) => norm(m) === n)) {
       muniNames.push(can);
     }
   }
@@ -373,7 +392,7 @@ export function buildEfetivoMapasData(
   const municipios: EfetivoMapasItem[] = muniNames.map((muniName) => {
     const raw =
       rowMap.get(`muni:${norm(muniName)}`) ||
-      (rowMap.get(norm(muniName))?.tipo !== "base" && !baseNormalizedSet.has(norm(muniName))
+      (rowMap.get(norm(muniName))?.tipo !== "base" && !allBasesNorm.has(norm(muniName))
         ? rowMap.get(norm(muniName))
         : undefined);
     const tipo = isManaus(muniName) ? "capital" : "interior";

@@ -49,6 +49,7 @@ import { getLatestReportDate } from "@/lib/daily-reports.functions";
 import { EMPTY_SHEETS_DATA, type SheetsData, type EfetivoRow } from "@/lib/sheets.types";
 import { fmtDateBR } from "@/lib/report-date";
 import { canonicalMunicipio, isNonMunicipioTroop, isManaus } from "@/lib/municipio-order";
+import { AddMunicipioDialog } from "@/components/dashboard/AddMunicipioDialog";
 import {
   buildEfetivoMapasData,
   exportEfetivoMapasXlsx,
@@ -285,6 +286,109 @@ function EfetivoPage() {
     setIsEditing(false);
     toast.info("Edições descartadas.");
   }, []);
+
+  const existingMunicipios = useMemo(() => {
+    return (rawData.efetivo || []).map((r) => r.mun).filter(Boolean);
+  }, [rawData.efetivo]);
+
+  const handleAddMunicipio = useCallback(
+    async (name: string, tipo: "interior" | "base" = "interior") => {
+      const canonicalName = canonicalMunicipio(name);
+      const isBase = tipo === "base";
+
+      const appendRow = <T extends { mun?: string; municipio?: string; tipo?: string }>(
+        list: T[],
+        newRow: T,
+      ) => {
+        const normTarget = canonicalName.toLowerCase();
+        if (
+          list.some(
+            (r) =>
+              canonicalMunicipio(r.mun ?? r.municipio).toLowerCase() === normTarget &&
+              (r.tipo === tipo || (!r.tipo && tipo === "interior")),
+          )
+        ) {
+          return list;
+        }
+        return [...list, { ...newRow, mun: canonicalName, tipo }];
+      };
+
+      const updatedEfetivo = appendRow(rawData.efetivo ?? [], {
+        mun: canonicalName,
+        tipo,
+        cbmam: 0,
+        serv_ord: 0,
+        ord: 0,
+        servico: 0,
+        opamv: 0,
+        opam_ref: 0,
+        inc1: 0,
+        inc2: 0,
+        inc3: 0,
+        cbmsp: 0,
+        prevfogo: 0,
+        fn: 0,
+        marinha: 0,
+        seg: 0,
+        brig_mun: 0,
+        brig_semas: 0,
+        total: 0,
+        _custom: true,
+      });
+
+      const updatedRecursos = appendRow(rawData.recursos ?? [], {
+        mun: canonicalName,
+        tipo,
+        abt: 0,
+        at: 0,
+        aem: 0,
+        atp: 0,
+        ata: 0,
+        abf: 0,
+        atf: 0,
+        abs: 0,
+        abtf: 0,
+        pipa: 0,
+        dosa: 0,
+        crs: 0,
+        ar: 0,
+        ur: 0,
+        gse: 0,
+        mt: 0,
+        ta: 0,
+        quadriciclo: 0,
+        embarcacao: 0,
+        picape_fn: 0,
+        picape_muni: 0,
+        autoarp: 0,
+        helicoptero: 0,
+        aviao: 0,
+        jetski: 0,
+        total: 0,
+      });
+
+      const updatedIncendios = appendRow(rawData.incendios_diario ?? [], {
+        mun: canonicalName,
+        tipo,
+        urb: 0,
+        flor: 0,
+        focos: 0,
+        total_periodo: 0,
+      });
+
+      await savers.batch({
+        efetivo: updatedEfetivo,
+        recursos: updatedRecursos,
+        incendios_diario: updatedIncendios,
+      });
+
+      toast.success(
+        `${isBase ? "Base Temporária" : "Município"} ${canonicalName} inserido no relatório!`,
+      );
+      await refresh();
+    },
+    [rawData, savers, refresh],
+  );
 
   const handleExportEfetivoDiario = useCallback(async () => {
     try {
@@ -559,6 +663,12 @@ function EfetivoPage() {
                   >
                     <RefreshCw className="w-4 h-4 text-muted-foreground" />
                   </Button>
+
+                  {/* Inserir Município / Base */}
+                  <AddMunicipioDialog
+                    existingMunicipios={existingMunicipios}
+                    onAddMunicipio={handleAddMunicipio}
+                  />
 
                   {/* Menu Gerar Relatório com Múltiplas Opções */}
                   <DropdownMenu>

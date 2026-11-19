@@ -29,6 +29,7 @@ const SAVABLE_LIST_KEYS: SavableListKey[] = [
 export type SectionSavers = Record<SavableListKey, SectionSaver> & {
   custom_columns: (colsMap: Record<string, any>) => Promise<void>;
   header: (h: SheetsHeader) => Promise<void>;
+  batch: (patch: Partial<SheetsData>) => Promise<void>;
 };
 
 function toDateIso(d?: Date | null): string | undefined {
@@ -130,6 +131,10 @@ export function useSheetsDashboard(reportDate?: Date | null, endDate?: Date | nu
       custom_columns: async (colsMap) => {
         assertEditable();
         await saveMutation.mutateAsync({ custom_columns: colsMap } as any);
+      },
+      batch: async (patch: Partial<SheetsData>) => {
+        assertEditable();
+        await saveMutation.mutateAsync(patch);
       },
     };
   }, [canEdit, saveMutation]);

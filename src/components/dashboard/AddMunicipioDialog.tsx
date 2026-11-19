@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, MapPin, Building2, Check } from "lucide-react";
+import { Plus, MapPin, Building2, Tent, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { canonicalMunicipio } from "@/lib/municipio-order";
+import { cn } from "@/lib/utils";
 
 const AMAZONAS_MUNICIPIOS = [
   "Manaus",
@@ -87,12 +88,13 @@ const AMAZONAS_MUNICIPIOS = [
 
 interface Props {
   existingMunicipios: string[];
-  onAddMunicipio: (name: string) => Promise<void> | void;
+  onAddMunicipio: (name: string, tipo: "interior" | "base") => Promise<void> | void;
   disabled?: boolean;
 }
 
 export function AddMunicipioDialog({ existingMunicipios, onAddMunicipio, disabled }: Props) {
   const [open, setOpen] = useState(false);
+  const [tipo, setTipo] = useState<"interior" | "base">("interior");
   const [selectedMun, setSelectedMun] = useState<string>("");
   const [customMun, setCustomMun] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -108,9 +110,10 @@ export function AddMunicipioDialog({ existingMunicipios, onAddMunicipio, disable
     const finalName = canonicalMunicipio(raw);
     setIsSubmitting(true);
     try {
-      await onAddMunicipio(finalName);
+      await onAddMunicipio(finalName, tipo);
       setSelectedMun("");
       setCustomMun("");
+      setTipo("interior");
       setOpen(false);
     } finally {
       setIsSubmitting(false);
@@ -127,21 +130,67 @@ export function AddMunicipioDialog({ existingMunicipios, onAddMunicipio, disable
           className="h-11 sm:h-10 border-primary/30 hover:border-primary bg-background/80 hover:bg-primary/5 text-foreground gap-2 font-bold px-4 hover-lift"
         >
           <Plus className="w-4 h-4 text-primary shrink-0" />
-          <span className="text-sm">Inserir Município</span>
+          <span className="text-sm">Inserir Município / Base</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl font-bold text-foreground">
             <MapPin className="w-5 h-5 text-primary" />
-            Inserir Município no Relatório
+            Inserir no Relatório
           </DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
-            Selecione um município do Amazonas ou digite o nome para incluí-lo nas tabelas do relatório ativo.
+            Escolha se é um <strong>Município Comum</strong> ou <strong>Base Temporária</strong> e selecione ou digite o nome.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-3">
+          {/* Seletor de Tipo: Município Comum vs Base Temporária */}
+          <div className="space-y-2">
+            <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">
+              Classificação Operacional
+            </Label>
+            <div className="grid grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => setTipo("interior")}
+                className={cn(
+                  "p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col gap-1.5",
+                  tipo === "interior"
+                    ? "border-emerald-600 bg-emerald-500/10 text-emerald-950 dark:text-emerald-100 ring-2 ring-emerald-600/30 shadow-sm"
+                    : "border-border hover:border-muted-foreground/30 bg-muted/30 text-muted-foreground",
+                )}
+              >
+                <div className="flex items-center gap-2 font-bold text-xs">
+                  <Building2 className={cn("w-4 h-4", tipo === "interior" ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")} />
+                  <span>Município Comum</span>
+                </div>
+                <span className="text-[11px] leading-tight text-muted-foreground">
+                  Pelotão ou posto polo no interior
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTipo("base")}
+                className={cn(
+                  "p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col gap-1.5",
+                  tipo === "base"
+                    ? "border-orange-600 bg-orange-500/10 text-orange-950 dark:text-orange-100 ring-2 ring-orange-600/30 shadow-sm"
+                    : "border-border hover:border-muted-foreground/30 bg-muted/30 text-muted-foreground",
+                )}
+              >
+                <div className="flex items-center gap-2 font-bold text-xs">
+                  <Tent className={cn("w-4 h-4", tipo === "base" ? "text-orange-600 dark:text-orange-400" : "text-muted-foreground")} />
+                  <span>Base Temporária</span>
+                </div>
+                <span className="text-[11px] leading-tight text-muted-foreground">
+                  Base avançada / posto de combate florestal
+                </span>
+              </button>
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">
               Selecione da Lista do Amazonas
@@ -187,10 +236,10 @@ export function AddMunicipioDialog({ existingMunicipios, onAddMunicipio, disable
 
           <div className="space-y-2">
             <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">
-              Nome do Município ou Setor
+              Nome da Localidade ou Base
             </Label>
             <Input
-              placeholder="Ex: Novo Aripuanã, Base Humaitá..."
+              placeholder={tipo === "base" ? "Ex: Base Barreirinha, Posto Km 53..." : "Ex: Barreirinha, Carauari..."}
               value={customMun}
               onChange={(e) => {
                 setCustomMun(e.target.value);
@@ -217,7 +266,7 @@ export function AddMunicipioDialog({ existingMunicipios, onAddMunicipio, disable
             className="bg-primary text-primary-foreground font-bold gap-2 px-5"
           >
             <Check className="w-4 h-4" />
-            {isSubmitting ? "Inserindo..." : "Inserir no Relatório"}
+            {isSubmitting ? "Inserindo..." : `Inserir como ${tipo === "base" ? "Base" : "Município"}`}
           </Button>
         </DialogFooter>
       </DialogContent>

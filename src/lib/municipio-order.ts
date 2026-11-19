@@ -355,10 +355,26 @@ export function harmonizeMunicipalitySections<
     if (r.mun !== "—") munSet.add(canonicalMunicipio(r.mun));
   }
   for (const r of recursos ?? []) {
-    if (r?.mun && r.mun !== "—" && !isNonMunicipioTroop(r.mun)) munSet.add(canonicalMunicipio(r.mun));
+    if (!r?.mun || isNonMunicipioTroop(r.mun) || r.mun === "—") continue;
+    const isBase = (r as any).tipo === "base" || isKm53(r.mun);
+    if (isBase && !isKm53(r.mun)) {
+      if (!baseEfetivoRows.some((b) => canonicalMunicipio(b.mun).toLowerCase() === canonicalMunicipio(r.mun).toLowerCase())) {
+        baseEfetivoRows.push({ ...defaultEfetivo(r.mun), mun: canonicalMunicipio(r.mun), tipo: "base" } as E);
+      }
+      continue;
+    }
+    munSet.add(canonicalMunicipio(r.mun));
   }
   for (const r of incendios ?? []) {
-    if (r?.mun && r.mun !== "—" && !isNonMunicipioTroop(r.mun)) munSet.add(canonicalMunicipio(r.mun));
+    if (!r?.mun || isNonMunicipioTroop(r.mun) || r.mun === "—") continue;
+    const isBase = (r as any).tipo === "base" || isKm53(r.mun);
+    if (isBase && !isKm53(r.mun)) {
+      if (!baseEfetivoRows.some((b) => canonicalMunicipio(b.mun).toLowerCase() === canonicalMunicipio(r.mun).toLowerCase())) {
+        baseEfetivoRows.push({ ...defaultEfetivo(r.mun), mun: canonicalMunicipio(r.mun), tipo: "base" } as E);
+      }
+      continue;
+    }
+    munSet.add(canonicalMunicipio(r.mun));
   }
 
   // Ordena a lista unificada com Manaus em primeiro lugar e os demais em ordem alfabética
@@ -399,9 +415,23 @@ export function harmonizeMunicipalitySections<
     return existing ? { ...defaultIncendios(mun), ...existing, mun } : defaultIncendios(mun);
   });
 
+  const baseRecursosRows: R[] = baseEfetivoRows.map((b) => {
+    const existing = recMap.get(canonicalMunicipio(b.mun).toLowerCase());
+    return existing
+      ? { ...defaultRecursos(b.mun), ...existing, mun: b.mun, tipo: "base" }
+      : { ...defaultRecursos(b.mun), mun: b.mun, tipo: "base" };
+  });
+
+  const baseIncendiosRows: I[] = baseEfetivoRows.map((b) => {
+    const existing = incMap.get(canonicalMunicipio(b.mun).toLowerCase());
+    return existing
+      ? { ...defaultIncendios(b.mun), ...existing, mun: b.mun, tipo: "base" }
+      : { ...defaultIncendios(b.mun), mun: b.mun, tipo: "base" };
+  });
+
   return {
     efetivo: [...outEfetivo, ...baseEfetivoRows],
-    recursos: outRecursos,
-    incendios: outIncendios,
+    recursos: [...outRecursos, ...baseRecursosRows],
+    incendios: [...outIncendios, ...baseIncendiosRows],
   };
 }

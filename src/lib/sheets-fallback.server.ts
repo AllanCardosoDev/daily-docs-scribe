@@ -87,6 +87,7 @@ export function createDefaultRecursosRow(
   initial: Record<string, any> = {},
 ): { mun: string } & Record<string, any> {
   const row: Record<string, any> = { mun };
+  if (initial.tipo) row.tipo = initial.tipo;
   for (const k of RECURSOS_COLUMNS_KEYS) {
     row[k] = num(initial[k]);
   }
@@ -102,6 +103,7 @@ function normaliseRecursos(
     .filter((r) => !isNonMunicipioTroop(r.mun ?? r.municipio ?? r.MUN ?? r.Municipio))
     .map((r) => {
     const rawOut: Record<string, any> = {};
+    if (r.tipo) rawOut.tipo = r.tipo;
     for (const [k, v] of Object.entries(r)) {
       const key = canonKey(k);
       // "viaturas"/"aeronaves"/"embarcacoes" são somatórios da planilha — o

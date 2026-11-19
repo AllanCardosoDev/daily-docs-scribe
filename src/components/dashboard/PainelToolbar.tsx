@@ -41,7 +41,7 @@ interface Props {
   onExportCompletoAmvPdf?: () => void;
   onExportEfetivoMapas?: () => void;
   existingMunicipios?: string[];
-  onAddMunicipio?: (name: string) => Promise<void> | void;
+  onAddMunicipio?: (name: string, tipo: "interior" | "base") => Promise<void> | void;
   onAddOutroEfetivo?: (name: string, ord?: number, seg?: number, brig?: number) => Promise<void> | void;
   shift?: ReportShift;
   onShiftChange?: (s: ReportShift) => void;
